@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "scope": "four actual functional probes, not percentile samples",
+  "results": [
+    {
+      "workload": "ascii-long-line-10MiB.tedoc",
+      "nativeBytes": 10486480,
+      "uploadSeconds": 0.15508369985036552,
+      "commitWithValidationSeconds": 0.5754148000851274,
+      "reopenedSha256Matches": true
+    },
+    {
+      "workload": "million-lines.tedoc",
+      "nativeBytes": 10000715,
+      "uploadSeconds": 0.14451520005241036,
+      "commitWithValidationSeconds": 0.3916460000909865,
+      "reopenedSha256Matches": true
+    },
+    {
+      "workload": "unicode-near-10MiB.tedoc",
+      "nativeBytes": 10486484,
+      "uploadSeconds": 0.11430860008113086,
+      "commitWithValidationSeconds": 0.5095092998817563,
+      "reopenedSha256Matches": true
+    },
+    {
+      "workload": "dense-10MiB.tedoc",
+      "nativeBytes": 14418639,
+      "uploadSeconds": 0.18103249999694526,
+      "commitWithValidationSeconds": 0.4735578999388963,
+      "reopenedSha256Matches": true
+    }
+  ]
+}

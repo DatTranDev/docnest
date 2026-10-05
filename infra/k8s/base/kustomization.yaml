@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: editor-lab
+resources:
+  - namespace.yaml
+  - config.yaml
+  - identity-service.yaml
+  - document-service.yaml
+  - processing-service.yaml
+  - web.yaml
+  - mysql.yaml
+  - kafka.yaml
+  - redis.yaml
+  - network.yaml
+configMapGenerator:
+  - name: mysql-init
+    files:
+      - mysql-init.sh
+  - name: kafka-auth
+    files:
+      - kafka-start.sh
+      - kafka-init-acls.sh
+generatorOptions:
+  disableNameSuffixHash: true

@@ -1,0 +1,8 @@
+# Only opt in for host-run service development/integration tests.
+services:
+  mysql:
+    ports: ['127.0.0.1:3306:3306']
+  kafka:
+    ports: ['127.0.0.1:19092:19092']
+  redis:
+    ports: ['127.0.0.1:6379:6379']

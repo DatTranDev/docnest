@@ -1,0 +1,134 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "JobCompleted"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "processing-service"
+    },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "documentId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "type": {
+          "enum": ["PREVIEW", "EXPORT_TXT", "EXPORT_HTML"]
+        },
+        "state": {
+          "enum": ["SUCCEEDED", "FAILED", "CANCELLED"]
+        },
+        "requestedByUserId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "outputRef": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "provider": {
+                  "enum": ["LOCAL", "GCS"]
+                },
+                "bucket": {
+                  "type": ["string", "null"],
+                  "maxLength": 128
+                },
+                "key": {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                "generation": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$",
+                  "maxLength": 32
+                }
+              },
+              "required": ["provider", "bucket", "key", "generation"]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "wordCount": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "sampleText": {
+                  "type": "string",
+                  "maxLength": 2000
+                }
+              },
+              "required": ["wordCount", "sampleText"]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "errorCode": {
+          "type": ["string", "null"],
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "jobId",
+        "documentId",
+        "revision",
+        "type",
+        "state",
+        "requestedByUserId",
+        "outputRef",
+        "summary",
+        "errorCode"
+      ]
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "schemaVersion",
+    "occurredAt",
+    "producer",
+    "traceId",
+    "payload"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://text-editor.example/contracts/events/processing.job.completed.v1.schema.json"
+}

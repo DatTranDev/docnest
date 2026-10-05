@@ -1,0 +1,31 @@
+# Apply only after cloud deployment is authorized. Secret .env stays on VM outside Git.
+services:
+  identity-service:
+    image: ${IDENTITY_IMAGE:?Use Artifact Registry image digest}
+    environment:
+      SPRING_PROFILES_ACTIVE: cloud
+      FLYWAY_ENABLED: 'false'
+      SECURE_COOKIES: 'true'
+      JWT_ALLOW_KEY_GENERATION: 'false'
+      JWT_KEY_PATH: /data/keys/identity-key.pem
+  document-service:
+    image: ${DOCUMENT_IMAGE:?Use Artifact Registry image digest}
+    environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false', STORAGE_PROVIDER: GCS }
+  processing-service:
+    image: ${PROCESSING_IMAGE:?Use Artifact Registry image digest}
+    environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false', STORAGE_PROVIDER: GCS }
+  web:
+    image: ${WEB_IMAGE:?Use Artifact Registry image digest}
+    environment:
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+  https:
+    profiles: [app]
+    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    ports: ['80:80', '443:443']
+    volumes:
+      ['../gcp/Caddyfile:/etc/caddy/Caddyfile:ro', 'caddy-data:/data', 'caddy-config:/config']
+    depends_on: [web]
+    restart: unless-stopped
+volumes:
+  caddy-data:
+  caddy-config:

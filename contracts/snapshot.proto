@@ -1,0 +1,32 @@
+syntax = "proto3";
+package editor.snapshot.v1;
+option java_package = "vn.editor.contracts.snapshot.v1";
+option java_multiple_files = true;
+
+// P16 optional. Actor JWT in authorization metadata; service identity separately
+// authenticated via private caller credential/mTLS. Never trust an actor_user_id
+// field from the caller. Deadline 2s; no native bytes cross this RPC.
+service SnapshotAuthorization {
+  rpc GetAuthorizedSnapshot(GetAuthorizedSnapshotRequest) returns (AuthorizedSnapshot);
+}
+message GetAuthorizedSnapshotRequest {
+  string document_id = 1;
+  uint64 revision = 2;
+}
+message AuthorizedSnapshot {
+  string document_id = 1;
+  string version_id = 2;
+  uint64 revision = 3;
+  ObjectReference object_ref = 4;
+  string native_sha256 = 5;
+  uint32 native_bytes = 6;
+  uint32 text_utf8_bytes = 7;
+  uint32 utf16_length = 8;
+  uint32 logical_lines = 9;
+}
+message ObjectReference {
+  string provider = 1; // LOCAL or GCS
+  string bucket = 2;   // empty in LOCAL
+  string key = 3;
+  string generation = 4;
+}

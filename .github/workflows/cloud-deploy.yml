@@ -1,0 +1,106 @@
+name: Deploy reviewed GKE digests (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      image_digests:
+        description: Four-image JSON from the tested cloud-images artifact
+        type: string
+        required: true
+      backup_reference:
+        description: Reviewed encrypted backup reference taken before this rollout
+        type: string
+        required: true
+permissions: { contents: read, id-token: write }
+concurrency: { group: cloud-lab-deployment, cancel-in-progress: false }
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment: cloud-lab
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT }}
+      REGION: ${{ vars.GCP_REGION }}
+      ZONE: ${{ vars.GCP_ZONE }}
+      CLUSTER: ${{ vars.GKE_CLUSTER }}
+      ORIGIN: ${{ vars.WEB_ORIGIN }}
+      SNAPSHOTS: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
+      RESULTS: ${{ vars.GCS_RESULTS_BUCKET }}
+      TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
+      DIGEST_JSON: ${{ inputs.image_digests }}
+      BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '24.11.1' }
+      - name: Validate operator input and prepare manifest
+        run: |
+          set -euo pipefail
+          python -m pip install -r checks/requirements-implementation.txt
+          python - <<'PY'
+          import os, pathlib
+          for key in ('PROJECT','REGION','ZONE','CLUSTER','ORIGIN','SNAPSHOTS','RESULTS','BACKUP_REFERENCE'):
+              if not os.environ.get(key): raise SystemExit('Missing configuration: '+key)
+          pathlib.Path('reviewed-digests.json').write_text(os.environ['DIGEST_JSON'])
+          PY
+          python scripts/digest_manifest.py --project "$PROJECT" --region "$REGION" --input reviewed-digests.json --output digests.json
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        with: { install_components: gke-gcloud-auth-plugin }
+      - name: Render, server validate, migrate, and deploy by digest
+        run: |
+          set -euo pipefail
+          gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE" --project "$PROJECT"
+          python scripts/render_cloud.py --project "$PROJECT" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --output cloud-render
+          # Use the same validation as the runtime before preserving reviewed TLS
+          # proxy trust in this rollout. An omitted variable keeps the safe default.
+          node --input-type=module - <<'JS'
+          import { loadConfig } from './apps/web/server/gateway.mjs';
+          loadConfig(process.env);
+          JS
+          python - <<'PY'
+          import os, pathlib, yaml
+          target=pathlib.Path('cloud-render/applications.yaml')
+          objects=list(yaml.safe_load_all(target.read_text()))
+          for obj in objects:
+              if obj['kind']=='Deployment' and obj['metadata']['name']=='web':
+                  env=obj['spec']['template']['spec']['containers'][0]['env']
+                  next(item for item in env if item['name']=='TRUSTED_PROXY_CIDRS')['value']=os.environ['TRUSTED_PROXY_CIDRS']
+          target.write_text(yaml.safe_dump_all(objects,sort_keys=False))
+          PY
+          # Existing bootstrap, secrets, IAM, SQL and Kafka are operator prerequisites.
+          # Capture previous deployment images without reading Kubernetes secrets.
+          mkdir -p deployment-evidence
+          for service in identity-service document-service processing-service web; do
+            kubectl -n editor-lab get deployment "$service" -o jsonpath='{.metadata.name}{" "}{.spec.template.spec.containers[0].image}{"\n"}' >> deployment-evidence/previous-digests.txt
+          done
+          cp digests.json deployment-evidence/reviewed-digests.json
+          # Validate new Jobs under temporary names: existing Job templates are immutable.
+          python - <<'PY'
+          import pathlib, yaml
+          jobs=list(yaml.safe_load_all(pathlib.Path('cloud-render/migrations.yaml').read_text()))
+          for job in jobs: job['metadata']['name']+='-validation'
+          pathlib.Path('cloud-render/migration-validation.yaml').write_text(yaml.safe_dump_all(jobs))
+          PY
+          kubectl create --dry-run=server -f cloud-render/migration-validation.yaml
+          kubectl apply --dry-run=server -f cloud-render/applications.yaml
+          python - <<'PY'
+          import json, subprocess
+          for name in ('identity-service','document-service','processing-service'):
+              r=subprocess.run(['kubectl','-n','editor-lab','get','job','migrate-'+name,'--ignore-not-found','-o','json'],check=True,capture_output=True,text=True)
+              if r.stdout and json.loads(r.stdout).get('status',{}).get('active',0): raise SystemExit('A migration Job is still active; inspect it before retrying')
+          PY
+          kubectl -n editor-lab delete job migrate-identity-service migrate-document-service migrate-processing-service --ignore-not-found
+          kubectl apply -f cloud-render/migrations.yaml
+          kubectl -n editor-lab wait --for=condition=complete --timeout=300s job/migrate-identity-service job/migrate-document-service job/migrate-processing-service
+          kubectl apply -f cloud-render/applications.yaml
+          for service in identity-service document-service processing-service web; do
+            kubectl -n editor-lab rollout status deployment/"$service" --timeout=300s
+          done
+          curl --fail --silent --show-error "$ORIGIN/healthz" > deployment-evidence/public-health.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with: { name: deployment-evidence, path: deployment-evidence/ }

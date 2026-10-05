@@ -1,0 +1,29 @@
+# Apply once as cluster operator; replace YOUR_PROJECT. This is not part of the application base.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: editor-deployer, namespace: editor-lab }
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames: [identity-service, document-service, processing-service, web]
+    verbs: [get, watch, patch, update]
+  - apiGroups: [apps]
+    resources: [replicasets]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    resourceNames: [migrate-identity-service, migrate-document-service, migrate-processing-service]
+    verbs: [get, list, watch, patch, update, delete]
+  # Kubernetes RBAC cannot restrict create by resourceNames. Only the protected workflow uses this grant.
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: editor-deployer, namespace: editor-lab }
+subjects:
+  - kind: User
+    name: editor-deploy@YOUR_PROJECT.iam.gserviceaccount.com
+    apiGroup: rbac.authorization.k8s.io
+roleRef: { kind: Role, name: editor-deployer, apiGroup: rbac.authorization.k8s.io }

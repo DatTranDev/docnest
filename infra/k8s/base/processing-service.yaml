@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: processing-service
+  labels:
+    app: processing-service
+    application: text-editor
+  annotations:
+    iam.gke.io/gcp-service-account: editor-processing@YOUR_PROJECT.iam.gserviceaccount.com
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: processing-service
+  labels:
+    app: processing-service
+    application: text-editor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: processing-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: processing-service
+        application: text-editor
+    spec:
+      serviceAccountName: processing-service
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: processing-service
+          image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/processing-service:REPLACE_WITH_DIGEST
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            periodSeconds: 15
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: /data
+          envFrom:
+            - configMapRef:
+                name: editor-config
+          env:
+            - name: PROCESSING_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: PROCESSING_DB_PASSWORD
+            - name: DOCUMENT_INTERNAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: DOCUMENT_INTERNAL_KEY
+            - name: PROCESSING_INTERNAL_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: PROCESSING_INTERNAL_KEY
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_PLAINTEXT
+            - name: KAFKA_USERNAME
+              value: processing
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_PROCESSING_PASSWORD
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: processing-service
+  labels:
+    app: processing-service
+    application: text-editor
+spec:
+  selector:
+    app: processing-service
+  ports:
+    - port: 8080
+      targetPort: 8080

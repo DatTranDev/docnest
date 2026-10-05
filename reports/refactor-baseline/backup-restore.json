@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "scope": "task-created synthetic local lab only",
+  "databasesRestored": 3,
+  "originalCountsRestored": true,
+  "postBackupMarkerRemoved": true,
+  "immutableNativeHashPreserved": true,
+  "signingKeyPreserved": true,
+  "sqlBackupBytes": 228204,
+  "objectsCopied": true,
+  "cloudRestore": "NOT_RUN"
+}

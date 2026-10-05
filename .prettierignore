@@ -1,0 +1,15 @@
+.tools/
+.terraform/
+node_modules/
+**/node_modules/
+**/.next/
+**/target/
+**/dist/
+**/playwright-report/
+**/test-results/
+fixtures/
+reports/
+KIT_VALIDATION_REPORT.json
+package-lock.json
+**/next-env.d.ts
+**/public/benchmarks/

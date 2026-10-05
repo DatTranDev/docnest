@@ -1,0 +1,20 @@
+package vn.editor.document.folders.application.query;
+
+import vn.editor.document.folders.application.port.FolderReadPort;
+import vn.editor.document.shared.application.Page;
+
+public final class FolderQueryHandler {
+  private final FolderReadPort folders;
+
+  public FolderQueryHandler(FolderReadPort folders) {
+    this.folders = folders;
+  }
+
+  public FolderView handle(GetFolderQuery query) {
+    return folders.get(query);
+  }
+
+  public Page<FolderView> handle(ListFoldersQuery query) {
+    return folders.list(query);
+  }
+}

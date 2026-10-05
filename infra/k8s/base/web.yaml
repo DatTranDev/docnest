@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: web
+  labels:
+    app: web
+    application: text-editor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+    application: text-editor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: web
+        application: text-editor
+    spec:
+      serviceAccountName: web
+      securityContext:
+        fsGroup: 1000
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: web
+          image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/web:REPLACE_WITH_DIGEST
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=256
+            - name: PORT
+              value: '8080'
+            - name: NEXT_INTERNAL_PORT
+              value: '3000'
+            - name: IDENTITY_INTERNAL_ORIGIN
+              value: http://identity-service:8080
+            - name: DOCUMENT_INTERNAL_ORIGIN
+              value: http://document-service:8080
+            - name: PROCESSING_INTERNAL_ORIGIN
+              value: http://processing-service:8080
+            - name: TRUSTED_PROXY_CIDRS
+              value: ''
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            failureThreshold: 60
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 15
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
+  labels:
+    app: web
+    application: text-editor
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 8080
+      targetPort: 8080

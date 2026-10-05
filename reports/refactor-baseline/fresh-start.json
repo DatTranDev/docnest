@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "scope": "isolated local fresh volumes/DBs using documented startup; no cloud",
+  "checks": [
+    "documented startup builds and seven containers become healthy",
+    "two accounts register/login on initially empty Identity DB",
+    "folder created and private across users",
+    "formatted native upload/save/reopen is byte exact with new signing key/storage",
+    "sharing reaches second user on fresh DBs"
+  ],
+  "startupAndProbeSeconds": 114.93471249984577,
+  "isolatedProjectCleanupPassed": true
+}

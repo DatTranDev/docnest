@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://YOUR_DOMAIN"],
+    "method": ["PUT", "GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Length", "Content-Range", "Range", "ETag"],
+    "maxAgeSeconds": 3600
+  }
+]

@@ -1,0 +1,76 @@
+server:
+  port: ${PORT:8080}
+  forward-headers-strategy: native
+spring:
+  application:
+    name: document-service
+  datasource:
+    url: ${DOCUMENT_DB_URL:${DATABASE_URL:jdbc:mysql://localhost:3306/document_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}}
+    username: ${DOCUMENT_DB_USER:document}
+    password: ${DOCUMENT_DB_PASSWORD:local-document-password}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:document}" password="${KAFKA_PASSWORD:}";'
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+    consumer:
+      group-id: document-preview-projection-v1
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.partition.fetch.bytes: 65536
+    listener:
+      ack-mode: manual_immediate
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 300ms
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+editor:
+  public-base-url: ${PUBLIC_BASE_URL:http://localhost:8080}
+  identity-base-url: ${IDENTITY_BASE_URL:http://localhost:8081}
+  web-origin: ${WEB_ORIGIN:http://localhost:8080}
+  document-internal-key: ${DOCUMENT_INTERNAL_KEY:local-document-key-change-me}
+  jwt:
+    issuer: ${JWT_ISSUER:http://identity-service:8080}
+    jwk-uri: ${JWT_JWK_URI:http://localhost:8081/.well-known/jwks.json}
+  storage:
+    provider: ${STORAGE_PROVIDER:LOCAL}
+    root: ${STORAGE_ROOT:./data/objects}
+    bucket: ${GCS_SNAPSHOTS_BUCKET:${SNAPSHOTS_BUCKET:}}
+  quotas:
+    documents: ${MAX_DOCUMENTS:100}
+    folders: ${MAX_FOLDERS:100}
+
+logging:
+  structured:
+    format:
+      console: logstash

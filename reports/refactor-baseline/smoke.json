@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "elapsedSeconds": 33.22,
+  "checks": [
+    "Registration, login, CSRF, JWT/me and refresh rotation with two real users",
+    "Private folders, case-insensitive duplicate names, nonempty deletion and empty head0",
+    "Native text/styles save/reopen byte-exact, same-key retry and different-body rejection",
+    "Invalid native upload rejected without advancing cloud head",
+    "VIEWER/EDITOR authorization, concurrent conflict and revocation between upload/commit",
+    "Anonymous read-only native viewer and revoked/invalid404 with no owner/folder disclosure",
+    "Real Kafka-dispatched background TXT/HTML exports, authorized result streaming",
+    "Save commits successfully with Kafka stopped and durable outbox queued",
+    "Preview resumes through Kafka outbox/inbox after broker returns",
+    "Trash detaches document and restoration falls back to root after folder deletion",
+    "Service restart preserves database/native objects/JWT key/refresh and logout revokes family"
+  ],
+  "scope": "real HTTP against Compose MySQL/Kafka/Redis/local storage with schema validation"
+}

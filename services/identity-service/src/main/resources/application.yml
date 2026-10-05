@@ -1,0 +1,51 @@
+server:
+  port: ${PORT:8081}
+  forward-headers-strategy: native
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: identity-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      connect-timeout: 500ms
+      timeout: 500ms
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  datasource:
+    url: ${IDENTITY_DB_URL:jdbc:mysql://localhost:3306/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${IDENTITY_DB_USER:identity}
+    password: ${IDENTITY_DB_PASSWORD:}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db
+      probes:
+        enabled: true
+editor:
+  jwt:
+    issuer: ${JWT_ISSUER:http://localhost:8080}
+    key-path: ${JWT_KEY_PATH:./data/identity-key.pem}
+    allow-key-generation: ${JWT_ALLOW_KEY_GENERATION:false}
+  auth:
+    secure-cookies: ${SECURE_COOKIES:true}
+    origins: ${ALLOWED_ORIGINS:http://localhost:8080}
+    document-internal-key: ${DOCUMENT_INTERNAL_KEY:}
+    max-users: ${MAX_USERS:10}
+
+logging:
+  structured:
+    format:
+      console: logstash

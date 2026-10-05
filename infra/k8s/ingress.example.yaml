@@ -1,0 +1,47 @@
+# Optional paid public load balancer; change domain and add web ingress NetworkPolicy first.
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata: { name: editor-web, namespace: editor-lab }
+spec:
+  timeoutSec: 130
+  connectionDraining: { drainingTimeoutSec: 30 }
+  healthCheck: { type: HTTP, requestPath: /healthz, port: 8080 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: editor-lab
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
+    cloud.google.com/backend-config: '{"ports":{"8080":"editor-web"}}'
+spec:
+  selector: { app: web }
+  ports: [{ port: 8080, targetPort: 8080 }]
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata: { name: editor-tls, namespace: editor-lab }
+spec:
+  domains: [YOUR_DOMAIN]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: editor-public
+  namespace: editor-lab
+  annotations:
+    kubernetes.io/ingress.class: gce
+    networking.gke.io/managed-certificates: editor-tls
+    kubernetes.io/ingress.allow-http: 'false'
+spec:
+  defaultBackend: { service: { name: web, port: { number: 8080 } } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: ingress-to-web, namespace: editor-lab }
+spec:
+  podSelector: { matchLabels: { app: web } }
+  policyTypes: [Ingress]
+  ingress:
+    - ports: [{ port: 8080, protocol: TCP }]

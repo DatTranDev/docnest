@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: editor-config
+data:
+  PORT: '8080'
+  SPRING_PROFILES_ACTIVE: cloud
+  FLYWAY_ENABLED: 'false'
+  SPRING_FLYWAY_ENABLED: 'false'
+  MYSQL_HOST: mysql
+  IDENTITY_DB_URL: jdbc:mysql://mysql:3306/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+  IDENTITY_DB_USER: identity
+  DATABASE_URL: jdbc:mysql://mysql:3306/document_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+  DOCUMENT_DB_USER: document
+  PROCESSING_DB_URL: jdbc:mysql://mysql:3306/processing_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+  PROCESSING_DB_USER: processing
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  REDIS_HOST: redis
+  SPRING_DATA_REDIS_HOST: redis
+  JWT_ISSUER: https://YOUR_DOMAIN
+  JWT_AUDIENCE: editor-api
+  JWT_JWK_URI: http://identity-service:8080/.well-known/jwks.json
+  IDENTITY_BASE_URL: http://identity-service:8080
+  DOCUMENT_URL: http://document-service:8080
+  WEB_ORIGIN: https://YOUR_DOMAIN
+  ALLOWED_ORIGINS: https://YOUR_DOMAIN
+  PUBLIC_BASE_URL: https://YOUR_DOMAIN
+  STORAGE_PROVIDER: GCS
+  STORAGE_ROOT: /data/objects
+  SNAPSHOTS_BUCKET: YOUR_PRIVATE_SNAPSHOTS_BUCKET
+  GCS_BUCKET: YOUR_PRIVATE_RESULTS_BUCKET
+  JWT_KEY_PATH: /keys/identity-key.pem
+  JWT_ALLOW_KEY_GENERATION: 'false'
+  SECURE_COOKIES: 'true'
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -Dfile.encoding=UTF-8

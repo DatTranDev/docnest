@@ -1,0 +1,63 @@
+{
+  "java": "21.0.12.1",
+  "unicode": "17.0.0.0",
+  "warmup": 5,
+  "samples": 30,
+  "heapNote": "Sampled JVM heap is supplemental; not total process RAM or browser memory.",
+  "workloads": [
+    {
+      "file": "ascii-long-line-10MiB.tedoc",
+      "nativeBytes": 10486480,
+      "textUtf8Bytes": 10485760,
+      "utf16Length": 10485760,
+      "logicalLines": 1,
+      "p50Ms": 212.8042,
+      "p95Ms": 243.2022,
+      "p99Ms": 246.7509,
+      "sampledPeakHeapBytes": 232478448,
+      "validationP95Target3000ms": true
+    },
+    {
+      "file": "million-lines.tedoc",
+      "nativeBytes": 10000715,
+      "textUtf8Bytes": 9999991,
+      "utf16Length": 9999991,
+      "logicalLines": 1000000,
+      "p50Ms": 203.4154,
+      "p95Ms": 218.6385,
+      "p99Ms": 223.2699,
+      "sampledPeakHeapBytes": 213226720,
+      "validationP95Target3000ms": true
+    },
+    {
+      "file": "unicode-near-10MiB.tedoc",
+      "nativeBytes": 10486484,
+      "textUtf8Bytes": 10485760,
+      "utf16Length": 7864320,
+      "logicalLines": 524289,
+      "p50Ms": 216.2072,
+      "p95Ms": 242.5157,
+      "p99Ms": 303.8311,
+      "sampledPeakHeapBytes": 233502552,
+      "validationP95Target3000ms": true
+    },
+    {
+      "file": "dense-10MiB.tedoc",
+      "nativeBytes": 14418639,
+      "textUtf8Bytes": 10485760,
+      "utf16Length": 10485760,
+      "logicalLines": 1,
+      "p50Ms": 219.3588,
+      "p95Ms": 239.7447,
+      "p99Ms": 240.9243,
+      "sampledPeakHeapBytes": 232447616,
+      "validationP95Target3000ms": true
+    }
+  ],
+  "processMemory": {
+    "source": "Windows GetProcessMemoryInfo",
+    "peakResidentBytes": 400502784,
+    "samples": 1217,
+    "note": "Whole benchmark JVM RSS; not browser memory and no empty-app subtraction."
+  }
+}

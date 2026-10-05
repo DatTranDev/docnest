@@ -1,0 +1,16 @@
+{
+  "eventId": "44444444-4444-4444-8444-444444444444",
+  "eventType": "ConsumerDeadLetter",
+  "schemaVersion": 1,
+  "occurredAt": "2026-10-04T00:00:00Z",
+  "producer": "consumer-error-handler",
+  "traceId": "11111111111111111111111111111111",
+  "payload": {
+    "originalTopic": "document.version.saved.v1",
+    "partition": 0,
+    "offset": 1,
+    "originalKey": "11111111-1111-4111-8111-111111111111",
+    "originalPayloadBase64": "e30=",
+    "reason": "INVALID_EVENT_SCHEMA"
+  }
+}

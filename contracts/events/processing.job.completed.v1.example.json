@@ -1,0 +1,22 @@
+{
+  "eventId": "44444444-4444-4444-8444-444444444444",
+  "eventType": "JobCompleted",
+  "schemaVersion": 1,
+  "occurredAt": "2026-10-04T00:00:00Z",
+  "producer": "processing-service",
+  "traceId": "11111111111111111111111111111111",
+  "payload": {
+    "jobId": "44444444-4444-4444-8444-444444444444",
+    "documentId": "11111111-1111-4111-8111-111111111111",
+    "revision": 1,
+    "type": "PREVIEW",
+    "state": "SUCCEEDED",
+    "requestedByUserId": "33333333-3333-4333-8333-333333333333",
+    "outputRef": null,
+    "summary": {
+      "wordCount": 2,
+      "sampleText": "hello world"
+    },
+    "errorCode": null
+  }
+}

@@ -1,0 +1,9 @@
+spring:
+  flyway:
+    enabled: false
+editor:
+  jwt:
+    allow-key-generation: false
+    key-path: /run/secrets/identity-key.pem
+  auth:
+    secure-cookies: true

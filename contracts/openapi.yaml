@@ -1,0 +1,2417 @@
+openapi: 3.0.3
+info:
+  title: Text editor MVP API
+  version: 1.0.0
+  description: Identity, Document and Processing contracts; ownership, folder and
+    save semantics in docs.
+servers:
+  - url: http://localhost:8080
+    description: Local same-origin reverse proxy
+tags:
+  - name: Identity
+  - name: Document
+  - name: Processing
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/auth/csrf:
+    get:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: getCsrf
+      summary: Issue CSRF token and XSRF cookie
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      security: []
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: register
+      summary: Register an account
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: X-CSRF-TOKEN
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Obtain the token from GET /api/v1/auth/csrf.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: login
+      summary: Login and set HttpOnly refresh cookie
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: X-CSRF-TOKEN
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Obtain the token from GET /api/v1/auth/csrf.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: refreshToken
+      summary: Rotate refresh token and issue access token
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: X-CSRF-TOKEN
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Obtain the token from GET /api/v1/auth/csrf.
+      security:
+        - refreshCookie: []
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: logout
+      summary: Revoke refresh family and clear cookie
+      responses:
+        '204':
+          description: Success with no body.
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: X-CSRF-TOKEN
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Obtain the token from GET /api/v1/auth/csrf.
+      security:
+        - refreshCookie: []
+  /api/v1/auth/me:
+    get:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: getMe
+      summary: Current account
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+  /.well-known/jwks.json:
+    get:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: getJwks
+      summary: Public RS256 verification keys
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      security: []
+  /internal/v1/users/resolve:
+    post:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: resolveUser
+      summary: Resolve registered email for Document Service
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Not routed by public proxy. Valid service credential plus user
+        JWT; only Document caller allowed.
+      parameters:
+        - name: X-Internal-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveUserRequest'
+  /api/v1/folders:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: listFolders
+      summary: List immediate owned folder children
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FolderPage'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - &id002
+          name: parent
+          in: query
+          required: false
+          schema:
+            type: string
+            default: root
+            maxLength: 36
+          description: root or a UUID; null is not a query string literal.
+        - &id003
+          name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 2048
+        - &id004
+          name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: createFolder
+      summary: Create an owned folder
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFolderRequest'
+  /api/v1/folders/{folderId}:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: getFolder
+      summary: Read own folder metadata
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema: &id001
+            type: string
+            format: uuid
+    patch:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: patchFolder
+      summary: Rename or move folder with revision check
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description:
+        At least one of name,parentId is required in addition to expectedMetadataRevision.
+        Omitted parentId leaves unchanged; explicit null moves to root.
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchFolderRequest'
+    delete:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: deleteFolder
+      summary: Delete an empty owned folder
+      responses:
+        '204':
+          description: Success with no body.
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: folderId
+          in: path
+          required: true
+          schema: *id001
+        - name: expectedMetadataRevision
+          in: query
+          required: true
+          schema: &id005
+            type: integer
+            format: int64
+            minimum: 1
+            maximum: 9007199254740991
+  /api/v1/documents:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: listDocuments
+      summary: List owned/shared/trash documents
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPage'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: parent filters OWNED only; SHARED ignores folder scope and must
+        not disclose folderId (returns null). TRASH is owner only. Title search is
+        metadata search, not full text index.
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - OWNED
+              - SHARED
+              - TRASH
+            default: OWNED
+        - *id002
+        - name: titleQuery
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 200
+        - *id003
+        - *id004
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: createDocument
+      summary: Create empty head revision zero
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDocumentRequest'
+  /api/v1/documents/{documentId}:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: getDocument
+      summary: Metadata plus effective role
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Non-owner responses redact folderId to null. Active documents only;
+        trash metadata is in the owner TRASH list.
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+    patch:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: patchDocument
+      summary: Owner rename or move
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: At least one of title,folderId required; explicit null moves to
+        root. Does not change content headRevision.
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchDocumentRequest'
+    delete:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: trashDocument
+      summary: Owner move to trash
+      responses:
+        '204':
+          description: Success with no body.
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevisionMutationRequest'
+  /api/v1/documents/{documentId}/restore:
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: restoreDocument
+      summary: Owner restore from trash
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevisionMutationRequest'
+  /api/v1/documents/{documentId}/versions:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: listVersions
+      summary: List retained immutable versions
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionPage'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - *id003
+        - *id004
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: commitVersion
+      summary: Validate ticket and atomically commit immutable version
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+        '200':
+          description: Valid no-change snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: *id001
+          description: Stable UUID for the exact request body; retry with the same key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitRequest'
+  /api/v1/documents/{documentId}/versions/{revision}/download:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: getVersionDownload
+      summary: Authorize exact snapshot download
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadDescriptor'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+        '410':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Touch last_access_at under version lock. Returns immutable objectRef
+        to an authorized caller and a URL valid <=60s. Retired revision returns410
+        VERSION_GONE. No endpoint for revision0; client uses empty model.
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - name: revision
+          in: path
+          required: true
+          schema: *id005
+  /api/v1/documents/{documentId}/uploads:
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: createUpload
+      summary: Create bounded upload ticket
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadTicket'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+  /api/v1/uploads/{uploadId}/content:
+    put:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: uploadLocalContent
+      summary: Stream bytes to local storage adapter
+      responses:
+        '204':
+          description: Success with no body.
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: LOCAL adapter only; actor and current EDITOR/OWNER grant checked.
+        Cloud browser uploads to the GCS session URI instead. Create-new file, no
+        overwrite.
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema: *id001
+        - name: Content-Length
+          in: header
+          required: true
+          schema:
+            type: integer
+            minimum: 20
+            maximum: 33554432
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+  /api/v1/documents/{documentId}/permissions:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: listPermissions
+      summary: Owner list explicit grants
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PermissionPage'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - *id003
+        - *id004
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: grantByEmail
+      summary: Owner grant existing account by email
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantEmailRequest'
+  /api/v1/documents/{documentId}/permissions/{granteeUserId}:
+    put:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: putPermission
+      summary: Owner create or change explicit grant
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - name: granteeUserId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantRequest'
+    delete:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: deletePermission
+      summary: Owner revoke grant idempotently
+      responses:
+        '204':
+          description: Success with no body.
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - name: granteeUserId
+          in: path
+          required: true
+          schema: *id001
+  /api/v1/documents/{documentId}/share-links:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: listShareLinks
+      summary: Owner list links without raw tokens
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShareLinkPage'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - *id003
+        - *id004
+    post:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: createShareLink
+      summary: Owner create expiring read-only link
+      responses:
+        '201':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedShareLink'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateShareLinkRequest'
+  /api/v1/documents/{documentId}/share-links/{linkId}:
+    delete:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: revokeShareLink
+      summary: Owner revoke link idempotently
+      responses:
+        '204':
+          description: Success with no body.
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - name: linkId
+          in: path
+          required: true
+          schema: *id001
+  /api/v1/public/shares/{token}:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: readPublicShare
+      summary: Read public metadata without owner or folder
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicDocument'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 43
+            pattern: ^[A-Za-z0-9_-]{43}$
+            maxLength: 43
+      security: []
+  /api/v1/public/shares/{token}/content:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: readPublicContent
+      summary: Stream current native snapshot after token validation
+      responses:
+        '200':
+          description: Native snapshot bytes; no public storage URL.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+        '204':
+          description: Virtual empty document, no snapshot yet.
+      description: Invalid/revoked/expired/trash =>404. No storage URL. Empty head
+        revision0 returns204; frontend metadata empty=true.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 43
+            pattern: ^[A-Za-z0-9_-]{43}$
+            maxLength: 43
+      security: []
+  /api/v1/jobs:
+    post:
+      tags:
+        - Processing
+      x-service: processing-service
+      operationId: createJob
+      summary: Queue export for an authorized retained revision
+      responses:
+        '202':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: *id001
+          description: Stable UUID for the exact request body; retry with the same key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateJobRequest'
+    get:
+      tags:
+        - Processing
+      x-service: processing-service
+      operationId: listJobs
+      summary: Requester export jobs only
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobPage'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - *id003
+        - *id004
+  /api/v1/jobs/{jobId}:
+    get:
+      tags:
+        - Processing
+      x-service: processing-service
+      operationId: getJob
+      summary: Job status with current document ACL
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: *id001
+  /api/v1/jobs/{jobId}/cancel:
+    post:
+      tags:
+        - Processing
+      x-service: processing-service
+      operationId: cancelJob
+      summary: Request cooperative cancel
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: *id001
+  /api/v1/jobs/{jobId}/download:
+    get:
+      tags:
+        - Processing
+      x-service: processing-service
+      operationId: getJobDownload
+      summary: Authorize unexpired result for requester
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobDownload'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Only SUCCEEDED export, requester and current document read permission.
+        Recheck current document metadata permission, not source version retention.
+        Retired source does not invalidate an unexpired export result.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: *id001
+  /internal/v1/users/{userId}:
+    get:
+      tags:
+        - Identity
+      x-service: identity-service
+      operationId: resolveUserById
+      summary: Verify existing account ID
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Document caller only; not public proxy routed.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: *id001
+        - name: X-Internal-Key
+          in: header
+          required: true
+          schema:
+            type: string
+  /api/v1/documents/{documentId}/versions/{revision}/content:
+    get:
+      tags:
+        - Document
+      x-service: document-service
+      operationId: streamVersionContent
+      summary: Authenticated native stream for LOCAL or proxy fallback
+      responses:
+        '200':
+          description: Native snapshot bytes; no public storage URL.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Same ACL and retention check as download descriptor. Exact immutable
+        generation; no-store. Used when signed URL is unavailable.
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          schema: *id001
+        - name: revision
+          in: path
+          required: true
+          schema: *id005
+  /api/v1/jobs/{jobId}/content:
+    get:
+      tags:
+        - Processing
+      x-service: processing-service
+      operationId: streamJobContent
+      summary: Authenticated result stream for LOCAL or proxy fallback
+      responses:
+        '200':
+          description: Native snapshot bytes; no public storage URL.
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: binary
+            text/html:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '403':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
+          $ref: '#/components/responses/ErrorResponse'
+        '413':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/ErrorResponse'
+        '503':
+          $ref: '#/components/responses/ErrorResponse'
+      description: Requester and current document read permission; result unexpired.
+        Content type is text/plain UTF-8 or text/html UTF-8, not always native.
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: *id001
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 64
+        message:
+          type: string
+          maxLength: 500
+        traceId:
+          type: string
+          maxLength: 64
+        details:
+          type: object
+          additionalProperties: true
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - traceId
+    User:
+      type: object
+      properties:
+        id: *id001
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        displayName:
+          type: string
+          maxLength: 100
+      additionalProperties: false
+      required:
+        - id
+        - email
+        - displayName
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 12
+          maxLength: 128
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 100
+      additionalProperties: false
+      required:
+        - email
+        - password
+        - displayName
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+      additionalProperties: false
+      required:
+        - email
+        - password
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum:
+            - Bearer
+        expiresIn:
+          type: integer
+          enum:
+            - 600
+        user:
+          $ref: '#/components/schemas/User'
+      additionalProperties: false
+      required:
+        - accessToken
+        - tokenType
+        - expiresIn
+        - user
+    CsrfResponse:
+      type: object
+      properties:
+        headerName:
+          type: string
+        token:
+          type: string
+      additionalProperties: false
+      required:
+        - headerName
+        - token
+    ResolveUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+      additionalProperties: false
+      required:
+        - email
+    Jwks:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+      additionalProperties: false
+      required:
+        - keys
+    Folder:
+      type: object
+      properties:
+        id: *id001
+        parentId: &id007
+          type: string
+          format: uuid
+          nullable: true
+        name:
+          type: string
+          maxLength: 120
+        metadataRevision: *id005
+        createdAt: &id006
+          type: string
+          format: date-time
+        updatedAt: *id006
+      additionalProperties: false
+      required:
+        - id
+        - parentId
+        - name
+        - metadataRevision
+        - createdAt
+        - updatedAt
+    CreateFolderRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        parentId: *id007
+      additionalProperties: false
+      required:
+        - name
+        - parentId
+    PatchFolderRequest:
+      type: object
+      properties:
+        expectedMetadataRevision: *id005
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        parentId: *id007
+      additionalProperties: false
+      required:
+        - expectedMetadataRevision
+      minProperties: 2
+    Document:
+      type: object
+      properties:
+        id: *id001
+        ownerUserId: *id001
+        folderId: *id007
+        title:
+          type: string
+          maxLength: 200
+        headRevision: &id008
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+        headVersionId: *id007
+        metadataRevision: *id005
+        effectiveRole:
+          type: string
+          enum:
+            - OWNER
+            - EDITOR
+            - VIEWER
+        createdAt: *id006
+        updatedAt: *id006
+        deletedAt:
+          type: string
+          format: date-time
+          nullable: true
+        preview:
+          type: object
+          nullable: true
+          additionalProperties: true
+      additionalProperties: false
+      required:
+        - id
+        - ownerUserId
+        - folderId
+        - title
+        - headRevision
+        - headVersionId
+        - metadataRevision
+        - effectiveRole
+        - createdAt
+        - updatedAt
+        - deletedAt
+    CreateDocumentRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        folderId: *id007
+      additionalProperties: false
+      required:
+        - title
+        - folderId
+    PatchDocumentRequest:
+      type: object
+      properties:
+        expectedMetadataRevision: *id005
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        folderId: *id007
+      additionalProperties: false
+      required:
+        - expectedMetadataRevision
+      minProperties: 2
+    RevisionMutationRequest:
+      type: object
+      properties:
+        expectedMetadataRevision: *id005
+      additionalProperties: false
+      required:
+        - expectedMetadataRevision
+    ObjectRef:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum:
+            - LOCAL
+            - GCS
+        bucket:
+          type: string
+          nullable: true
+          maxLength: 128
+        key:
+          type: string
+          maxLength: 512
+        generation:
+          type: string
+          pattern: ^[0-9]+$
+          maxLength: 32
+      additionalProperties: false
+      required:
+        - provider
+        - bucket
+        - key
+        - generation
+    Version:
+      type: object
+      properties:
+        id: *id001
+        documentId: *id001
+        revision: *id005
+        nativeSha256: &id009
+          type: string
+          pattern: ^[a-f0-9]{64}$
+        nativeBytes:
+          type: integer
+          minimum: 20
+          maximum: 33554432
+        textUtf8Bytes:
+          type: integer
+          minimum: 0
+          maximum: 10485760
+        utf16Length:
+          type: integer
+          minimum: 0
+          maximum: 10485760
+        logicalLines:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        createdByUserId: *id001
+        createdAt: *id006
+      additionalProperties: false
+      required:
+        - id
+        - documentId
+        - revision
+        - nativeSha256
+        - nativeBytes
+        - textUtf8Bytes
+        - utf16Length
+        - logicalLines
+        - createdByUserId
+        - createdAt
+    UploadRequest:
+      type: object
+      properties:
+        expectedHeadRevision: *id008
+        nativeBytes:
+          type: integer
+          minimum: 20
+          maximum: 33554432
+        nativeSha256: *id009
+      additionalProperties: false
+      required:
+        - expectedHeadRevision
+        - nativeBytes
+        - nativeSha256
+    UploadTicket:
+      type: object
+      properties:
+        uploadId: *id001
+        kind:
+          type: string
+          enum:
+            - LOCAL
+            - GCS_RESUMABLE
+        uploadUrl:
+          type: string
+          format: uri
+        method:
+          type: string
+          enum:
+            - PUT
+        requiredHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        commitDeadlineAt: *id006
+      additionalProperties: false
+      required:
+        - uploadId
+        - kind
+        - uploadUrl
+        - method
+        - requiredHeaders
+        - commitDeadlineAt
+    CommitRequest:
+      type: object
+      properties:
+        uploadId: *id001
+        expectedHeadRevision: *id008
+      additionalProperties: false
+      required:
+        - uploadId
+        - expectedHeadRevision
+    SaveResponse:
+      type: object
+      properties:
+        version:
+          $ref: '#/components/schemas/Version'
+        noChange:
+          type: boolean
+      additionalProperties: false
+      required:
+        - version
+        - noChange
+    DownloadDescriptor:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        expiresAt: *id006
+        version:
+          $ref: '#/components/schemas/Version'
+        objectRef:
+          $ref: '#/components/schemas/ObjectRef'
+      additionalProperties: false
+      required:
+        - url
+        - expiresAt
+        - version
+        - objectRef
+    Permission:
+      type: object
+      properties:
+        granteeUserId: *id001
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        displayName:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+          enum:
+            - VIEWER
+            - EDITOR
+        updatedAt: *id006
+      additionalProperties: false
+      required:
+        - granteeUserId
+        - role
+        - updatedAt
+    GrantRequest:
+      type: object
+      properties:
+        role:
+          type: string
+          enum:
+            - VIEWER
+            - EDITOR
+      additionalProperties: false
+      required:
+        - role
+    GrantEmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        role:
+          type: string
+          enum:
+            - VIEWER
+            - EDITOR
+      additionalProperties: false
+      required:
+        - email
+        - role
+    ShareLink:
+      type: object
+      properties:
+        id: *id001
+        createdAt: *id006
+        expiresAt: *id006
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+      additionalProperties: false
+      required:
+        - id
+        - createdAt
+        - expiresAt
+        - revokedAt
+    CreateShareLinkRequest:
+      type: object
+      properties:
+        expiresInSeconds:
+          type: integer
+          minimum: 3600
+          maximum: 2592000
+          default: 604800
+      additionalProperties: false
+    CreatedShareLink:
+      type: object
+      properties:
+        link:
+          $ref: '#/components/schemas/ShareLink'
+        token:
+          type: string
+          minLength: 43
+          maxLength: 43
+        viewerPath:
+          type: string
+          maxLength: 100
+      additionalProperties: false
+      required:
+        - link
+        - token
+        - viewerPath
+    PublicDocument:
+      type: object
+      properties:
+        documentId: *id001
+        title:
+          type: string
+          maxLength: 200
+        headRevision: *id008
+        empty:
+          type: boolean
+        contentPath:
+          type: string
+          nullable: true
+          maxLength: 150
+      additionalProperties: false
+      required:
+        - documentId
+        - title
+        - headRevision
+        - empty
+        - contentPath
+    CreateJobRequest:
+      type: object
+      properties:
+        documentId: *id001
+        revision: *id005
+        type:
+          type: string
+          enum:
+            - EXPORT_TXT
+            - EXPORT_HTML
+      additionalProperties: false
+      required:
+        - documentId
+        - revision
+        - type
+    Job:
+      type: object
+      properties:
+        id: *id001
+        documentId: *id001
+        revision: *id005
+        type:
+          type: string
+          enum:
+            - EXPORT_TXT
+            - EXPORT_HTML
+        state:
+          type: string
+          enum:
+            - QUEUED
+            - READY
+            - RUNNING
+            - SUCCEEDED
+            - FAILED
+            - CANCELLED
+        attempts:
+          type: integer
+          minimum: 0
+          maximum: 3
+        createdAt: *id006
+        finishedAt:
+          type: string
+          format: date-time
+          nullable: true
+        errorCode:
+          type: string
+          nullable: true
+          maxLength: 64
+      additionalProperties: false
+      required:
+        - id
+        - documentId
+        - revision
+        - type
+        - state
+        - attempts
+        - createdAt
+        - finishedAt
+        - errorCode
+    JobDownload:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        expiresAt: *id006
+        bytes:
+          type: integer
+          minimum: 0
+          maximum: 67108864
+        contentType:
+          type: string
+          maxLength: 100
+      additionalProperties: false
+      required:
+        - url
+        - expiresAt
+        - bytes
+        - contentType
+    FolderPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Folder'
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+    DocumentPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+    VersionPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Version'
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+    PermissionPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Permission'
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+    ShareLinkPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShareLink'
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+    JobPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Job'
+        nextCursor:
+          type: string
+          nullable: true
+      additionalProperties: false
+      required:
+        - items
+        - nextCursor
+  responses:
+    ErrorResponse:
+      description: Error with stable code; semantics and status in docs/05_SAVE_AND_SHARE.md.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

@@ -1,0 +1,215 @@
+name: text-editor
+x-app-env: &app-env
+  PORT: 8080
+  SPRING_PROFILES_ACTIVE: local
+  MYSQL_HOST: mysql
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  REDIS_HOST: redis
+  SPRING_DATA_REDIS_HOST: redis
+  JWT_ISSUER: ${JWT_ISSUER:-http://identity-service:8080}
+  JWT_AUDIENCE: editor-api
+  JWT_JWKS_URI: http://identity-service:8080/.well-known/jwks.json
+  JWT_JWK_URI: http://identity-service:8080/.well-known/jwks.json
+  IDENTITY_URL: http://identity-service:8080
+  IDENTITY_BASE_URL: http://identity-service:8080
+  DOCUMENT_URL: http://document-service:8080
+  WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+  PUBLIC_BASE_URL: ${WEB_ORIGIN:-http://localhost:8080}
+  ALLOWED_ORIGINS: ${WEB_ORIGIN:-http://localhost:8080}
+  DOCUMENT_INTERNAL_KEY: ${DOCUMENT_INTERNAL_KEY:?Run scripts/run.py up}
+  PROCESSING_INTERNAL_KEY: ${PROCESSING_INTERNAL_KEY:?Run scripts/run.py up}
+  STORAGE_PROVIDER: ${STORAGE_PROVIDER:-LOCAL}
+  STORAGE_ROOT: /data/objects
+  GCS_SNAPSHOTS_BUCKET: ${GCS_SNAPSHOTS_BUCKET:-YOUR_PRIVATE_SNAPSHOTS_BUCKET}
+  GCS_RESULTS_BUCKET: ${GCS_RESULTS_BUCKET:-YOUR_PRIVATE_RESULTS_BUCKET}
+  JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -Dfile.encoding=UTF-8
+x-app: &app
+  profiles: [app]
+  restart: unless-stopped
+  init: true
+  healthcheck:
+    test: [CMD, curl, -fsS, http://localhost:8080/actuator/health/readiness]
+    interval: 10s
+    timeout: 5s
+    retries: 15
+    start_period: 60s
+  depends_on:
+    mysql: { condition: service_healthy }
+services:
+  mysql:
+    image: mysql:8.4.7@sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run scripts/run.py up}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
+      DOCUMENT_DB_PASSWORD: ${DOCUMENT_DB_PASSWORD:?}
+      PROCESSING_DB_PASSWORD: ${PROCESSING_DB_PASSWORD:?}
+    command: [--innodb-buffer-pool-size=256M, --max-connections=100]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init.sh:/docker-entrypoint-initdb.d/01-editor.sh:ro
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h localhost -uroot --silent',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+  kafka:
+    image: apache/kafka:4.1.1@sha256:0bc1bb2478f45b6cea78864df86acdc11e8df2c5172477819a4d12942cbe5d40
+    restart: unless-stopped
+    mem_limit: 1536m
+    command: [bash, /opt/editor-kafka/kafka-start.sh]
+    environment:
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: SASL_PLAINTEXT://:9092,CONTROLLER://:9093,DEBUG://:19092
+      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://kafka:9092,DEBUG://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SASL_PLAINTEXT:SASL_PLAINTEXT,CONTROLLER:SASL_PLAINTEXT,DEBUG:SASL_PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_SASL_MECHANISM_CONTROLLER_PROTOCOL: PLAIN
+      KAFKA_AUTHORIZER_CLASS_NAME: org.apache.kafka.metadata.authorizer.StandardAuthorizer
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: 'false'
+      KAFKA_SUPER_USERS: 'User:broker;User:admin'
+      KAFKA_BROKER_PASSWORD: ${KAFKA_BROKER_PASSWORD:?}
+      KAFKA_ADMIN_PASSWORD: ${KAFKA_ADMIN_PASSWORD:?}
+      KAFKA_DOCUMENT_PASSWORD: ${KAFKA_DOCUMENT_PASSWORD:?}
+      KAFKA_PROCESSING_PASSWORD: ${KAFKA_PROCESSING_PASSWORD:?}
+      KAFKA_OPERATOR_PASSWORD: ${KAFKA_OPERATOR_PASSWORD:?}
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_HEAP_OPTS: -Xmx768m -Xms256m
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+      - ./kafka-start.sh:/opt/editor-kafka/kafka-start.sh:ro
+      - ./kafka-init-acls.sh:/opt/editor-kafka/kafka-init-acls.sh:ro
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          '/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 --command-config /tmp/editor-kafka/admin.properties >/dev/null 2>&1',
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+  redis:
+    image: redis:8.4.0@sha256:c22af04bb576503bf16b3e34a1fd2fd82de0f765afd866d2e380145e0af30d78
+    restart: unless-stopped
+    mem_limit: 256m
+    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, allkeys-lru]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  identity-service:
+    <<: *app
+    image: text-editor/identity-service:local
+    build:
+      {
+        context: ../..,
+        dockerfile: infra/compose/Service.Dockerfile,
+        args: { SERVICE: identity-service },
+      }
+    mem_limit: 512m
+    environment:
+      <<: *app-env
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
+      IDENTITY_DB_URL: jdbc:mysql://mysql:3306/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      IDENTITY_DB_USER: identity
+      JWT_KEY_PATH: /data/keys/identity-key.pem
+      JWT_ALLOW_KEY_GENERATION: 'true'
+      SECURE_COOKIES: 'false'
+    volumes: [identity-keys:/data/keys]
+  document-service:
+    <<: *app
+    image: text-editor/document-service:local
+    build:
+      {
+        context: ../..,
+        dockerfile: infra/compose/Service.Dockerfile,
+        args: { SERVICE: document-service },
+      }
+    mem_limit: 768m
+    environment:
+      <<: *app-env
+      DOCUMENT_DB_PASSWORD: ${DOCUMENT_DB_PASSWORD:?}
+      DATABASE_URL: jdbc:mysql://mysql:3306/document_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      DOCUMENT_DB_USER: document
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: document
+      KAFKA_PASSWORD: ${KAFKA_DOCUMENT_PASSWORD:?}
+      SNAPSHOTS_BUCKET: ${GCS_SNAPSHOTS_BUCKET:-YOUR_PRIVATE_SNAPSHOTS_BUCKET}
+    volumes: [objects:/data/objects]
+  processing-service:
+    <<: *app
+    image: text-editor/processing-service:local
+    build:
+      {
+        context: ../..,
+        dockerfile: infra/compose/Service.Dockerfile,
+        args: { SERVICE: processing-service },
+      }
+    mem_limit: 768m
+    environment:
+      <<: *app-env
+      PROCESSING_DB_PASSWORD: ${PROCESSING_DB_PASSWORD:?}
+      PROCESSING_DB_URL: jdbc:mysql://mysql:3306/processing_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      PROCESSING_DB_USER: processing
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: processing
+      KAFKA_PASSWORD: ${KAFKA_PROCESSING_PASSWORD:?}
+      GCS_BUCKET: ${GCS_RESULTS_BUCKET:-YOUR_PRIVATE_RESULTS_BUCKET}
+      SNAPSHOTS_BUCKET: ${GCS_SNAPSHOTS_BUCKET:-YOUR_PRIVATE_SNAPSHOTS_BUCKET}
+    volumes: [objects:/data/objects]
+  web:
+    profiles: [app]
+    image: text-editor/web:local
+    build: { context: ../.., dockerfile: infra/compose/Web.Dockerfile }
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 45s
+    mem_limit: 512m
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=256
+      PORT: '8080'
+      NEXT_INTERNAL_PORT: '3000'
+      IDENTITY_INTERNAL_ORIGIN: http://identity-service:8080
+      DOCUMENT_INTERNAL_ORIGIN: http://document-service:8080
+      PROCESSING_INTERNAL_ORIGIN: http://processing-service:8080
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+    ports: ['127.0.0.1:${WEB_PORT:-8080}:8080']
+    depends_on:
+      identity-service: { condition: service_healthy }
+      document-service: { condition: service_healthy }
+      processing-service: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "const r=require('node:http').get('http://127.0.0.1:8080/healthz',s=>{s.resume();process.exit(s.statusCode===200?0:1)});r.on('error',()=>process.exit(1));r.setTimeout(2000,()=>{r.destroy();process.exit(1)});",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+volumes:
+  mysql-data:
+  kafka-data:
+  identity-keys:
+  objects:
