@@ -11,7 +11,7 @@
     "node": ">=24 <25"
   },
   "overrides": {
-    "fast-glob": "file:../../../tooling/lint-glob"
+    "fast-glob": "file:tooling/lint-glob"
   },
   "scripts": {
     "format:write": "prettier --write \"**/*.{ts,tsx,mjs,js,cjs,json,yml,yaml,css,md,html}\"",
