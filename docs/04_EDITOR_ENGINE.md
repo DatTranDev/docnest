@@ -50,7 +50,7 @@ Saving pins immutable text/style at localRevision R with contentToken R. The wor
 
 ## Native adaptive v1 format
 
-A .tedoc file is ZIP STORE with exactly three entries: manifest.json, text.utf8 and styles.bin. The V1 encoder/decoder does not compress. Reject duplicate or unknown entries, encrypted ZIPs, symlinks and methods other than STORE. Do not extract entry names to the filesystem. Check each payload's CRC and SHA256 and enforce caps before allocating. The manifest schema is contracts/native-manifest.schema.json.
+A .tedoc file is ZIP STORE with exactly three entries: manifest.json, text.utf8 and styles.bin. The V1 encoder/decoder does not compress. Reject duplicate or unknown entries, encrypted ZIPs, symlinks and methods other than STORE. Do not extract entry names to the filesystem. Check each payload's CRC and SHA256 and enforce caps before allocating. The manifest schema is docs/contracts/native-manifest.schema.json.
 
 styles.bin has a 20-byte header: ASCII TEDSTYLE (8 bytes), u16 version=1, u16 flags=0, u32 totalUtf16Length, and u32 recordCount. Fixed-width integers are little-endian. Each record covers a consecutive region:
 

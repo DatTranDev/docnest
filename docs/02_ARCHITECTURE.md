@@ -16,33 +16,34 @@ Three services own three logical databases. Folders and ACLs stay in Document Se
 | Packaging        | Docker Compose, then GKE Standard zonal                                                              |
 | Testing          | JUnit, Testcontainers, Vitest/property tests, Playwright and browser benchmarks                      |
 
-P00 verifies patch versions and image digests and records them in versions.lock.md. Do not use latest in deployment artifacts. Do not silently change a major version to resolve dependency failures. Prefer the Spring Boot BOM for dependency versions. The Flyway MySQL module and Testcontainers must be compatible with the selected Boot version.
+P00 verifies patch versions and image digests and records them in docs/versions.lock.md. Do not use latest in deployment artifacts. Do not silently change a major version to resolve dependency failures. Prefer the Spring Boot BOM for dependency versions. The Flyway MySQL module and Testcontainers must be compatible with the selected Boot version.
 
 ## Repository and feature ownership
 
 ```text
-apps/web/src/app                          # thin routes and layout/loading/error boundaries
-apps/web/src/features/{auth,workspace,folders,documents,editor,sharing,export-jobs}
-apps/web/src/components/ui                # reusable presentation
-apps/web/src/lib/{http,react}              # technical transport/hooks
-apps/web/src/config                       # validated configuration
-apps/web/server                          # production streaming gateway
-services/identity-service/.../identity/{auth,bootstrap}
-services/document-service/.../document/{documents,folders,sharing,shared,bootstrap}
-services/processing-service/.../processing/{jobs,bootstrap}
-services/common/.../common/{codec,storage,messaging,observability}
-services/common/src/benchmark/java        # harness excluded from runtime jars
-packages/editor-core/src                 # framework-independent model/history/codec/search
-contracts
+frontend/web/src/app                          # thin routes and layout/loading/error boundaries
+frontend/web/src/features/{auth,workspace,folders,documents,editor,sharing,export-jobs}
+frontend/web/src/components/ui                # reusable presentation
+frontend/web/src/lib/{http,react}              # technical transport/hooks
+frontend/web/src/config                       # validated configuration
+frontend/web/server                          # production streaming gateway
+backend/identity-service/.../identity/{auth,bootstrap}
+backend/document-service/.../document/{documents,folders,sharing,shared,bootstrap}
+backend/processing-service/.../processing/{jobs,bootstrap}
+backend/common/.../common/{codec,storage,messaging,observability}
+backend/common/src/benchmark/java        # harness excluded from runtime jars
+frontend/editor-core/src                 # framework-independent model/history/codec/search
+docs/contracts
 docs
+backend/schema
 infra/compose
 infra/gcp
 infra/k8s
-scripts
-fixtures
+tooling/scripts
+testing/{checks,e2e,benchmark,fixtures,reports}
 ```
 
-A root Maven reactor builds three independent services. The backend uses JdbcTemplate and explicit SQL for row locks and compare-and-set (CAS); do not add an ORM to the MVP. Spring's transaction manager wraps short transactions. Keep network and file I/O outside transactions. packages/editor-core is a TypeScript package for text, style, history, codec and search that does not depend on React screens. Share generated DTOs or schemas between backends, not JPA entities or business services. A small logging/JWT validation library is acceptable; it must not create a shared business database.
+A root Maven reactor builds three independent services. The backend uses JdbcTemplate and explicit SQL for row locks and compare-and-set (CAS); do not add an ORM to the MVP. Spring's transaction manager wraps short transactions. Keep network and file I/O outside transactions. frontend/editor-core is a TypeScript package for text, style, history, codec and search that does not depend on React screens. Share generated DTOs or schemas between backends, not JPA entities or business services. A small logging/JWT validation library is acceptable; it must not create a shared business database.
 
 | Service feature    | Responsibilities                                                                               | Representative use cases                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -54,13 +55,13 @@ A root Maven reactor builds three independent services. The backend uses JdbcTem
 
 Each business feature contains meaningful `api`, `application/command`, `application/query`, `application/port`, `domain`, and `infrastructure` packages. `bootstrap` contains entry points and wiring. Domain types enforce actual invariants and depend only on Java/domain types. Application handlers use ports and domain types; infrastructure implements ports; controllers map HTTP and call handlers. Cross-feature interaction uses explicit application interfaces. Document's `shared` package contains only its own shared policy, transaction, pagination and HTTP support.
 
-Logical CQRS separates mutation handlers from query handlers/read ports returning purpose-specific DTOs. It retains one MySQL instance, three databases and direct handler calls; Kafka remains the asynchronous outbox/inbox transport. Preserve exclusive tree/requester locks, committed refresh-family revocation, CAS revisions, ACL checks, idempotency and atomic mutation/outbox writes. Processing ports use the shared storage reference DTO while concrete local/GCS adapters stay in infrastructure. Common contains technical codec/storage/schema/observation code; heavy optional dependencies are declared by the services that use them. `NativeBenchmark` builds through `-Pbenchmark test-compile` and is excluded from production jars.
+Logical CQRS separates mutation handlers from query handlers/read ports returning purpose-specific DTOs. It retains one MySQL instance, three databases and direct handler calls; Kafka remains the asynchronous outbox/inbox transport. Preserve exclusive tree/requester locks, committed refresh-family revocation, CAS revisions, ACL checks, idempotency and atomic mutation/outbox writes. Processing ports use the shared storage reference DTO while concrete local/GCS adapters stay in infrastructure. Common contains technical codec/storage/backend/schema/observation code; heavy optional dependencies are declared by the services that use them. `NativeBenchmark` builds through `-Pbenchmark test-compile` and is excluded from production jars.
 
 Frontend features contain components, hooks, API functions, model types and tests where there is actual implementation. Cross-feature imports use public feature indexes; shared modules cannot depend on features; cycles are rejected. Workspace/editor/public-view initialization stays behind client-only dynamic boundaries. IndexedDB and workers start in the client lifecycle. React subscribes to small UI state while editor-core/CodeMirror retain canonical text, styles, undo and snapshot consistency. Routes support direct public-link navigation and benchmark/worker validation pages.
 
 The production Node gateway exposes port 8080, streams bodies with a 32 MiB cap and bounded timeouts, forwards cookies safely, blocks internal/Actuator routes and prevents private API caching. Its standalone Next child binds only to loopback port 3000. Rewrites support direct Next development; production uploads use the streaming gateway. Client IP forwarding trusts only explicitly configured ingress/VM proxy CIDRs. Deployment values and proxy scope are in the cloud handoff.
 
-Spotless/Google Java Format, explicit imports, ArchUnit, Prettier, ESLint, strict TypeScript and the frontend import-graph checker enforce these rules. Exact pins and Windows/CI commands are in versions.lock.md and AGENTS.md. ADR019 records the change. Implementation and final acceptance evidence remain separate in reports.
+Spotless/Google Java Format, explicit imports, ArchUnit, Prettier, ESLint, strict TypeScript and the frontend import-graph checker enforce these rules. Exact pins and Windows/CI commands are in docs/versions.lock.md and AGENTS.md. ADR019 records the change. Implementation and final acceptance evidence remain separate in reports.
 
 ## Communication
 

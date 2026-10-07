@@ -13,10 +13,10 @@ data
 **/.next
 **/target
 **/dist
-reports
-fixtures/large
-apps/web/public/benchmarks
-apps/web/e2e
-apps/web/benchmark
-.terraform
+testing/reports
+testing/fixtures/large
+frontend/web/public/benchmarks
+testing/e2e
+testing/benchmark
+**/.terraform
 **/*.tfstate*

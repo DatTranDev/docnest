@@ -3,5 +3,5 @@ required-version = "26.5.1"
 target-version = ["py312"]
 line-length = 88
 force-exclude = '''
-/(\.tools|\.git|\.terraform|node_modules|\.next|target|dist|reports|fixtures/large)/
+/(\.tools|\.git|\.terraform|node_modules|\.next|target|dist|reports|testing/fixtures/large)/
 '''

@@ -17,8 +17,8 @@ x-app-env: &app-env
   WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
   PUBLIC_BASE_URL: ${WEB_ORIGIN:-http://localhost:8080}
   ALLOWED_ORIGINS: ${WEB_ORIGIN:-http://localhost:8080}
-  DOCUMENT_INTERNAL_KEY: ${DOCUMENT_INTERNAL_KEY:?Run scripts/run.py up}
-  PROCESSING_INTERNAL_KEY: ${PROCESSING_INTERNAL_KEY:?Run scripts/run.py up}
+  DOCUMENT_INTERNAL_KEY: ${DOCUMENT_INTERNAL_KEY:?Run tooling/scripts/run.py up}
+  PROCESSING_INTERNAL_KEY: ${PROCESSING_INTERNAL_KEY:?Run tooling/scripts/run.py up}
   STORAGE_PROVIDER: ${STORAGE_PROVIDER:-LOCAL}
   STORAGE_ROOT: /data/objects
   GCS_SNAPSHOTS_BUCKET: ${GCS_SNAPSHOTS_BUCKET:-YOUR_PRIVATE_SNAPSHOTS_BUCKET}
@@ -42,7 +42,7 @@ services:
     restart: unless-stopped
     mem_limit: 768m
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run scripts/run.py up}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Run tooling/scripts/run.py up}
       IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
       DOCUMENT_DB_PASSWORD: ${DOCUMENT_DB_PASSWORD:?}
       PROCESSING_DB_PASSWORD: ${PROCESSING_DB_PASSWORD:?}

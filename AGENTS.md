@@ -1,6 +1,6 @@
 # Repository implementation rules
 
-Read `README.md`, `AI_AGENT_GUIDE.md`, the relevant design documents, contracts, schemas, fixtures, and `reports/progress.md` before implementation. ADR019 in `docs/10_DECISIONS_AND_SOURCES.md` records the accepted architectural migration. `reports/progress.md` is the sole project status checkpoint. Accepted user instructions take precedence. Continue through authorized local work without per-step approval; preserve progress across context resets.
+Read `README.md`, `docs/AI_AGENT_GUIDE.md`, the relevant design documents, contracts, schemas, fixtures, and `docs/PROJECT_STATUS.md` before implementation. ADR019 in `docs/10_DECISIONS_AND_SOURCES.md` records the accepted architectural migration. `docs/PROJECT_STATUS.md` is the sole project status checkpoint. Accepted user instructions take precedence. Continue through authorized local work without per-step approval; preserve progress across context resets.
 
 ## Ownership and dependencies
 
@@ -15,7 +15,7 @@ Read `README.md`, `AI_AGENT_GUIDE.md`, the relevant design documents, contracts,
 
 - Use Next.js App Router with strict TypeScript. Keep routes thin and behavior under `features/auth`, `workspace`, `folders`, `documents`, `editor`, `sharing`, and `export-jobs`.
 - Cross-feature imports use public `index.ts` files. Do not import another feature's private implementation. `lib`, `config`, and reusable UI components cannot depend on features. Keep the import graph acyclic.
-- `packages/editor-core` stays independent of React, Next.js, and application features. Canonical text/style/history belong in editor-core and CodeMirror. Preserve viewport rendering, worker cancellation and snapshot consistency. React receives small UI state, not whole documents per keystroke.
+- `frontend/editor-core` stays independent of React, Next.js, and application features. Canonical text/style/history belong in editor-core and CodeMirror. Preserve viewport rendering, worker cancellation and snapshot consistency. React receives small UI state, not whole documents per keystroke.
 - Initialize browser APIs in client effects or an explicitly client-only dynamic import. Keep JWTs in memory, serialize refresh-cookie mutations, preserve signed CSRF handling, and prevent private responses from shared caching.
 - The production Node gateway streams bounded API bodies, blocks internal routes, and controls trusted proxy headers. Do not replace it with a buffered Next rewrite for large uploads or expose its private Next port publicly.
 
@@ -23,13 +23,13 @@ Read `README.md`, `AI_AGENT_GUIDE.md`, the relevant design documents, contracts,
 
 Java uses Spotless 3.10.3, Google Java Format 1.36.1, explicit imports, and ArchUnit. Frontend uses Prettier 3.9.9, ESLint 9.39.5 with Next/TypeScript rules, strict TypeScript, and import-boundary checks. Handwritten Python uses Black26.5.1 with Python3.12.6+; generated/dependency/output directories are excluded. Do not weaken rules or add broad suppressions. Multi-step methods stay multiline; file/function size is a review signal, not a reason to fragment cohesive behavior.
 
-`node checks/source-sizes.mjs` uses TypeScript and Java AST analysis to report handwritten files above 500 lines and functions/methods above 100 lines. Review each reported responsibility; thresholds are informational signals, not permission to split cohesive behavior mechanically or bypass correctness tests.
+`node testing/checks/source-sizes.mjs` uses TypeScript and Java AST analysis to report handwritten files above 500 lines and functions/methods above 100 lines. Review each reported responsibility; thresholds are informational signals, not permission to split cohesive behavior mechanically or bypass correctness tests.
 
 Set `JAVA_HOME` to JDK 21. On Windows run `.\mvnw.cmd -B -ntp spotless:apply` to format and `.\mvnw.cmd -B -ntp verify` for format/build/tests/architecture. CI uses `./mvnw`.
 
-Run `python checks/java_imports.py`, `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run architecture`, `node --test checks/next-lint-glob.test.mjs`, `node --test apps/web/server/gateway.test.mjs`, `npm test`, and `npm run build`. `npm run format:write` applies frontend/document formatting. The scoped `tools/lint-glob` adapter supports Next's actual `globSync` directory-resolver contract; preserve its contract tests.
+Run `python testing/checks/java_imports.py`, `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run architecture`, `node --test testing/checks/next-lint-glob.test.mjs`, `node --test frontend/web/server/gateway.test.mjs`, `npm test`, and `npm run build`. `npm run format:write` applies frontend/document formatting. The scoped `tooling/lint-glob` adapter supports Next's actual `globSync` directory-resolver contract; preserve its contract tests.
 
-`python scripts/run.py format` applies POM/Java/frontend formatting. `python scripts/run.py quality` runs the repository quality gates. `python scripts/run.py test` runs quality, contract validation, Maven verification and frontend tests. Run from the repository root after prerequisites in README.md; these commands never provision cloud infrastructure.
+`python tooling/scripts/run.py format` applies POM/Java/frontend formatting. `python tooling/scripts/run.py quality` runs the repository quality gates. `python tooling/scripts/run.py test` runs quality, contract validation, Maven verification and frontend tests. Run from the repository root after prerequisites in README.md; these commands never provision cloud infrastructure.
 
 Meaningful changes require relevant unit/property, real-service integration, contract, and browser tests. Required races and persistence gates use actual MySQL/Kafka/Redis/storage behavior. Never substitute skipped tests, mocks, or invented benchmarks for those gates. Record commands and results; mark unavailable checks `NOT_RUN` with the blocker. Final reports follow execution.
 
@@ -37,6 +37,6 @@ Meaningful changes require relevant unit/property, real-service integration, con
 
 Never log document text, email, passwords, tokens, private keys, signed URLs, resumable session URIs, or invalid event payloads. Use bounded trace identifiers and allowlisted scalar fields. Validate envelopes before correlating or retaining payloads. Invalid-event logs contain only fingerprints and broker offsets. Keep metrics on private service endpoints.
 
-Applied migrations are immutable. Add a new version and keep `schema/<service>` and service migration resources identical. Processing V3 stores nullable trace correlation; it changes no public API/event fields. Cloud uses migration jobs before rollout, with Flyway disabled in normal service startup.
+Applied migrations are immutable. Add a new version and keep `backend/schema/<service>` and service migration resources identical. Processing V3 stores nullable trace correlation; it changes no public API/event fields. Cloud uses migration jobs before rollout, with Flyway disabled in normal service startup.
 
 Do not provision paid resources, enable billing, push cloud images, or deploy during this local task. Preserve the USD 300 total budget, placeholders, and cloud gates marked `PENDING` or `DEPLOY_PENDING`. Static checks do not prove deployment. Keep measured performance misses visible until an actual run meets the targets.

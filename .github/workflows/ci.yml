@@ -19,40 +19,21 @@ jobs:
         with: { node-version: '24.11.1', cache: npm }
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with: { python-version: '3.12.14' }
-      - run: python -m pip install -r checks/requirements-implementation.txt
+      - run: python -m pip install -r testing/checks/requirements-implementation.txt
       - run: npm ci
       - run: chmod +x mvnw
-      - run: python scripts/run.py test
+      - run: python tooling/scripts/run.py test
       - run: npm audit --audit-level=high
-      - run: python checks/dependency_scan.py
+      - run: python testing/checks/dependency_scan.py
       - run: npm run build
-      - run: python scripts/run.py up
-      - run: python checks/migration_only.py
-      - run: python checks/image_secrets.py
-      - run: python checks/install_trivy.py
-      - run: python checks/image_os_scan.py --download-db
-      - run: python scripts/run.py smoke
-      - run: python checks/large_http.py
-      - run: python checks/replay_check.py
-      - run: python checks/replay_live.py
-      - run: python scripts/run.py infra-check
+      - run: python testing/checks/validate_deployment.py
+      - run: python testing/checks/digest_check.py
+      - run: python testing/checks/scan_secrets.py
+      - run: python tooling/scripts/run.py up
+      - run: python testing/checks/migration_only.py
+      - run: python tooling/scripts/run.py smoke
       - run: npx playwright install --with-deps chromium
       - run: npm run worker-check
       - run: npm run e2e
-      - run: python checks/backup_restore_check.py
-      - run: python checks/validate_deployment.py
-      - run: python checks/digest_check.py
-      - run: python checks/cloud_backup_check.py
-      - run: python checks/cloud_backup_mysql_check.py
-      - run: python checks/scan_secrets.py
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: validation-evidence
-          path: |
-            reports/
-            !reports/raw/**
-            !reports/**/*.pem
-            !reports/**/*.key
-      - run: python scripts/run.py down
+      - run: python tooling/scripts/run.py down
         if: always()

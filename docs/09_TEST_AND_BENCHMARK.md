@@ -23,7 +23,7 @@ The small editor oracle uses text and mask arrays. Generate random replace/forma
 
 ## Workloads
 
-fixtures/generate_fixtures.py --large creates a single-line 10 MiB ASCII file, 1,000,000 short lines below 10 MiB, approximately 10 MiB of mixed UTF-8 text, and dense alternating styles. Test sparse styles at 10,000 runs, typical styles at 100,000, and dense styles at 1,000,000 runs or one per grapheme. Use a fixed random seed of 42 and record bytes, UTF-16 length, lines and run count in the benchmark report.
+testing/fixtures/generate_fixtures.py --large creates a single-line 10 MiB ASCII file, 1,000,000 short lines below 10 MiB, approximately 10 MiB of mixed UTF-8 text, and dense alternating styles. Test sparse styles at 10,000 runs, typical styles at 100,000, and dense styles at 1,000,000 runs or one per grapheme. Use a fixed random seed of 42 and record bytes, UTF-16 length, lines and run count in the benchmark report.
 
 ## Measurement
 
@@ -48,4 +48,4 @@ Gate A: small-file round trips, folders/sharing and conflicts pass. Gate B: rand
 
 ## Definition of done
 
-Code, migrations, contracts and documents share a version. Tests run in reality and outputs are stored in reports/. Accepted features have no test.skip/TODO. Secret scans pass; restarts preserve data; save failures preserve drafts; permissions are enforced server-side. Benchmark reports contain measured results, and budget reports list still-active resources. Kit documentation validation does not prove that the application is implemented or its benchmarks pass.
+Code, migrations, contracts and documents share a version. Tests run in reality and outputs are stored in testing/reports/. Accepted features have no test.skip/TODO. Secret scans pass; restarts preserve data; save failures preserve drafts; permissions are enforced server-side. Benchmark reports contain measured results, and budget reports list still-active resources. Kit documentation validation does not prove that the application is implemented or its benchmarks pass.

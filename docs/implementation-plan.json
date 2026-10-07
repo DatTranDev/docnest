@@ -2,21 +2,21 @@
   {
     "id": "P00",
     "title": "Initialize the repository and lock contracts",
-    "inputs": "README.md; AI_AGENT_GUIDE.md; docs/01_PRODUCT.md; docs/02_ARCHITECTURE.md; contracts",
-    "scope": "Create a monorepo, a Maven reactor for three services, apps/web and packages/editor-core. Add Maven Wrapper, lockfile, lint, formatting, local/cloud configuration and versions.lock.md. Verify compatibility of Java 21, Spring Boot 4.1.1 and dependencies; pin Kafka, MySQL and Redis image digests. Bring contracts, schema and fixtures into the repository.",
+    "inputs": "README.md; docs/AI_AGENT_GUIDE.md; docs/01_PRODUCT.md; docs/02_ARCHITECTURE.md; contracts",
+    "scope": "Create a monorepo, a Maven reactor for three services, frontend/web and frontend/editor-core. Add Maven Wrapper, lockfile, lint, formatting, local/cloud configuration and docs/versions.lock.md. Verify compatibility of Java 21, Spring Boot 4.1.1 and dependencies; pin Kafka, MySQL and Redis image digests. Bring contracts, schema and fixtures into the repository.",
     "gate": "All three services build; the frontend passes typecheck; contracts parse. README contains working build/test commands. Images do not use latest tags, and the repository contains no real secrets."
   },
   {
     "id": "P01",
     "title": "Local infrastructure and migrations",
     "inputs": "P00; schema; docs/03_DATA_MODEL.md; docs/07_GOOGLE_CLOUD_RUNBOOK.md",
-    "scope": "Create Docker Compose with MySQL, three databases and three database users, Kafka KRaft, Redis, volumes and health checks. Configure Flyway per service. Add .env.example and scripts/dev-up, dev-down and smoke; use placeholders for secrets.",
+    "scope": "Create Docker Compose with MySQL, three databases and three database users, Kafka KRaft, Redis, volumes and health checks. Configure Flyway per service. Add .env.example and tooling/scripts/dev-up, dev-down and smoke; use placeholders for secrets.",
     "gate": "A database user cannot read another service's database. Rerunning Flyway does not reapply V1. Container restarts preserve SQL/Kafka data. Internal ports are available only within the Compose network or bound to localhost for debugging."
   },
   {
     "id": "P02",
     "title": "Identity and JWT",
-    "inputs": "P01; Identity section of contracts/openapi.yaml; schema/identity",
+    "inputs": "P01; Identity section of docs/contracts/openapi.yaml; backend/schema/identity",
     "scope": "Implement registration, login, me, CSRF, refresh, logout and JWKS. Use Argon2id and RS256 JWTs with issuer/audience validation; rotate refresh tokens within a transaction. Access tokens last 10 minutes, and refresh families have an absolute 14-day expiry. Only Document may call the internal user-resolution endpoint.",
     "gate": "JUnit and integration tests cover wrong passwords, concurrent duplicate-email registration, CSRF, expired JWTs, wrong algorithm/audience, refresh reuse and logout. Logs contain no passwords, tokens or private keys."
   },
@@ -72,7 +72,7 @@
   {
     "id": "P10",
     "title": "Processing and export jobs",
-    "inputs": "P06, P09; schema/processing; jobs APIs",
+    "inputs": "P06, P09; backend/schema/processing; jobs APIs",
     "scope": "Implement job creation with permission checks, quotas, idempotency and outbox, then dispatch QUEUED to READY. Add the preview consumer, worker leases/heartbeats/reclaim, streaming TXT/HTML exports, output caps and TTL. Cancel/status/download check current permissions.",
     "gate": "A worker that loses its lease cannot publish output. I/O retries are bounded; deadlines and cancellation races behave correctly. HTML escaping prevents XSS, and oversized output returns an error. Revocation blocks new downloads. A crash after inbox commit does not lose the job."
   },
@@ -114,7 +114,7 @@
   {
     "id": "P16",
     "title": "Optional gRPC exercise",
-    "inputs": "MVP gates A through E; contracts/snapshot.proto",
+    "inputs": "MVP gates A through E; docs/contracts/snapshot.proto",
     "scope": "Replace one internal snapshot-authorization REST call between Processing and Document with gRPC. Forward the actor access JWT through redacted metadata/payload; validate service identity and the actor's ACL. Add deadlines, retries and cancellation while preserving the public API.",
     "gate": "Interop contracts pass; invalid actors/callers are rejected. Timeouts/backoff cannot create duplicate jobs. Measure actual latency. Real-time collaboration requires ADR013 and a separate plan."
   }

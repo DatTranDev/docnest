@@ -32,9 +32,9 @@ jobs:
       - name: Scan the exact images before publishing
         run: |
           set -euo pipefail
-          python checks/image_secrets.py
-          python checks/install_trivy.py
-          python checks/image_os_scan.py --download-db
+          python testing/checks/image_secrets.py
+          python testing/checks/install_trivy.py
+          python testing/checks/image_os_scan.py --download-db
       - name: Publish scanned commit images
         env:
           REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/editor
@@ -44,7 +44,7 @@ jobs:
             docker push "$REGISTRY/$service:$GITHUB_SHA"
             docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$service:$GITHUB_SHA" >> image-digests.txt
           done
-          python scripts/digest_manifest.py --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --input image-digests.txt --output image-digests.json
+          python tooling/scripts/digest_manifest.py --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --input image-digests.txt --output image-digests.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cloud-image-digests
@@ -56,6 +56,6 @@ jobs:
         with:
           name: cloud-image-scan-evidence
           path: |
-            reports/image-secrets.json
-            reports/image-os-scan.json
-            reports/image-os/
+            testing/reports/image-secrets.json
+            testing/reports/image-os-scan.json
+            testing/reports/image-os/

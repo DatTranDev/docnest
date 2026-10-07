@@ -36,14 +36,14 @@ jobs:
       - name: Validate operator input and prepare manifest
         run: |
           set -euo pipefail
-          python -m pip install -r checks/requirements-implementation.txt
+          python -m pip install -r testing/checks/requirements-implementation.txt
           python - <<'PY'
           import os, pathlib
           for key in ('PROJECT','REGION','ZONE','CLUSTER','ORIGIN','SNAPSHOTS','RESULTS','BACKUP_REFERENCE'):
               if not os.environ.get(key): raise SystemExit('Missing configuration: '+key)
           pathlib.Path('reviewed-digests.json').write_text(os.environ['DIGEST_JSON'])
           PY
-          python scripts/digest_manifest.py --project "$PROJECT" --region "$REGION" --input reviewed-digests.json --output digests.json
+          python tooling/scripts/digest_manifest.py --project "$PROJECT" --region "$REGION" --input reviewed-digests.json --output digests.json
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
@@ -54,11 +54,11 @@ jobs:
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE" --project "$PROJECT"
-          python scripts/render_cloud.py --project "$PROJECT" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --output cloud-render
+          python tooling/scripts/render_cloud.py --project "$PROJECT" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --output cloud-render
           # Use the same validation as the runtime before preserving reviewed TLS
           # proxy trust in this rollout. An omitted variable keeps the safe default.
           node --input-type=module - <<'JS'
-          import { loadConfig } from './apps/web/server/gateway.mjs';
+          import { loadConfig } from './frontend/web/server/gateway.mjs';
           loadConfig(process.env);
           JS
           python - <<'PY'

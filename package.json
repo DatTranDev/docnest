@@ -3,27 +3,27 @@
   "private": true,
   "version": "1.0.0",
   "workspaces": [
-    "packages/editor-core",
-    "apps/web",
-    "tools/lint-glob"
+    "frontend/editor-core",
+    "frontend/web",
+    "tooling/lint-glob"
   ],
   "engines": {
     "node": ">=24 <25"
   },
   "overrides": {
-    "fast-glob": "file:../../../tools/lint-glob"
+    "fast-glob": "file:../../../tooling/lint-glob"
   },
   "scripts": {
     "format:write": "prettier --write \"**/*.{ts,tsx,mjs,js,cjs,json,yml,yaml,css,md,html}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,mjs,js,cjs,json,yml,yaml,css,md,html}\"",
-    "architecture": "node checks/frontend-boundaries.mjs",
+    "architecture": "node testing/checks/frontend-boundaries.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "lint": "eslint apps/web packages/editor-core --max-warnings=0",
-    "e2e": "npm run e2e --workspace apps/web",
-    "benchmark": "npm run benchmark --workspace apps/web",
-    "worker-check": "npm run worker-check --workspace apps/web"
+    "lint": "eslint frontend/web frontend/editor-core testing/e2e testing/benchmark --max-warnings=0",
+    "e2e": "npm run e2e --workspace frontend/web",
+    "benchmark": "npm run benchmark --workspace frontend/web",
+    "worker-check": "npm run worker-check --workspace frontend/web"
   },
   "devDependencies": {
     "prettier": "3.9.9",

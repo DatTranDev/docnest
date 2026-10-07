@@ -6,7 +6,7 @@ import json, os, pathlib, secrets, subprocess, tempfile, time
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 NAME = "editor-kafka-acl-check-" + secrets.token_hex(4)
 IMAGE = "apache/kafka:4.1.1@sha256:0bc1bb2478f45b6cea78864df86acdc11e8df2c5172477819a4d12942cbe5d40"
-REPORT = ROOT / "reports/kafka-acl-check.json"
+REPORT = ROOT / "testing/reports/kafka-acl-check.json"
 results = []
 
 
