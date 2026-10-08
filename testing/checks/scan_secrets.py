@@ -13,7 +13,6 @@ excluded = {
     "target",
     "dist",
     ".terraform",
-    "fixtures",
     "data",
     "test-results",
     "playwright-report",

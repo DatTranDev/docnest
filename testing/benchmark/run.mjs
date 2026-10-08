@@ -312,7 +312,7 @@ const stats = (values) => {
 try {
   for (const args of [
     [
-      path.join(repositoryRoot, 'testing/fixtures/generate_fixtures.py'),
+      path.join(repositoryRoot, 'testing/benchmark/native_input.py'),
       '--large',
       '--output',
       path.join(appRoot, 'public/benchmarks'),

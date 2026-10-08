@@ -1,4 +1,4 @@
-"""Golden native fixtures. Python standard library only; not application code."""
+"""Generate native benchmark and smoke inputs with the Python standard library."""
 
 from pathlib import Path
 import argparse, hashlib, json, struct, zipfile
@@ -82,12 +82,7 @@ def make(path, text, kind="uniform", mask=0, runs=None):
     }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--large", action="store_true")
-    ap.add_argument("--output", type=Path)
-    args = ap.parse_args()
-    dest = args.output or Path(__file__).parent / "native"
+def generate(dest, large=False):
     ledger = []
     ledger.append(make(dest / "empty.tedoc", ""))
     ledger.append(
@@ -104,7 +99,7 @@ def main():
         )
     )
     ledger.append(make(dest / "dense-ascii.tedoc", "ABCDEFGH" * 8, "dense"))
-    if args.large:
+    if large:
         ledger.append(make(dest / "ascii-long-line-10MiB.tedoc", "x" * 10485760))
         ledger.append(make(dest / "million-lines.tedoc", "line12345\n" * 999999 + "x"))
         pattern = "Vi\u1ec7t Nam \U0001f600 e\u0301\n"
@@ -115,10 +110,18 @@ def main():
     (dest / "index.json").write_text(
         json.dumps(ledger, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
+    return ledger
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--large", action="store_true")
+    ap.add_argument("--output", type=Path)
+    args = ap.parse_args()
+    dest = args.output or Path(__file__).parent / "generated"
+    ledger = generate(dest, args.large)
     print(
-        json.dumps(
-            {"fixtures": len(ledger), "directory": str(dest)}, ensure_ascii=False
-        )
+        json.dumps({"inputs": len(ledger), "directory": str(dest)}, ensure_ascii=False)
     )
 
 

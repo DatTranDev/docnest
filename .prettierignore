@@ -5,9 +5,6 @@ node_modules/
 **/.next/
 **/target/
 **/dist/
-**/playwright-report/
-**/test-results/
-testing/fixtures/
 testing/reports/
 testing/benchmark/baseline/
 KIT_VALIDATION_REPORT.json

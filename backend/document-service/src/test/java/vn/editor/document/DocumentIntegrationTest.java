@@ -79,7 +79,17 @@ class DocumentIntegrationTest {
   String owner, other;
 
   @BeforeAll
-  static void start() {
+  static void start() throws Exception {
+    int generated =
+        new ProcessBuilder(
+                "python",
+                "../../testing/benchmark/native_input.py",
+                "--output",
+                "target/native-inputs")
+            .inheritIO()
+            .start()
+            .waitFor();
+    assertEquals(0, generated);
     mysql = new MySQLContainer("mysql:8.4.7").withDatabaseName("document_db");
     mysql.start();
     source =
@@ -138,7 +148,7 @@ class DocumentIntegrationTest {
   }
 
   String upload(String actor, String doc, String fixture, long expected) throws Exception {
-    byte[] bytes = Files.readAllBytes(Path.of("../../testing/fixtures/native", fixture));
+    byte[] bytes = Files.readAllBytes(Path.of("target/native-inputs", fixture));
     Map<String, Object> ticket =
         s.createUpload(
             actor,
@@ -604,8 +614,7 @@ class DocumentIntegrationTest {
             http(client, base, "GET", "/api/v1/documents/" + document, otherToken, null, null)
                 .statusCode());
         s.grant(owner, document, other, "EDITOR");
-        byte[] nativeBytes =
-            Files.readAllBytes(Path.of("../../testing/fixtures/native/mixed-runs.tedoc"));
+        byte[] nativeBytes = Files.readAllBytes(Path.of("target/native-inputs/mixed-runs.tedoc"));
         var reserved =
             http(
                 client,

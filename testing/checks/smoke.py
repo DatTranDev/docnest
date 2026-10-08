@@ -6,6 +6,10 @@ from openapi_schema_validator import OAS30Validator
 from jsonschema import RefResolver
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "testing/benchmark"))
+from native_input import generate
+
+generate(ROOT / "testing/benchmark/generated")
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from run import compose, initialize
 
@@ -180,7 +184,7 @@ def main():
     note(
         "Private folders, case-insensitive duplicate names, nonempty deletion and empty head0"
     )
-    fixture = (ROOT / "testing/fixtures/native/mixed-runs.tedoc").read_bytes()
+    fixture = (ROOT / "testing/benchmark/generated/mixed-runs.tedoc").read_bytes()
     ticket = upload(alice, did, fixture, 0)
     key = str(uuid.uuid4())
     saved = commit(alice, did, ticket, 0, key)
@@ -247,7 +251,7 @@ def main():
     )
     call(bob, "POST", f"/api/v1/documents/{did}/share-links", 403, json={})
     unicode_fixture = (
-        ROOT / "testing/fixtures/native/unicode-uniform.tedoc"
+        ROOT / "testing/benchmark/generated/unicode-uniform.tedoc"
     ).read_bytes()
     t1 = upload(alice, did, unicode_fixture, 1)
     t2 = upload(bob, did, unicode_fixture, 1)

@@ -56,8 +56,8 @@ $taskPaths = @(
     'frontend/web/test-results'
     'frontend/web/tsconfig.tsbuildinfo'
     'testing/checks/__pycache__'
-    'testing/fixtures/__pycache__'
-    'testing/fixtures/large'
+    'testing/benchmark/__pycache__'
+    'testing/benchmark/generated'
     'node_modules'
     'frontend/editor-core/node_modules'
     'testing/reports/backup-restore.log'
@@ -210,7 +210,7 @@ $taskReport = [ordered]@{
     recordedAt = [DateTime]::UtcNow.ToString('o')
     executed = [bool]$Execute
     entries = @($taskResults.ToArray())
-    retained = @('source', 'lockfiles', 'small native fixtures', 'handoff documents',
+    retained = @('source', 'lockfiles', 'handoff documents',
         'current and referenced evidence', 'failure logs', 'JUnit reports',
         '.env', 'Docker images/volumes', 'backups', 'installed validation tools')
 }

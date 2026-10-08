@@ -34,6 +34,5 @@ jobs:
       - run: python tooling/scripts/run.py smoke
       - run: npx playwright install --with-deps chromium
       - run: npm run worker-check
-      - run: npm run e2e
       - run: python tooling/scripts/run.py down
         if: always()

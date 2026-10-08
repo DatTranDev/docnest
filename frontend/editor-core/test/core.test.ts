@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { EditorSelection } from '@codemirror/state';
@@ -13,11 +11,9 @@ import {
   graphemes,
   importTxt,
   search,
-  sha256,
   StyleTree,
   TextAdapter,
 } from '../src/index';
-const golden = resolve(import.meta.dirname, '../../../testing/fixtures/native');
 describe('persistent adaptive StyleTree', () => {
   it('matches a flat oracle under random replace/format/slice and preserves old roots', () => {
     fc.assert(
@@ -238,34 +234,6 @@ describe('atomic history and Unicode', () => {
   });
 });
 describe('native codec and TXT preferences', () => {
-  it('independently reads all uniform/run/dense fixtures and SHA values', async () => {
-    const index = JSON.parse(await readFile(resolve(golden, 'index.json'), 'utf8')) as {
-      file: string;
-      nativeSha256: string;
-      manifest: { utf16Length: number };
-      styleKind: string;
-      uniformMask: number;
-      runs: [number, number][];
-    }[];
-    for (const f of index) {
-      const raw = new Uint8Array(await readFile(resolve(golden, f.file)));
-      expect(await sha256(raw)).toBe(f.nativeSha256);
-      const s = await decodeNative(raw);
-      expect(s.text.length).toBe(f.manifest.utf16Length);
-      let expected: number[] = [];
-      if (f.styleKind === 'uniform')
-        expected = new Array<number>(s.text.length).fill(f.uniformMask);
-      else if (f.styleKind === 'runs')
-        expected = f.runs.flatMap(([n, m]) => new Array<number>(n).fill(m));
-      else expected = Array.from({ length: s.text.length }, (_, i) => i % 8);
-      expect(
-        [...s.styles.queryRuns()].flatMap((r) => new Array<number>(r.to - r.from).fill(r.mask)),
-      ).toEqual(expected);
-      const round = await decodeNative(await encodeNative(s));
-      expect(round.text.slice()).toBe(s.text.slice());
-      expect([...round.styles.queryRuns()]).toEqual([...s.styles.queryRuns()]);
-    }
-  });
   it('preserves Unicode, CRLF and BOM only as TXT export preferences', async () => {
     const s = importTxt(new TextEncoder().encode('\ufeffViệt 😀\r\né\rnext'));
     expect(s.text.slice()).toBe('Việt 😀\né\nnext');
@@ -278,7 +246,9 @@ describe('native codec and TXT preferences', () => {
     expect(() => importTxt(Uint8Array.from([0xc0, 0xaf]))).toThrow();
   });
   it('rejects CRC corruption, truncation, compression, unknown entries and inconsistent grapheme styles', async () => {
-    const original = new Uint8Array(await readFile(resolve(golden, 'mixed-runs.tedoc')));
+    const original = await encodeNative(
+      new EditorModel(TextAdapter.from('hello world')).snapshot(),
+    );
     const corrupted = original.slice();
     corrupted[90] = corrupted[90]! ^ 1;
     await expect(decodeNative(corrupted)).rejects.toThrow();

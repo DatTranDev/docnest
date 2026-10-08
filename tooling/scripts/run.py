@@ -101,7 +101,6 @@ def main():
             "contracts",
             "smoke",
             "benchmark",
-            "e2e",
             "infra-check",
             "backup",
             "restore",
@@ -175,7 +174,6 @@ def main():
                 "black",
                 "tooling/scripts",
                 "testing/checks",
-                "testing/fixtures",
                 "infra",
                 "testing/benchmark",
             ]
@@ -191,19 +189,18 @@ def main():
         execute([sys.executable, "-X", "utf8", "testing/checks/smoke.py"])
     elif a.command == "infra-check":
         execute([sys.executable, "-X", "utf8", "testing/checks/infra_checks.py"])
-    elif a.command in ["benchmark", "e2e"]:
-        if a.command == "benchmark":
-            execute(
-                [
-                    sys.executable,
-                    "-X",
-                    "utf8",
-                    "testing/fixtures/generate_fixtures.py",
-                    "--large",
-                    "--output",
-                    "testing/fixtures/large",
-                ]
-            )
+    elif a.command == "benchmark":
+        execute(
+            [
+                sys.executable,
+                "-X",
+                "utf8",
+                "testing/benchmark/native_input.py",
+                "--large",
+                "--output",
+                "testing/benchmark/generated",
+            ]
+        )
         execute([npm, "run", a.command])
     elif a.command in ["backup", "restore"]:
         path = pathlib.Path(a.backup_path).resolve()
@@ -337,7 +334,6 @@ def quality(npm):
             "--check",
             "tooling/scripts",
             "testing/checks",
-            "testing/fixtures",
             "infra",
             "testing/benchmark",
         ]

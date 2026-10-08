@@ -241,24 +241,7 @@ def additional_evidence():
         ]
     else:
         lines += ["Production worker contracts: NOT_RUN; report absent.", ""]
-    browser_path = "testing/reports/playwright-results.json"
-    if (ROOT / browser_path).is_file():
-        stats = read(browser_path)["stats"]
-        old = read("testing/benchmark/baseline/playwright-results.json")["stats"]
-        scope = (
-            "This is the archived pre-refactor execution, not a fresh Next.js full-service gate."
-            if stats["startTime"] == old["startTime"]
-            else "This execution is later than the archived pre-refactor browser gate."
-        )
-        lines += [
-            f"Full-service Playwright started {stats['startTime']}: {stats['expected']} expected/pass, "
-            f"{stats['unexpected']} unexpected/fail, {stats['skipped']} skipped, {stats['flaky']} flaky, "
-            f"{stats['duration'] / 1000:.1f} seconds. {scope} Tests use real services and browser APIs; "
-            f"timing interceptors continue requests to backends. Evidence: [{browser_path}](../{browser_path}).",
-            "",
-        ]
-    else:
-        lines += ["Full-service browser validation: NOT_RUN; report absent.", ""]
+    lines += ["Full-service browser E2E suite: REMOVED at owner request.", ""]
     return lines
 
 
@@ -352,7 +335,7 @@ def main():
             "",
             "Status: Gate D executed with documented limitations. Missed targets remain unmet. "
             "The 8 GiB reference device has not been tested. The Next.js comparison does not waive "
-            "misses in workloads that were not rerun. Public contracts and native fixtures are preserved.",
+            "misses in workloads that were not rerun. Public contracts and the native file format are preserved.",
             "",
             "The editor uses persistent CodeMirror text, adaptive uniform/run/dense StyleTree leaves, "
             "lazy transforms, bounded history/cache, viewport decorations, worker ACK/resync, streamed "
@@ -442,7 +425,7 @@ def main():
             "production server and exercises actual worker/App Router contracts. `BENCH_BASE_URL` may "
             "target an already running production harness. These Windows measurements use the optimized "
             "Next CLI production server; the CLI emits a standalone-output advisory. Docker runs the "
-            "standalone server behind the gateway, separately verified by real application E2E. "
+            "standalone server behind the gateway, historically verified by a full-service browser run before that suite was removed. "
             "These browser timings do not measure gateway/network latency. Representative comparison settings:",
             "",
             "```powershell",

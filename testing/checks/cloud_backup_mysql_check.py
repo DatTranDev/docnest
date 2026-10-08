@@ -90,7 +90,7 @@ def fixture():
         bucket="isolated-private-results",
         generation="22345678901234568",
     )
-    raw = (ROOT / "testing/fixtures/native/empty.tedoc").read_bytes()
+    raw = b"backup-object-payload"
     native_hash = hashlib.sha256(raw).hexdigest()
     text = "Tiếng Việt 👨‍👩‍👧‍👦 <>& '\\ newline\n二"
     saved = json.loads(

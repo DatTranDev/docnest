@@ -4,7 +4,6 @@ ENV MAVEN_OPTS="-Xms64m -Xmx384m -XX:ActiveProcessorCount=2 -XX:ReservedCodeCach
 COPY pom.xml ./
 COPY backend ./backend
 COPY docs/contracts ./docs/contracts
-COPY testing/fixtures/native ./testing/fixtures/native
 ARG SERVICE
 RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -ntp -pl backend/${SERVICE} -am package -DskipTests
 FROM eclipse-temurin:21-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf802164f2eaf48d570f8fb79a36c5

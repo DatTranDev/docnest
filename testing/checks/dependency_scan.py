@@ -139,4 +139,7 @@ print(
     + str(len(set(unresolved)))
     + " unresolved"
 )
+for finding in findings:
+    advisory_ids = sorted({advisory["id"] for advisory in finding["advisories"]})
+    print(f"{finding['package']}@{finding['version']}: {', '.join(advisory_ids)}")
 raise SystemExit(0 if report["status"] == "PASS" else 1)

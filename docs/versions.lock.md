@@ -12,7 +12,7 @@ Locked 4 October 2026. Application version1.0.0-SNAPSHOT; native format remains 
 | ICU4J / segmentation                            | 78.3 / Unicode17; unicode-segmenter0.17.3 on the client                                                                                     |
 | JSON schema validator                           | networknt1.5.9                                                                                                                              |
 | Bouncy Castle                                   | 1.85; security override documented in ADR017                                                                                                |
-| Security overrides to Boot BOM                  | Jackson2 BOM2.21.7; Jackson3 BOM3.1.7; Tomcat11.0.25; LZ4 Java1.11.1                                                                        |
+| Security overrides to Boot BOM                  | Jackson2 BOM2.21.7; Jackson3 BOM3.1.7; Tomcat11.0.26; LZ4 Java1.11.4                                                                        |
 | Node / TypeScript                               | 24.11.1 /5.9.3                                                                                                                              |
 | Next.js / React / React DOM                     | 16.3.8 /19.3.0 /19.3.0; App Router, production standalone Node server                                                                       |
 | CodeMirror state/view/commands                  | 6.7.6 /6.43.13 /6.11.1                                                                                                                      |

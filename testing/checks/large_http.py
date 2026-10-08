@@ -45,7 +45,7 @@ for name in [
     "unicode-near-10MiB.tedoc",
     "dense-10MiB.tedoc",
 ]:
-    raw = (ROOT / "testing/fixtures/large" / name).read_bytes()
+    raw = (ROOT / "testing/benchmark/generated" / name).read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
     d = call(
         "POST",

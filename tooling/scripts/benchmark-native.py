@@ -96,18 +96,17 @@ def main():
         env=env,
         check=True,
     )
-    fixtures = ROOT / "testing/fixtures/large"
-    if not (fixtures / "dense-10MiB.tedoc").exists():
-        subprocess.run(
-            [
-                sys.executable,
-                str(ROOT / "testing/fixtures/generate_fixtures.py"),
-                "--large",
-                "--output",
-                str(fixtures),
-            ],
-            check=True,
-        )
+    fixtures = ROOT / "testing/benchmark/generated"
+    subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "testing/benchmark/native_input.py"),
+            "--large",
+            "--output",
+            str(fixtures),
+        ],
+        check=True,
+    )
     classpath = os.pathsep.join(
         [
             str(ROOT / "backend/common/target/test-classes"),

@@ -177,7 +177,7 @@ def main():
     )
     ci = read(".github/workflows/ci.yml")
     assert "python tooling/scripts/run.py test" in ci and "npm run build" in ci
-    assert "npm run e2e" in ci and "migration_only.py" in ci
+    assert "npm run worker-check" in ci and "migration_only.py" in ci
     assert "actions/upload-artifact" not in ci
     quality = read("tooling/scripts/run.py")
     for gate in (
@@ -197,7 +197,7 @@ def main():
     checks.extend(
         [
             "Kafka service ACL/auth configuration, authenticated controller and no Identity principal",
-            "CI enforces formatting/import/type/lint/architecture/tests/build/E2E without uploading local reports",
+            "CI enforces formatting/import/type/lint/architecture/tests/build/smoke/Worker without uploading local reports",
             "cloud Compose TLS bind resolves relative to base Compose file",
         ]
     )

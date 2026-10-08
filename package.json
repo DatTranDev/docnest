@@ -20,8 +20,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
-    "lint": "eslint frontend/web frontend/editor-core testing/e2e testing/benchmark --max-warnings=0",
-    "e2e": "npm run e2e --workspace frontend/web",
+    "lint": "eslint frontend/web frontend/editor-core testing/benchmark --max-warnings=0",
     "benchmark": "npm run benchmark --workspace frontend/web",
     "worker-check": "npm run worker-check --workspace frontend/web"
   },

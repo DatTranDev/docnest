@@ -16,7 +16,7 @@ export default [
   ...nextVitals.map((config) => ({ ...config, files: ['frontend/web/src/**/*.{ts,tsx}'] })),
   ...nextTypescript.map((config) => ({ ...config, files: ['frontend/web/src/**/*.{ts,tsx}'] })),
   {
-    files: ['frontend/web/**/*.{ts,tsx}', 'frontend/editor-core/**/*.ts', 'testing/e2e/**/*.ts'],
+    files: ['frontend/web/**/*.{ts,tsx}', 'frontend/editor-core/**/*.ts'],
     languageOptions: { parser: ts.parser, ecmaVersion: 2024, sourceType: 'module' },
     settings: { next: { rootDir: 'frontend/web' } },
     rules: {

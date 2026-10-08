@@ -8,7 +8,6 @@
     "build": "next build --webpack",
     "start": "next start --hostname 0.0.0.0",
     "test": "vitest run",
-    "e2e": "playwright test",
     "benchmark": "node ../../testing/benchmark/run.mjs",
     "worker-check": "node ../../testing/benchmark/worker-check.mjs",
     "typecheck": "tsc --noEmit",

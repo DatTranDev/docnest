@@ -85,7 +85,14 @@ class ProcessingMySqlTest {
     assertTrue(AopUtils.isCglibProxy(jobs));
     assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobExecutionRepository.class)));
     assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobOutputCleanupRepository.class)));
-    Path fixture = Path.of("../../testing/fixtures/native/mixed-runs.tedoc");
+    Path fixture = dir.resolve("mixed-runs.tedoc");
+    int generated =
+        new ProcessBuilder(
+                "python", "../../testing/benchmark/native_input.py", "--output", dir.toString())
+            .inheritIO()
+            .start()
+            .waitFor();
+    assertEquals(0, generated);
     var decoded = NativeCodec.decode(fixture);
     StorageProvider storage = context.getBean(StorageProvider.class);
     StorageProvider.Metadata source;

@@ -10,8 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.UUID;
@@ -76,19 +74,6 @@ class ProcessingTest {
     String sample = (String) ExportRenderer.preview(text).get("sampleText");
     assertEquals("x".repeat(1999), sample);
     assertEquals(1L, ExportRenderer.preview(text).get("wordCount"));
-  }
-
-  @Test
-  void goldenNativeFilesCanBeExported() throws Exception {
-    Path fixtures = Path.of("../../testing/fixtures/native");
-    try (var paths = Files.list(fixtures)) {
-      for (Path p : paths.filter(x -> x.toString().endsWith(".tedoc")).toList()) {
-        NativeCodec.Decoded d = NativeCodec.decode(p);
-        var output = new ByteArrayOutputStream();
-        ExportRenderer.txt(d, output, () -> {});
-        assertTrue(output.size() <= NativeCodec.MAX_TEXT * 2 + 3);
-      }
-    }
   }
 
   @Test

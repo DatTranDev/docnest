@@ -4,6 +4,10 @@ import hashlib, json, os, pathlib, secrets, subprocess, sys, time, uuid
 import requests
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "testing/benchmark"))
+from native_input import generate
+
+generate(ROOT / "testing/benchmark/generated")
 os.chdir(ROOT)
 project = "text-editor-fresh-" + secrets.token_hex(4)
 origin = "http://localhost:8081"
@@ -75,7 +79,7 @@ try:
         201,
         json={"title": "Fresh formatted file", "folderId": folder["id"]},
     )
-    raw = (ROOT / "testing/fixtures/native/mixed-runs.tedoc").read_bytes()
+    raw = (ROOT / "testing/benchmark/generated/mixed-runs.tedoc").read_bytes()
     ticket = call(
         owner,
         "POST",

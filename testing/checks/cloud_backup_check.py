@@ -199,7 +199,7 @@ class RecoveryCheck(unittest.TestCase):
             (folder / "objects").mkdir()
             (folder / "databases.sql").write_bytes(b"CREATE DATABASE identity_db;")
             (folder / "identity-key.pem").write_bytes(b"fixture-not-a-real-private-key")
-            native = (ROOT / "testing/fixtures/native/empty.tedoc").read_bytes()
+            native = b"backup-object-payload"
             name = "a" * 64 + ".bin"
             (folder / "objects" / name).write_bytes(native)
             manifest = {
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     report = {
         "status": "PASS" if result.wasSuccessful() else "FAIL",
         "tests": result.testsRun,
-        "scope": "offline real fixture/archive/hash/reference-transform tests; 500 seeded nested cases; no cloud API or SQL restore executed",
+        "scope": "offline archive/hash/reference-transform tests with generated inputs; 500 seeded nested cases; no cloud API or SQL restore executed",
         "cloudBackupRestore": "NOT_RUN",
     }
     (ROOT / "testing/reports/cloud-backup-local.json").write_text(

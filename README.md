@@ -30,7 +30,6 @@ This keeps the saved data. Do not use `docker compose down -v` unless you intend
 | `python -X utf8 tooling/scripts/run.py test`      | Run quality gates, service tests and frontend tests; Docker required |
 | `python -X utf8 tooling/scripts/run.py quality`   | Run formatting, lint, type and contract checks                       |
 | `python -X utf8 tooling/scripts/run.py smoke`     | Check a running local app and its services                           |
-| `python -X utf8 tooling/scripts/run.py e2e`       | Run browser tests against the local app                              |
 | `python -X utf8 tooling/scripts/run.py benchmark` | Measure large-file browser workloads                                 |
 | `python -X utf8 tooling/scripts/run.py backup`    | Back up local app data                                               |
 
@@ -45,7 +44,7 @@ Development and test commands also need JDK 21 and Node 24. Install dependencies
 | `infra/compose/` | Local Docker stack, Dockerfiles and MySQL/Kafka setup                           |
 | `infra/gcp/`     | Terraform and VM deployment templates                                           |
 | `infra/k8s/`     | Kubernetes manifests and lab overlay                                            |
-| `testing/`       | Cross-service checks, browser tests, benchmarks and fixtures                    |
+| `testing/`       | Cross-service checks and benchmarks                                             |
 | `tooling/`       | Local build, test, run and deployment scripts                                   |
 | `docs/`          | Product/design docs, API/event contracts and setup guides                       |
 

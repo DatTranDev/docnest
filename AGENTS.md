@@ -1,10 +1,10 @@
 # Repository implementation rules
 
-Read `README.md`, `docs/AI_AGENT_GUIDE.md`, the relevant design documents, contracts, schemas, fixtures, and `docs/PROJECT_STATUS.md` before implementation. ADR019 in `docs/10_DECISIONS_AND_SOURCES.md` records the accepted architectural migration. `docs/PROJECT_STATUS.md` is the sole project status checkpoint. Accepted user instructions take precedence. Continue through authorized local work without per-step approval; preserve progress across context resets.
+Read `README.md`, `docs/AI_AGENT_GUIDE.md`, the relevant design documents, contracts, schemas, and `docs/PROJECT_STATUS.md` before implementation. ADR019 in `docs/10_DECISIONS_AND_SOURCES.md` records the accepted architectural migration. `docs/PROJECT_STATUS.md` is the sole project status checkpoint. Accepted user instructions take precedence. Continue through authorized local work without per-step approval; preserve progress across context resets.
 
 ## Ownership and dependencies
 
-- Keep Identity, Document, and Processing separate. Each service accesses only its own MySQL database. Preserve API fields, event envelopes, native fixture bytes, SQL locking, optimistic revision checks, idempotency, ACL checks, and outbox/inbox guarantees.
+- Keep Identity, Document, and Processing separate. Each service accesses only its own MySQL database. Preserve API fields, event envelopes, native file semantics, SQL locking, optimistic revision checks, idempotency, ACL checks, and outbox/inbox guarantees.
 - Organize backend features as `api`, `application/command`, `application/query`, `application/port`, `domain`, and `infrastructure`; put entry points and dependency wiring in `bootstrap`.
 - Domain code is plain Java and depends only on Java/domain types. Put actual business invariants in domain entities, value objects, and policies.
 - Application handlers orchestrate domain operations through ports. They cannot import Spring, HTTP, JDBC, Redis, Kafka, concrete storage adapters, controllers, or another service. Processing may use the shared storage reference record as a technical port DTO.

@@ -19,11 +19,11 @@ Use unit/property tests for editor and codec, Testcontainers MySQL/Kafka/Redis f
 | Jobs     | ACK after inbox commit, lease reclaim, stale workers cannot publish results, cancel races, runtime/deadline and 64 MiB output cap              |
 | GC       | Retirement never deletes head; read grace; orphan cleanup leaves committed objects intact; output TTL; restore after folder deletion           |
 
-The small editor oracle uses text and mask arrays. Generate random replace/format/undo/redo sequences of length 1–1000. After each operation, compare text, styles, length, byte counts and dirty semantics. Java/TypeScript codec tests load the same uniform/run/dense golden files. Validate fixture hashes against the manifest and independent SHA256 calculations.
+The small editor oracle uses text and mask arrays. Generate random replace/format/undo/redo sequences of length 1–1000. After each operation, compare text, styles, length, byte counts and dirty semantics. Native inputs for integration and benchmark runs are generated on demand; golden-file cross-language tests were removed at the owner's request.
 
 ## Workloads
 
-testing/fixtures/generate_fixtures.py --large creates a single-line 10 MiB ASCII file, 1,000,000 short lines below 10 MiB, approximately 10 MiB of mixed UTF-8 text, and dense alternating styles. Test sparse styles at 10,000 runs, typical styles at 100,000, and dense styles at 1,000,000 runs or one per grapheme. Use a fixed random seed of 42 and record bytes, UTF-16 length, lines and run count in the benchmark report.
+testing/benchmark/native_input.py --large creates a single-line 10 MiB ASCII file, 1,000,000 short lines below 10 MiB, approximately 10 MiB of mixed UTF-8 text, and dense alternating styles. Test sparse styles at 10,000 runs, typical styles at 100,000, and dense styles at 1,000,000 runs or one per grapheme. Use a fixed random seed of 42 and record bytes, UTF-16 length, lines and run count in the benchmark report.
 
 ## Measurement
 

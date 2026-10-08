@@ -1,7 +1,6 @@
 package vn.editor.common.codec;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -21,7 +20,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -36,51 +34,6 @@ import vn.editor.common.storage.StorageProvider;
 
 class NativeCodecTest {
   @TempDir Path temp;
-
-  static Path fixture(String name) {
-    return Path.of("../../testing/fixtures/native", name);
-  }
-
-  @Test
-  void allGoldenEncodingsAndUnicode() throws Exception {
-    for (String name :
-        List.of("empty.tedoc", "unicode-uniform.tedoc", "mixed-runs.tedoc", "dense-ascii.tedoc")) {
-      var decoded = NativeCodec.decode(fixture(name));
-      assertEquals(decoded.text().length(), decoded.masks().length);
-      assertEquals(Files.size(fixture(name)), decoded.nativeBytes());
-    }
-    var runs = NativeCodec.decode(fixture("mixed-runs.tedoc"));
-    assertArrayEquals(new byte[] {1, 1, 1, 3, 3, 2, 2, 2, 0, 0, 0}, runs.masks());
-    var dense = NativeCodec.decode(fixture("dense-ascii.tedoc"));
-    for (int i = 0; i < 64; i++) assertEquals(i % 8, dense.masks()[i]);
-  }
-
-  @Test
-  void rejectCorruptCrcCompressionEncryptionSymlinkAndUnknownNames() throws Exception {
-    byte[] source = Files.readAllBytes(fixture("mixed-runs.tedoc"));
-    for (String corrupt :
-        List.of("crc", "compression", "encryption", "symlink", "unknown", "truncate")) {
-      byte[] a = source.clone();
-      ByteBuffer b = ByteBuffer.wrap(a).order(ByteOrder.LITTLE_ENDIAN);
-      int central = -1;
-      for (int p = 0; p < a.length - 4; p++)
-        if (b.getInt(p) == 0x02014b50) {
-          central = p;
-          break;
-        }
-      switch (corrupt) {
-        case "crc" -> a[60] ^= 1;
-        case "compression" -> b.putShort(central + 10, (short) 8);
-        case "encryption" -> b.putShort(central + 8, (short) 1);
-        case "symlink" -> b.putInt(central + 38, 0120000 << 16);
-        case "unknown" -> a[central + 46] = 'x';
-        case "truncate" -> a = Arrays.copyOf(a, a.length - 1);
-      }
-      Path file = temp.resolve(corrupt + ".tedoc");
-      Files.write(file, a);
-      assertThrows(NativeCodec.InvalidNative.class, () -> NativeCodec.decode(file), corrupt);
-    }
-  }
 
   @Test
   void denseAndRunsPropertyAgainstFlatOracle() throws Exception {

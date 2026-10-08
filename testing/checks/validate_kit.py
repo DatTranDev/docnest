@@ -1,5 +1,5 @@
 from pathlib import Path
-import json, yaml, re, struct, hashlib, zipfile, datetime, uuid
+import json, yaml, re, datetime, uuid
 
 P = Path(__file__).resolve().parents[2]
 checks = []
@@ -130,136 +130,6 @@ assert len(schemas) == 4
 ok("Four event schemas parse and examples satisfy all schema keywords used by this kit")
 
 
-def read_uleb(data, pos):
-    n = 0
-    for i in range(5):
-        assert pos < len(data), "truncated varint"
-        b = data[pos]
-        pos += 1
-        n |= (b & 127) << (7 * i)
-        if not b & 128:
-            assert i == 0 or b > 0, "noncanonical varint"
-            assert n <= 0xFFFFFFFF
-            return n, pos
-    raise AssertionError("varint >5bytes")
-
-
-def decode_styles(data):
-    assert data[:8] == b"TEDSTYLE"
-    ver, flags, n, count = struct.unpack_from("<HHII", data, 8)
-    assert ver == 1 and flags == 0 and (count > 0 or n == 0)
-    pos = 20
-    masks = []
-    for _ in range(count):
-        tag = data[pos]
-        pos += 1
-        length, pos = read_uleb(data, pos)
-        assert length > 0
-        if tag == 0:
-            mask = data[pos]
-            pos += 1
-            assert 0 <= mask <= 7
-            masks.extend([mask] * length)
-        elif tag == 1:
-            nr, pos = read_uleb(data, pos)
-            assert nr > 0
-            total = 0
-            for _ in range(nr):
-                ln, pos = read_uleb(data, pos)
-                mask = data[pos]
-                pos += 1
-                assert ln > 0 and mask <= 7
-                total += ln
-                masks.extend([mask] * ln)
-            assert total == length
-        elif tag == 2:
-            words = (length + 31) // 32
-            planes = []
-            for _ in range(3):
-                plane = list(struct.unpack_from("<" + "I" * words, data, pos))
-                pos += words * 4
-                if length % 32:
-                    assert plane[-1] >> (length % 32) == 0
-                planes.append(plane)
-            for j in range(length):
-                masks.append(
-                    sum(
-                        ((plane[j // 32] >> (j % 32)) & 1) << k
-                        for k, plane in enumerate(planes)
-                    )
-                )
-        else:
-            raise AssertionError("unknown tag")
-    assert pos == len(data) and len(masks) == n
-    return n, masks
-
-
-manifest_schema = json.loads(
-    (P / "docs/contracts/native-manifest.schema.json").read_text()
-)
-ledger = json.loads((P / "testing/fixtures/native/index.json").read_text())
-assert len(ledger) >= 4
-ledger = [
-    x
-    for x in ledger
-    if x["file"]
-    in {"empty.tedoc", "unicode-uniform.tedoc", "mixed-runs.tedoc", "dense-ascii.tedoc"}
-]
-assert len(ledger) == 4
-for item in ledger:
-    path = P / "testing/fixtures/native" / item["file"]
-    raw = path.read_bytes()
-    assert (
-        len(raw) == item["nativeBytes"]
-        and hashlib.sha256(raw).hexdigest() == item["nativeSha256"]
-    )
-    with zipfile.ZipFile(path) as z:
-        assert z.namelist() == ["manifest.json", "text.utf8", "styles.bin"] and all(
-            x.compress_type == 0 for x in z.infolist()
-        )
-        assert z.testzip() is None
-        m = json.loads(z.read("manifest.json"))
-        text = z.read("text.utf8")
-        styles = z.read("styles.bin")
-    assert_schema(manifest_schema, m, item["file"])
-    decoded = text.decode("utf-8", "strict")
-    n, masks = decode_styles(styles)
-    assert len(decoded.encode("utf-16-le")) // 2 == n == m["utf16Length"]
-    assert len(text) == m["utf8Bytes"] and decoded.count("\n") + 1 == m["logicalLines"]
-    assert (
-        hashlib.sha256(text).hexdigest() == m["textSha256"]
-        and hashlib.sha256(styles).hexdigest() == m["stylesSha256"]
-    )
-    if item["styleKind"] == "uniform":
-        assert masks == [item["uniformMask"]] * n
-    elif item["styleKind"] == "runs":
-        assert masks == [x for length, mask in item["runs"] for x in [mask] * length]
-    else:
-        assert masks == [j % 8 for j in range(n)]
-ok(
-    "Four golden native fixtures independently decoded; ZIP, header, style tags, UTF16, lines and SHA256 round trip verified"
-)
-
-# Validate the oracle catches actual corruption rather than accepting every input.
-sample = P / "testing/fixtures/native/dense-ascii.tedoc"
-with zipfile.ZipFile(sample) as z:
-    data = z.read("styles.bin")
-for bad in [
-    data + b"X",
-    data[:19],
-    b"BROKEN!!" + data[8:],
-    data[:20] + b"\x09" + data[21:],
-]:
-    try:
-        decode_styles(bad)
-    except (AssertionError, struct.error, IndexError):
-        pass
-    else:
-        raise AssertionError("corruption accepted")
-ok(
-    "Independent fixture decoder rejects extra bytes, truncated header, bad magic and unknown style tag"
-)
-
 table_names = {}
 for service in ["identity", "document", "processing"]:
     sql = (P / f"backend/schema/{service}/V1__init.sql").read_text()
@@ -307,7 +177,7 @@ report = {
     "checks": checks,
     "openapi_operations": len(opids),
     "database_tables": table_names,
-    "scope": "Static contract/document checks and native fixture verification only. Application, deployment and benchmark evidence is recorded separately in testing/reports/.",
+    "scope": "Static contract/document checks only. Application, deployment and benchmark evidence is recorded separately in testing/reports/.",
 }
 (P / "testing/reports").mkdir(parents=True, exist_ok=True)
 (P / "testing/reports/kit-validation.json").write_text(

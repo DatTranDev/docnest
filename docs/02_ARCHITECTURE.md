@@ -40,7 +40,7 @@ infra/compose
 infra/gcp
 infra/k8s
 tooling/scripts
-testing/{checks,e2e,benchmark,fixtures,reports}
+testing/{checks,benchmark,reports}
 ```
 
 A root Maven reactor builds three independent services. The backend uses JdbcTemplate and explicit SQL for row locks and compare-and-set (CAS); do not add an ORM to the MVP. Spring's transaction manager wraps short transactions. Keep network and file I/O outside transactions. frontend/editor-core is a TypeScript package for text, style, history, codec and search that does not depend on React screens. Share generated DTOs or schemas between backends, not JPA entities or business services. A small logging/JWT validation library is acceptable; it must not create a shared business database.

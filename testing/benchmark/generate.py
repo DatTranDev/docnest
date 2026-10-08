@@ -5,7 +5,7 @@ import argparse, importlib.util, json, random
 
 kit_root = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(
-    "native_fixtures", kit_root / "testing/fixtures/generate_fixtures.py"
+    "native_input", kit_root / "testing/benchmark/native_input.py"
 )
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
