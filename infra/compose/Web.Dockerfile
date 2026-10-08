@@ -5,7 +5,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 COPY package*.json ./
 COPY tooling/lint-glob ./tooling/lint-glob
 COPY frontend ./frontend
-RUN npm ci && npm run build
+RUN mkdir -p frontend/web/public && npm ci && npm run build
 FROM node:24.11.1-alpine3.23@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7
 RUN apk upgrade --no-cache && apk add --no-cache gcompat
 WORKDIR /app
