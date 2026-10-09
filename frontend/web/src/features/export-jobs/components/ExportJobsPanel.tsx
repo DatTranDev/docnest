@@ -1,6 +1,17 @@
+'use client';
+import { MESSAGE, useI18n } from '@/lib/i18n';
 import { download, errorMessage } from '@/lib/http';
 import { cancelJob, jobContent } from '../api/jobs';
+import { EXPORT_FORMATS } from '../model/formats';
 import type { Job } from '../model/types';
+const JOB_LABELS: Record<string, string> = {
+  QUEUED: MESSAGE.queued,
+  READY: MESSAGE.ready,
+  RUNNING: MESSAGE.running,
+  SUCCEEDED: MESSAGE.succeeded,
+  FAILED: MESSAGE.failed,
+  CANCELLED: MESSAGE.cancelled,
+};
 export function ExportJobsPanel({
   jobs,
   onUpdate,
@@ -10,14 +21,17 @@ export function ExportJobsPanel({
   onUpdate: (updater: (jobs: Job[]) => Job[]) => void;
   onError: (message: string) => void;
 }) {
+  const { t, localize, errorText } = useI18n();
+
   if (!jobs.length) return null;
   return (
     <section>
-      <h3>Tác vụ xuất</h3>
+      <h3>{t(MESSAGE.exportJobs)}</h3>
       {jobs.map((job) => (
         <div className="row" key={job.id}>
-          {job.type} · <span>{job.state}</span>
-          {job.errorCode && <span>{job.errorCode}</span>}
+          {t(EXPORT_FORMATS[job.type].label)} ·{' '}
+          <span>{localize(JOB_LABELS[job.state] ?? job.state)}</span>
+          {job.errorCode && <span>{errorText(job.errorCode)}</span>}
           {job.state === 'SUCCEEDED' && (
             <button
               onClick={() => {
@@ -25,14 +39,14 @@ export function ExportJobsPanel({
                   .then((bytes) =>
                     download(
                       bytes,
-                      `export.${job.type === 'EXPORT_HTML' ? 'html' : 'txt'}`,
-                      job.type === 'EXPORT_HTML' ? 'text/html' : 'text/plain',
+                      `export.${EXPORT_FORMATS[job.type].extension}`,
+                      EXPORT_FORMATS[job.type].mime,
                     ),
                   )
                   .catch((error) => onError(errorMessage(error)));
               }}
             >
-              Tải kết quả
+              {t(MESSAGE.downloadResult)}{' '}
             </button>
           )}
           {['QUEUED', 'READY', 'RUNNING'].includes(job.state) && (
@@ -47,7 +61,7 @@ export function ExportJobsPanel({
                   .catch((error) => onError(errorMessage(error)));
               }}
             >
-              Hủy
+              {t(MESSAGE.cancel)}{' '}
             </button>
           )}
         </div>

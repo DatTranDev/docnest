@@ -13,10 +13,21 @@ export const editorSourceFiles = [
   'frontend/web/src/features/editor/model/worker.ts',
   'frontend/web/src/features/editor/model/DraftStore.ts',
   'frontend/web/src/features/editor/model/viewportStyles.ts',
+  'frontend/web/src/features/editor/model/tableWidgets.ts',
+  'frontend/web/src/features/editor/model/ImageUrlCache.ts',
+  'frontend/web/src/features/editor/model/CollaborationClient.ts',
+  'frontend/web/src/features/editor/model/CollaborationJournal.ts',
+  'frontend/web/src/features/editor/model/constants.ts',
   'frontend/editor-core/src/model.ts',
   'frontend/editor-core/src/style.ts',
   'frontend/editor-core/src/text.ts',
   'frontend/editor-core/src/codec.ts',
+  'frontend/editor-core/src/formatting.ts',
+  'frontend/editor-core/src/structure.ts',
+  'frontend/editor-core/src/images.ts',
+  'frontend/editor-core/src/collaboration.ts',
+  'frontend/editor-core/src/search.ts',
+  'frontend/editor-core/src/index.ts',
 ];
 export async function sourceHashes(files = editorSourceFiles) {
   return Object.fromEntries(

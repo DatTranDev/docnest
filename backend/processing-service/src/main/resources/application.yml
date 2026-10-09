@@ -71,6 +71,10 @@ editor:
     max-active-jobs: ${MAX_ACTIVE_JOBS:5}
 
 logging:
+  level:
+    org.springframework.kafka.listener.DefaultErrorHandler: 'OFF'
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: 'OFF'
+    org.springframework.kafka.listener.FailedRecordTracker: 'OFF'
   structured:
     format:
       console: logstash

@@ -95,6 +95,15 @@ spec:
                 secretKeyRef:
                   name: editor-secrets
                   key: PROCESSING_INTERNAL_KEY
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_PLAINTEXT
+            - name: KAFKA_USERNAME
+              value: identity
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_IDENTITY_PASSWORD
       volumes:
         - name: tmp
           emptyDir: {}

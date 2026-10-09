@@ -91,6 +91,21 @@ spec:
                 secretKeyRef:
                   name: editor-secrets
                   key: KAFKA_OPERATOR_PASSWORD
+            - name: KAFKA_IDENTITY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_IDENTITY_PASSWORD
+            - name: KAFKA_COLLABORATION_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_COLLABORATION_PASSWORD
+            - name: KAFKA_PAYMENT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_PAYMENT_PASSWORD
           volumeMounts:
             - name: data
               mountPath: /var/lib/kafka/data

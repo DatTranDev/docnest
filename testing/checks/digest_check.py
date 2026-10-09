@@ -32,5 +32,5 @@ for case in cases:
     + "\n"
 )
 print(
-    "PASS valid four-image manifest; foreign-project, mutable tag, missing service and wrong-service rejection"
+    "PASS valid six-image manifest; foreign-project, mutable tag, missing service and wrong-service rejection"
 )

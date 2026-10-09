@@ -1,10 +1,21 @@
 'use client';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
+import { MESSAGE, useI18n } from '@/lib/i18n';
+
 import { useState, useEffect, useRef } from 'react';
 import { decodeNative, EditorModel, encodeNative, exportTxt } from '@ted/editor-core';
+import { useLatest } from '@/lib/react/useLatest';
 import { download } from '@/lib/http';
 import { EditorController } from '@/features/editor';
 import { publicShare, publicContent } from '../api/sharing';
 export default function PublicViewer({ token }: { token: string }) {
+  const { t, errorText, locale } = useI18n();
+
+  const currentLocale = useLatest(locale);
+  const controller = useRef<EditorController | null>(null);
+  useEffect(() => {
+    controller.current?.setLanguage(locale);
+  }, [locale]);
   const [title, setTitle] = useState(''),
     [model, setModel] = useState<EditorModel | null>(null),
     [error, setError] = useState(''),
@@ -19,7 +30,7 @@ export default function PublicViewer({ token }: { token: string }) {
         setModel(snapshot ? EditorModel.loaded(snapshot) : new EditorModel());
       })
       .catch(() => {
-        if (!disposed) setError('Liên kết không hợp lệ, đã hết hạn hoặc đã thu hồi.');
+        if (!disposed) setError(MESSAGE.thisLinkIsInvalidExpiredOrRevoked);
       });
     return () => {
       disposed = true;
@@ -28,14 +39,20 @@ export default function PublicViewer({ token }: { token: string }) {
   useEffect(() => {
     if (model && host.current) {
       const c = new EditorController(model, host.current, () => {}, true);
-      return () => c.destroy();
+      controller.current = c;
+      c.setLanguage(currentLocale.current);
+      return () => {
+        c.destroy();
+        controller.current = null;
+      };
     }
-  }, [model]);
+  }, [model, currentLocale]);
   return (
     <main className="public">
-      <h1>{title || 'Tài liệu chia sẻ'}</h1>
-      <p>Chỉ đọc</p>
-      {error && <p role="alert">{error}</p>}
+      <LanguageSelector />
+      <h1>{title || t(MESSAGE.sharedDocument)}</h1>
+      <p>{t(MESSAGE.readOnly)}</p>
+      {error && <p role="alert">{errorText(error)}</p>}
       {model && (
         <div className="toolbar">
           <button
@@ -43,10 +60,10 @@ export default function PublicViewer({ token }: { token: string }) {
               void encodeNative(model.snapshot()).then((b) => download(b, `${title}.tedoc`));
             }}
           >
-            Tải native
+            {t(MESSAGE.downloadNative)}{' '}
           </button>
           <button onClick={() => download(exportTxt(model.snapshot()), `${title}.txt`)}>
-            Tải TXT
+            {t(MESSAGE.downloadTxt)}{' '}
           </button>
         </div>
       )}

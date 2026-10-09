@@ -3,7 +3,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "enum": [1, 2, 3, 4, 5]
     },
     "textEncoding": {
       "const": "utf-8"
@@ -45,6 +45,20 @@
     "stylesSha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "formattingEncoding": {
+      "enum": ["sparse-v1", "sparse-v2", "sparse-v3"]
+    },
+    "formattingSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "mediaEncoding": {
+      "const": "embedded-v1"
+    },
+    "mediaSha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     }
   },
   "required": [
@@ -60,6 +74,95 @@
     "stylesEncoding",
     "textSha256",
     "stylesSha256"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 5
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "formattingEncoding": {
+            "const": "sparse-v3"
+          }
+        }
+      },
+      "else": {
+        "if": {
+          "properties": {
+            "schemaVersion": {
+              "const": 4
+            }
+          }
+        },
+        "then": {
+          "properties": {
+            "formattingEncoding": {
+              "const": "sparse-v2"
+            }
+          }
+        },
+        "else": {
+          "properties": {
+            "formattingEncoding": {
+              "const": "sparse-v1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "enum": [2, 3, 4, 5]
+          }
+        }
+      },
+      "then": {
+        "required": ["formattingEncoding", "formattingSha256"]
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": ["formattingEncoding"]
+            },
+            {
+              "required": ["formattingSha256"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "enum": [3, 4, 5]
+          }
+        }
+      },
+      "then": {
+        "required": ["mediaEncoding", "mediaSha256"]
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": ["mediaEncoding"]
+            },
+            {
+              "required": ["mediaSha256"]
+            }
+          ]
+        }
+      }
+    }
   ],
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://text-editor.example/contracts/native-manifest.schema.json"

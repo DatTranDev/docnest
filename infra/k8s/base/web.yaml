@@ -30,29 +30,10 @@ spec:
         application: text-editor
     spec:
       serviceAccountName: web
-      securityContext:
-        fsGroup: 1000
       terminationGracePeriodSeconds: 45
       containers:
         - name: web
           image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/web:REPLACE_WITH_DIGEST
-          env:
-            - name: NODE_ENV
-              value: production
-            - name: NODE_OPTIONS
-              value: --max-old-space-size=256
-            - name: PORT
-              value: '8080'
-            - name: NEXT_INTERNAL_PORT
-              value: '3000'
-            - name: IDENTITY_INTERNAL_ORIGIN
-              value: http://identity-service:8080
-            - name: DOCUMENT_INTERNAL_ORIGIN
-              value: http://document-service:8080
-            - name: PROCESSING_INTERNAL_ORIGIN
-              value: http://processing-service:8080
-            - name: TRUSTED_PROXY_CIDRS
-              value: ''
           ports:
             - containerPort: 8080
           resources:
@@ -88,19 +69,42 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: --max-old-space-size=256
+            - name: PORT
+              value: '8080'
+            - name: NEXT_INTERNAL_PORT
+              value: '3000'
+            - name: IDENTITY_INTERNAL_ORIGIN
+              value: http://identity-service:8080
+            - name: DOCUMENT_INTERNAL_ORIGIN
+              value: http://document-service:8080
+            - name: PROCESSING_INTERNAL_ORIGIN
+              value: http://processing-service:8080
+            - name: COLLABORATION_INTERNAL_ORIGIN
+              value: http://collaboration-service:8080
+            - name: PAYMENT_INTERNAL_ORIGIN
+              value: http://payment-service:8080
+            - name: TRUSTED_PROXY_CIDRS
+              value: ''
       volumes:
         - name: tmp
           emptyDir: {}
+      securityContext:
+        fsGroup: 1000
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: web
-  annotations:
-    cloud.google.com/neg: '{"ingress":true}'
   labels:
     app: web
     application: text-editor
+  annotations:
+    cloud.google.com/neg: '{"ingress":true}'
 spec:
   selector:
     app: web

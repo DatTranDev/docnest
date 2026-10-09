@@ -17,8 +17,15 @@ import re
 import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-APPS = ("identity-service", "document-service", "processing-service", "web")
-DBS = ("identity_db", "document_db", "processing_db")
+APPS = (
+    "identity-service",
+    "document-service",
+    "processing-service",
+    "collaboration-service",
+    "payment-service",
+    "web",
+)
+DBS = ("identity_db", "document_db", "processing_db", "collaboration_db", "payment_db")
 REF_KEYS = {"provider", "bucket", "key", "generation"}
 
 
@@ -291,7 +298,7 @@ def backup(args):
         not re.fullmatch(r"[a-z0-9._:/-]+@sha256:[a-f0-9]{64}", value)
         for value in images.values()
     ):
-        raise ValueError("Image manifest requires four immutable registry digests")
+        raise ValueError("Image manifest requires five immutable registry digests")
     secret = re.fullmatch(
         r"projects/([^/]+)/secrets/(editor-jwt)/versions/([0-9]+)",
         args.jwt_secret_version,
@@ -347,7 +354,7 @@ def backup(args):
     with (directory / "databases.sql").open("wb") as output:
         run(
             db.command(
-                "mysqldump -uroot --default-character-set=utf8mb4 --hex-blob --single-transaction --routines --events --set-gtid-purged=OFF --databases identity_db document_db processing_db"
+                "mysqldump -uroot --default-character-set=utf8mb4 --hex-blob --single-transaction --routines --events --set-gtid-purged=OFF --databases identity_db document_db processing_db collaboration_db payment_db"
             ),
             output=output,
         )
@@ -600,6 +607,8 @@ def reference_patch(manifest, mapping):
             "idempotency_requests": {"response_body"},
         },
         "identity_db": {},
+        "collaboration_db": {},
+        "payment_db": {},
     }
     for record in manifest["records"]:
         database, table, column = (
@@ -676,7 +685,7 @@ def prepare_remap(args):
         path.write_text(content, encoding="utf-8")
         path.chmod(0o600)
     print(
-        "PREPARED three database-specific SQL files; review before applying to isolated restored databases. No SQL executed."
+        "PREPARED four database-specific SQL files; review before applying to isolated restored databases. No SQL executed."
     )
 
 

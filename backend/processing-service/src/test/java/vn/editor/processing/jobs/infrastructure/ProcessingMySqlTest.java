@@ -81,7 +81,7 @@ class ProcessingMySqlTest {
   }
 
   @Test
-  void springPersistenceProxiesRunRealPreviewAndBothExports() throws Exception {
+  void springPersistenceProxiesRunRealPreviewAndAllFourExports() throws Exception {
     assertTrue(AopUtils.isCglibProxy(jobs));
     assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobExecutionRepository.class)));
     assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobOutputCleanupRepository.class)));
@@ -102,7 +102,8 @@ class ProcessingMySqlTest {
               "snapshots/proxy/source.tedoc", input, Files.size(fixture), NativeCodec.MAX_NATIVE);
     }
     Map<String, String> ids = new LinkedHashMap<>();
-    for (String type : List.of("PREVIEW", "EXPORT_TXT", "EXPORT_HTML")) {
+    for (String type :
+        List.of("PREVIEW", "EXPORT_TXT", "EXPORT_HTML", "EXPORT_DOCX", "EXPORT_PDF")) {
       String id = UUID.randomUUID().toString();
       ids.put(type, id);
       jobs.insert(
@@ -117,16 +118,16 @@ class ProcessingMySqlTest {
           events.encode(source.ref()),
           decoded.nativeSha256());
     }
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
     while (System.nanoTime() < deadline
         && db.queryForObject("SELECT COUNT(*) FROM jobs WHERE state='SUCCEEDED'", Integer.class)
-            < 3) {
+            < 5) {
       worker.schedule();
       worker.heartbeat();
       Thread.sleep(25);
     }
     assertEquals(
-        3, db.queryForObject("SELECT COUNT(*) FROM jobs WHERE state='SUCCEEDED'", Integer.class));
+        5, db.queryForObject("SELECT COUNT(*) FROM jobs WHERE state='SUCCEEDED'", Integer.class));
     for (String type : List.of("EXPORT_TXT", "EXPORT_HTML")) {
       Map<String, Object> row = jobs.row(ids.get(type));
       try (var input = storage.read(jobs.ref(row.get("output_ref")))) {
@@ -138,12 +139,32 @@ class ProcessingMySqlTest {
             ((Number) row.get("output_bytes")).intValue());
       }
     }
+    for (String type : List.of("EXPORT_DOCX", "EXPORT_PDF")) {
+      var row = jobs.row(ids.get(type));
+      try (var input = storage.read(jobs.ref(row.get("output_ref")))) {
+        byte[] output = input.readAllBytes();
+        assertEquals(output.length, ((Number) row.get("output_bytes")).intValue());
+        if (type.equals("EXPORT_DOCX"))
+          try (var document =
+              new org.apache.poi.xwpf.usermodel.XWPFDocument(
+                  new java.io.ByteArrayInputStream(output))) {
+            assertEquals("hello world", document.getParagraphs().getFirst().getText());
+          }
+        else
+          try (var document = org.apache.pdfbox.Loader.loadPDF(output)) {
+            assertTrue(
+                new org.apache.pdfbox.text.PDFTextStripper()
+                    .getText(document)
+                    .contains("hello world"));
+          }
+      }
+    }
     Map<String, Object> summary = jobs.parse(jobs.row(ids.get("PREVIEW")).get("summary_json"));
     assertEquals("hello world", summary.get("sampleText"));
     assertEquals(2, ((Number) summary.get("wordCount")).intValue());
-    assertEquals(3, db.queryForObject("SELECT COUNT(*) FROM outbox_events", Integer.class));
+    assertEquals(5, db.queryForObject("SELECT COUNT(*) FROM outbox_events", Integer.class));
     assertEquals(
-        2,
+        4,
         db.queryForObject(
             "SELECT COUNT(*) FROM output_attempts WHERE state='PUBLISHED'", Integer.class));
     worker.gc();

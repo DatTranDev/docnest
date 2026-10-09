@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.Map;
 import vn.editor.processing.jobs.application.JobFailure;
 import vn.editor.processing.jobs.application.port.ResultStoragePort;
+import vn.editor.processing.jobs.domain.ExportFormat;
 import vn.editor.processing.jobs.domain.JobLifecyclePolicy;
 import vn.editor.processing.jobs.domain.JobPolicyViolation;
 
@@ -50,8 +51,6 @@ public final class GetJobDownloadQueryHandler {
   }
 
   public String contentType(JobDetails job) {
-    return job.view().type().equals("EXPORT_HTML")
-        ? "text/html;charset=UTF-8"
-        : "text/plain;charset=UTF-8";
+    return ExportFormat.valueOf(job.view().type()).contentType();
   }
 }

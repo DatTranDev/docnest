@@ -43,6 +43,16 @@ spec:
                 secretKeyRef:
                   name: editor-secrets
                   key: PROCESSING_DB_PASSWORD
+            - name: COLLABORATION_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: COLLABORATION_DB_PASSWORD
+            - name: PAYMENT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: PAYMENT_DB_PASSWORD
           args:
             - --innodb-buffer-pool-size=256M
             - --max-connections=100

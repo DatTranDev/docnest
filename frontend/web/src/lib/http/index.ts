@@ -1,6 +1,7 @@
 export {
   ApiError,
   bytes,
+  binaryRequest,
   configureAuthentication,
   csrfToken,
   download,

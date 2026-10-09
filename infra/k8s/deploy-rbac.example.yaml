@@ -5,14 +5,29 @@ metadata: { name: editor-deployer, namespace: editor-lab }
 rules:
   - apiGroups: [apps]
     resources: [deployments]
-    resourceNames: [identity-service, document-service, processing-service, web]
+    resourceNames:
+      [
+        identity-service,
+        document-service,
+        processing-service,
+        collaboration-service,
+        payment-service,
+        web,
+      ]
     verbs: [get, watch, patch, update]
   - apiGroups: [apps]
     resources: [replicasets]
     verbs: [get, list, watch]
   - apiGroups: [batch]
     resources: [jobs]
-    resourceNames: [migrate-identity-service, migrate-document-service, migrate-processing-service]
+    resourceNames:
+      [
+        migrate-identity-service,
+        migrate-document-service,
+        migrate-processing-service,
+        migrate-collaboration-service,
+        migrate-payment-service,
+      ]
     verbs: [get, list, watch, patch, update, delete]
   # Kubernetes RBAC cannot restrict create by resourceNames. Only the protected workflow uses this grant.
   - apiGroups: [batch]

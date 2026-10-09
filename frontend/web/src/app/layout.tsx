@@ -1,15 +1,26 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { cookies } from 'next/headers';
+import { LOCALE_COOKIE, normalizeLocale } from '@/config/locale';
+import { I18nProvider } from '@/lib/i18n';
+import { translate } from '@/lib/i18n/translate';
+import { MESSAGE } from '@/lib/i18n/messages';
 import './globals.css';
-export const metadata: Metadata = {
-  title: 'Trang viết',
-  description: 'Tài liệu riêng tư, định dạng gọn nhẹ.',
-  referrer: 'no-referrer',
-};
-export default function RootLayout({ children }: { children: ReactNode }) {
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
+  return {
+    title: translate(locale, MESSAGE.writingRoom),
+    description: translate(locale, MESSAGE.privateDocumentsLightweightFormatting),
+    referrer: 'no-referrer',
+  };
+}
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   return (
-    <html lang="vi">
-      <body>{children}</body>
+    <html lang={locale}>
+      <body>
+        <I18nProvider initialLocale={locale}>{children}</I18nProvider>
+      </body>
     </html>
   );
 }

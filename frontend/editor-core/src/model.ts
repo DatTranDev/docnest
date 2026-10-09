@@ -1,5 +1,15 @@
+import type { ParagraphStyle, PageSettings } from './structure';
 import { ChangeSet, EditorSelection, Text } from '@codemirror/state';
 import { StyleTree } from './style';
+import { ImageStore, IMAGE_PLACEHOLDER, validateImage, type ImageAsset } from './images';
+import {
+  RichFormatting,
+  validCharacterFormat,
+  TEXT_STYLE_PRESETS,
+  type TextStylePreset,
+  type Alignment,
+  type CharacterFormat,
+} from './formatting';
 import {
   graphemes,
   MAX_BYTES,
@@ -13,6 +23,8 @@ import { literalMatches, search } from './search';
 export interface Snapshot {
   text: TextAdapter;
   styles: StyleTree;
+  formatting?: RichFormatting;
+  images?: ImageStore;
   contentToken: string;
   localRevision: number;
   preferredExportEol: 'LF' | 'CRLF';
@@ -27,6 +39,8 @@ type Entry = {
   afterSelection: EditorSelection;
   beforeMask: number;
   afterMask: number;
+  beforeFormat: CharacterFormat;
+  afterFormat: CharacterFormat;
   bytes: number;
   time: number;
   group: string;
@@ -34,10 +48,13 @@ type Entry = {
 export class EditorModel {
   text: TextAdapter;
   styles: StyleTree;
+  formatting = new RichFormatting();
+  images = new ImageStore();
   contentToken: string = crypto.randomUUID();
   savedContentToken: string = this.contentToken;
   localRevision = 0;
   pendingMask = 0;
+  pendingFormat: CharacterFormat = {};
   selection = EditorSelection.single(0);
   preferredExportEol: 'LF' | 'CRLF' = 'LF';
   exportBom = false;
@@ -59,6 +76,8 @@ export class EditorModel {
     return {
       text: this.text,
       styles: this.styles,
+      formatting: this.formatting,
+      images: this.images,
       contentToken: this.contentToken,
       localRevision: this.localRevision,
       preferredExportEol: this.preferredExportEol,
@@ -69,6 +88,8 @@ export class EditorModel {
     const m = new EditorModel(s.text, s.styles);
     m.contentToken = s.contentToken;
     m.savedContentToken = s.contentToken;
+    m.formatting = s.formatting ?? new RichFormatting();
+    m.images = s.images ?? new ImageStore();
     m.preferredExportEol = s.preferredExportEol;
     m.exportBom = s.exportBom;
     return m;
@@ -79,6 +100,7 @@ export class EditorModel {
       line = this.text.text.lineAt(p);
     this.pendingMask =
       p > line.from ? this.styles.maskAt(p - 1) : p < this.text.length ? this.styles.maskAt(p) : 0;
+    this.pendingFormat = { ...this.formatting.at(p > line.from ? p - 1 : p) };
     if (!composing) {
       this.endComposition();
       this.endGroup();
@@ -124,6 +146,7 @@ export class EditorModel {
     group = 'typing',
     now = performance.now(),
     insertedStyles?: StyleTree,
+    insertedImage?: ImageAsset,
   ): void {
     const nextText = this.text.apply(changes);
     let nextStyles = this.styles;
@@ -134,6 +157,15 @@ export class EditorModel {
       if (!validUnicode(insert.toString())) throw new Error('INVALID_TEXT');
       edits.push({ a, b, insert });
     });
+    let placedImage;
+    if (insertedImage) {
+      validateImage(insertedImage);
+      if (edits.length !== 1 || edits[0]!.insert.toString() !== IMAGE_PLACEHOLDER)
+        throw new Error('INVALID_IMAGE_INSERT');
+      changes.iterChanges((_a, _b, from) => {
+        placedImage = { ...insertedImage, from };
+      });
+    }
     if (insertedStyles) {
       if (edits.length !== 1 || insertedStyles.length !== edits[0]!.insert.length)
         throw new Error('STYLE_LENGTH');
@@ -167,7 +199,30 @@ export class EditorModel {
       if (!this.compositionGroup) this.beginComposition();
       group = this.compositionGroup!;
     } else this.endComposition();
-    this.commit(nextText, nextStyles, changes, selection, mask, group, now);
+    this.commit(
+      nextText,
+      nextStyles,
+      changes,
+      selection,
+      mask,
+      group,
+      now,
+      this.formatting.map(changes, nextText, this.pendingFormat, this.text),
+      undefined,
+      this.images.map(changes, placedImage),
+    );
+  }
+  insertImage(asset: ImageAsset): void {
+    const { from, to } = this.selection.main;
+    this.change(
+      ChangeSet.of({ from, to, insert: IMAGE_PLACEHOLDER }, this.text.length),
+      EditorSelection.single(from + 1),
+      0,
+      'image',
+      performance.now(),
+      undefined,
+      asset,
+    );
   }
   format(bit: number): void {
     this.endComposition();
@@ -188,11 +243,190 @@ export class EditorModel {
       performance.now(),
     );
   }
+  formatCharacter(patch: CharacterFormat): void {
+    if (!validCharacterFormat(patch) || !Object.keys(patch).length)
+      throw new Error('INVALID_FORMAT');
+    this.endComposition();
+    let { from, to } = this.selection.main;
+    if (from === to) {
+      this.pendingFormat = { ...this.pendingFormat, ...patch };
+      this.endGroup();
+      return;
+    }
+    [from, to] = snapRange(this.text, from, to);
+    this.commit(
+      this.text,
+      this.styles,
+      ChangeSet.empty(this.text.length),
+      this.selection,
+      this.pendingMask,
+      'format',
+      performance.now(),
+      this.formatting.apply(from, to, patch),
+      { ...this.pendingFormat, ...patch },
+    );
+  }
+  applyTextStyle(style: TextStylePreset): void {
+    if (!Object.hasOwn(TEXT_STYLE_PRESETS, style)) throw new Error('INVALID_FORMAT');
+    this.endComposition();
+    const { mask, ...format } = TEXT_STYLE_PRESETS[style];
+    const selection = this.selection.main;
+    const from = this.text.text.lineAt(selection.from).from;
+    const to = this.text.text.lineAt(
+      selection.to > selection.from ? selection.to - 1 : selection.to,
+    ).to;
+    if (from === to) {
+      this.pendingMask = mask;
+      this.pendingFormat = format;
+      this.endGroup();
+      return;
+    }
+    this.commit(
+      this.text,
+      this.styles.replace(from, to, StyleTree.uniform(to - from, mask)),
+      ChangeSet.empty(this.text.length),
+      this.selection,
+      mask,
+      'format',
+      performance.now(),
+      this.formatting.clear(from, to).apply(from, to, format),
+      format,
+    );
+  }
+  clearFormatting(): void {
+    this.endComposition();
+    let { from, to } = this.selection.main;
+    if (from === to) {
+      this.pendingMask = 0;
+      this.pendingFormat = {};
+      this.endGroup();
+      return;
+    }
+    [from, to] = snapRange(this.text, from, to);
+    this.commit(
+      this.text,
+      this.styles.replace(from, to, StyleTree.uniform(to - from, 0)),
+      ChangeSet.empty(this.text.length),
+      this.selection,
+      0,
+      'format',
+      performance.now(),
+      this.formatting.clear(from, to),
+      {},
+    );
+  }
+  formatParagraph(patch: ParagraphStyle): void {
+    this.endComposition();
+    const { from, to } = this.selection.main;
+    this.commit(
+      this.text,
+      this.styles,
+      ChangeSet.empty(this.text.length),
+      this.selection,
+      this.pendingMask,
+      'format',
+      performance.now(),
+      this.formatting.paragraph(this.text, from, to, patch),
+    );
+  }
+  setPage(page: PageSettings): void {
+    this.endComposition();
+    this.commit(
+      this.text,
+      this.styles,
+      ChangeSet.empty(this.text.length),
+      this.selection,
+      this.pendingMask,
+      'format',
+      performance.now(),
+      this.formatting.withPage(page),
+    );
+  }
+  insertTable(rows: number, columns: number): void {
+    if (
+      !Number.isInteger(rows) ||
+      rows < 1 ||
+      rows > 20 ||
+      !Number.isInteger(columns) ||
+      columns < 1 ||
+      columns > 8
+    )
+      throw new Error('INVALID_FORMAT');
+    const { from, to } = this.selection.main,
+      prefix = from > this.text.text.lineAt(from).from ? '\n' : '';
+    const insert =
+      prefix + Array.from({ length: rows * columns }, () => '\u00a0').join('\n') + '\n';
+    const changes = ChangeSet.of({ from, to, insert }, this.text.length),
+      next = this.text.apply(changes),
+      start = from + prefix.length,
+      end = from + insert.length - 1;
+    const formatting = this.formatting
+      .map(changes, next, {}, this.text)
+      .paragraph(next, start, end, {
+        table: { id: crypto.randomUUID(), columns },
+        list: undefined,
+        indent: 0,
+        pageBreak: false,
+      })
+      .paragraph(next, end + 1, end + 1, { table: null, list: undefined, pageBreak: false });
+    this.commit(
+      next,
+      this.styles.replace(from, to, StyleTree.uniform(insert.length)),
+      changes,
+      EditorSelection.single(start, start + 1),
+      0,
+      'table',
+      performance.now(),
+      formatting,
+      {},
+      this.images.map(changes),
+    );
+  }
+  insertPageBreak(): void {
+    const { from, to } = this.selection.main;
+    if (from === this.text.text.lineAt(from).from && from === to) {
+      this.formatParagraph({ pageBreak: true });
+      return;
+    }
+    const changes = ChangeSet.of({ from, to, insert: '\n' }, this.text.length),
+      next = this.text.apply(changes);
+    const formatting = this.formatting
+      .map(changes, next, this.pendingFormat, this.text)
+      .paragraph(next, from + 1, from + 1, { pageBreak: true, table: null, list: undefined });
+    this.commit(
+      next,
+      this.styles.replace(from, to, StyleTree.uniform(1)),
+      changes,
+      EditorSelection.single(from + 1),
+      this.pendingMask,
+      'page-break',
+      performance.now(),
+      formatting,
+      undefined,
+      this.images.map(changes),
+    );
+  }
+  alignParagraph(align: Alignment): void {
+    this.endComposition();
+    const { from, to } = this.selection.main;
+    this.commit(
+      this.text,
+      this.styles,
+      ChangeSet.empty(this.text.length),
+      this.selection,
+      this.pendingMask,
+      'format',
+      performance.now(),
+      this.formatting.align(this.text, from, to, align),
+    );
+  }
   replaceLiteralAll(query: string, replacement: string, ignoreAsciiCase = false): void {
     if (!query) return;
     if (!validUnicode(replacement) || replacement.includes('\r')) throw new Error('INVALID_TEXT');
     const found = search(this.text.chunks(), query, ignoreAsciiCase);
     if (!found.count) return;
+    if (found.truncated && (!this.formatting.empty || !this.images.empty))
+      throw new Error('FORMAT_REPLACE_LIMIT: Replace in smaller batches to preserve formatting.');
     if (!found.truncated) {
       this.replaceAll(found.matches, query.length, replacement);
       return;
@@ -279,6 +513,16 @@ export class EditorModel {
       this.pendingMask,
       'replace-all',
       performance.now(),
+      this.formatting.map(
+        ChangeSet.of({ from: 0, to: this.text.length, insert: text.text }, this.text.length),
+        text,
+        this.pendingFormat,
+        this.text,
+      ),
+      undefined,
+      this.images.map(
+        ChangeSet.of({ from: 0, to: this.text.length, insert: text.text }, this.text.length),
+      ),
     );
   }
   replaceAll(matches: Iterable<number>, queryLength: number, replacement: string): void {
@@ -329,6 +573,9 @@ export class EditorModel {
       this.pendingMask,
       'replace-all',
       performance.now(),
+      this.formatting.map(changes, text, (from) => this.formatting.at(from), this.text),
+      undefined,
+      this.images.map(changes),
     );
   }
   undo(): boolean {
@@ -337,7 +584,7 @@ export class EditorModel {
     if (!e) return false;
     this.redoHistory.push(e);
     this.historyBytes -= e.bytes;
-    this.restore(e.before, e.beforeSelection, e.beforeMask);
+    this.restore(e.before, e.beforeSelection, e.beforeMask, e.beforeFormat);
     return true;
   }
   redo(): boolean {
@@ -346,15 +593,23 @@ export class EditorModel {
     if (!e) return false;
     this.history.push(e);
     this.historyBytes += e.bytes;
-    this.restore(e.after, e.afterSelection, e.afterMask);
+    this.restore(e.after, e.afterSelection, e.afterMask, e.afterFormat);
     return true;
   }
-  private restore(s: Snapshot, selection: EditorSelection, mask: number): void {
+  private restore(
+    s: Snapshot,
+    selection: EditorSelection,
+    mask: number,
+    format: CharacterFormat,
+  ): void {
     this.text = s.text;
     this.styles = s.styles;
+    this.formatting = s.formatting ?? new RichFormatting();
+    this.images = s.images ?? new ImageStore();
     this.contentToken = s.contentToken;
     this.selection = selection;
     this.pendingMask = mask;
+    this.pendingFormat = format;
     this.localRevision++;
   }
   private commit(
@@ -365,16 +620,30 @@ export class EditorModel {
     mask: number,
     group: string,
     time: number,
+    formatting = this.formatting,
+    pendingFormat = this.pendingFormat,
+    images = this.images,
   ): void {
     const before = this.snapshot(),
       beforeSelection = this.selection,
       beforeMask = this.pendingMask,
+      beforeFormat = this.pendingFormat,
       token = crypto.randomUUID();
     let bytes = 128;
     forward.iterChanges((a, b, _c, _d, insert) => {
       bytes += (b - a + insert.length) * 2;
     });
     if (forward.empty) bytes += Math.min(this.text.length, 4096) * 2;
+    if (formatting !== this.formatting) {
+      bytes += formatting.runs.reduce((total, r) => total + 80 + (r.link?.length ?? 0) * 2, 0);
+      bytes +=
+        formatting.paragraphs.length * 128 +
+        ((formatting.page.header?.length ?? 0) + (formatting.page.footer?.length ?? 0)) * 2;
+    }
+    const oldIds = new Set(this.images.images.map((image) => image.id)),
+      newIds = new Set(images.images.map((image) => image.id));
+    for (const image of images.images) if (!oldIds.has(image.id)) bytes += image.data.length;
+    for (const image of this.images.images) if (!newIds.has(image.id)) bytes += image.data.length;
     if (bytes + this.historyBytes > this.historyCap || this.history.length >= 2000)
       throw new Error(
         'HISTORY_LIMIT: Download/save a checkpoint, then explicitly clear history or cancel.',
@@ -382,10 +651,13 @@ export class EditorModel {
     const inverse = forward.invert(this.text.text);
     this.text = text;
     this.styles = styles;
+    this.formatting = formatting;
+    this.images = images;
     this.contentToken = token;
     this.localRevision++;
     this.selection = selection;
     this.pendingMask = mask;
+    this.pendingFormat = pendingFormat;
     const after = this.snapshot();
     const last = this.history.at(-1);
     if (
@@ -397,6 +669,7 @@ export class EditorModel {
       last.after = after;
       last.afterSelection = selection;
       last.afterMask = mask;
+      last.afterFormat = this.pendingFormat;
       last.time = time;
       last.bytes += bytes;
     } else
@@ -409,6 +682,8 @@ export class EditorModel {
         afterSelection: selection,
         beforeMask,
         afterMask: mask,
+        beforeFormat,
+        afterFormat: this.pendingFormat,
         bytes,
         time,
         group,

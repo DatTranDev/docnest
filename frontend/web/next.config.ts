@@ -18,6 +18,11 @@ const config: NextConfig = {
       { source: '/api/v1/auth/:path*', destination: `${origins.identity}/api/v1/auth/:path*` },
       { source: '/.well-known/:path*', destination: `${origins.identity}/.well-known/:path*` },
       { source: '/api/v1/jobs/:path*', destination: `${origins.processing}/api/v1/jobs/:path*` },
+      { source: '/api/v1/billing/:path*', destination: `${origins.payment}/api/v1/billing/:path*` },
+      {
+        source: '/api/v1/collaboration/:path*',
+        destination: `${origins.collaboration}/api/v1/collaboration/:path*`,
+      },
       { source: '/api/:path*', destination: `${origins.document}/api/:path*` },
     ];
   },

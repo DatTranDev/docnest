@@ -1,3 +1,4 @@
+import { MESSAGE } from '@/lib/i18n/messages';
 import { useCallback, useEffect, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ActiveDocument } from '@/features/documents';
@@ -16,7 +17,7 @@ export function useExportJobs(
         if (active.current?.model.dirty) await save();
         const document = active.current;
         if (!document?.document.headRevision || document.model.dirty)
-          throw new Error('Hãy lưu phiên bản hiện tại trước khi xuất.');
+          throw new Error(MESSAGE.saveTheCurrentVersionBeforeExporting);
         const job = await createExport(
           document.document.id,
           document.revision ?? document.document.headRevision,

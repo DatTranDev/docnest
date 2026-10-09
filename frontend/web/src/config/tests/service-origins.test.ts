@@ -7,6 +7,8 @@ describe('validated service origins', () => {
       identity: 'http://127.0.0.1:8081',
       document: 'http://127.0.0.1:8082',
       processing: 'http://127.0.0.1:8083',
+      collaboration: 'http://127.0.0.1:8084',
+      payment: 'http://127.0.0.1:8085',
     });
     expect(
       serviceOrigins({ DOCUMENT_INTERNAL_ORIGIN: 'https://DOCUMENT.example.test:443/' }).document,

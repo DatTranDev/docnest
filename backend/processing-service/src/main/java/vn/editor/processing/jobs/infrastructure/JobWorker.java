@@ -27,6 +27,7 @@ import vn.editor.common.storage.StorageProvider;
 import vn.editor.processing.jobs.application.port.JobExecutionRepository;
 import vn.editor.processing.jobs.application.port.JobExecutionRepository.LeasedJob;
 import vn.editor.processing.jobs.application.port.JobOutputCleanupRepository;
+import vn.editor.processing.jobs.domain.ExportFormat;
 import vn.editor.processing.jobs.domain.JobLifecyclePolicy;
 
 /** Executes bounded storage/render IO; durable mutations and cleanup queries belong to ports. */
@@ -161,11 +162,15 @@ public class JobWorker {
       try (OutputStream out =
           new ExportRenderer.CappedOutput(
               Files.newOutputStream(result), ExportRenderer.MAX_OUTPUT)) {
-        if (job.type().equals("EXPORT_TXT")) ExportRenderer.txt(decoded, out, check);
-        else ExportRenderer.html(decoded, out, check);
+        switch (ExportFormat.valueOf(job.type())) {
+          case EXPORT_TXT -> ExportRenderer.txt(decoded, out, check);
+          case EXPORT_HTML -> ExportRenderer.html(decoded, out, check);
+          case EXPORT_DOCX -> OfficeExporter.docx(decoded, out, check);
+          case EXPORT_PDF -> OfficeExporter.pdf(decoded, out, check);
+        }
       }
       check.run();
-      String extension = job.type().equals("EXPORT_TXT") ? "txt" : "html";
+      String extension = ExportFormat.valueOf(job.type()).extension();
       String outputKey = "results/" + id + "/" + owner + "." + extension;
       execution.reserveOutput(id, owner, outputKey);
       StorageProvider.Metadata output;
@@ -184,6 +189,8 @@ public class JobWorker {
       fail(id, owner, "ATTEMPT_DEADLINE", true, false);
     } catch (NativeCodec.InvalidNative exception) {
       fail(id, owner, exception.code, false, false);
+    } catch (OfficeExporter.RichExportLimit exception) {
+      fail(id, owner, "RICH_EXPORT_LIMIT", false, false);
     } catch (ExportRenderer.OutputTooLarge exception) {
       fail(id, owner, "EXPORT_TOO_LARGE", false, false);
     } catch (Exception exception) {

@@ -1,3 +1,6 @@
+import { SAVE_COMMIT_ATTEMPTS } from '../model/constants';
+import { MESSAGE } from '@/lib/i18n/messages';
+import { message } from '@/lib/i18n/translate';
 import { sha256 } from '@ted/editor-core';
 import { currentSession } from '@/features/auth';
 import { ApiError, request } from '@/lib/http';
@@ -28,17 +31,17 @@ export async function saveNativeVersion(
     body: new Blob([native as Uint8Array<ArrayBuffer>]),
     credentials: ticket.kind === 'LOCAL' ? 'include' : 'omit',
   });
-  if (!uploaded.ok) throw new Error(`Tải lên thất bại (${uploaded.status}).`);
+  if (!uploaded.ok) throw new Error(message(MESSAGE.uploadFailedValue, { p0: uploaded.status }));
   const key = crypto.randomUUID(),
     body = { uploadId: ticket.uploadId, expectedHeadRevision };
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < SAVE_COMMIT_ATTEMPTS; attempt++) {
     try {
       return await request(`/api/v1/documents/${documentId}/versions`, 'POST', body, {
         'Idempotency-Key': key,
       });
     } catch (error) {
-      if (error instanceof ApiError || attempt === 2) throw error;
+      if (error instanceof ApiError || attempt === SAVE_COMMIT_ATTEMPTS - 1) throw error;
     }
   }
-  throw new Error('Không xác nhận được lưu. Bản nháp vẫn còn.');
+  throw new Error(MESSAGE.savingCouldNotBeConfirmedYourDraftIs);
 }

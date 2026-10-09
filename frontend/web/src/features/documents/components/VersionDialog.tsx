@@ -1,3 +1,5 @@
+'use client';
+import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { Version } from '../model/types';
 export function VersionDialog({
   versions,
@@ -8,17 +10,20 @@ export function VersionDialog({
   onOpen: (revision: number) => void;
   onClose: () => void;
 }) {
+  const { t, localeTag } = useI18n();
+
   return (
-    <div className="modal" role="dialog" aria-label="Lịch sử phiên bản">
+    <div className="modal" role="dialog" aria-label={t(MESSAGE.versionHistory)}>
       <div className="panel">
-        <h2>Lịch sử phiên bản</h2>
+        <h2>{t(MESSAGE.versionHistory)}</h2>
         {versions.map((version) => (
           <div className="row" key={version.id}>
-            Phiên bản {version.revision} · {new Date(version.createdAt).toLocaleString('vi-VN')}
-            <button onClick={() => onOpen(version.revision)}>Mở chỉ đọc</button>
+            {t(MESSAGE.version)} {version.revision} ·{' '}
+            {new Date(version.createdAt).toLocaleString(localeTag)}
+            <button onClick={() => onOpen(version.revision)}>{t(MESSAGE.openReadOnly)}</button>
           </div>
         ))}
-        <button onClick={onClose}>Đóng</button>
+        <button onClick={onClose}>{t(MESSAGE.close)}</button>
       </div>
     </div>
   );

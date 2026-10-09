@@ -1,4 +1,8 @@
 'use client';
+import { LanguageSelector } from '@/components/ui/LanguageSelector';
+import { MESSAGE, useI18n } from '@/lib/i18n';
+
+import { ACCOUNT_INPUT_LIMITS } from '../model/constants';
 import { useState } from 'react';
 import { errorMessage } from '@/lib/http';
 import { login, register as registerAccount } from '../api/auth';
@@ -12,17 +16,20 @@ export function AuthForm({
   error: string;
   setError: (s: string) => void;
 }) {
+  const { t, errorText } = useI18n();
+
   const [register, setRegister] = useState(false),
     [busy, setBusy] = useState(false);
   return (
     <div className="auth">
       <div className="panel">
-        <h1>Trang viết</h1>
-        <p>Tài liệu riêng tư, định dạng gọn nhẹ.</p>
-        <h2>{register ? 'Tạo tài khoản' : 'Đăng nhập'}</h2>
+        <LanguageSelector />
+        <h1>{t(MESSAGE.writingRoom)}</h1>
+        <p>{t(MESSAGE.privateDocumentsLightweightFormatting)}</p>
+        <h2>{register ? t(MESSAGE.createAccount) : t(MESSAGE.signIn)}</h2>
         {error && (
           <p role="alert" className="error">
-            {error}
+            {errorText(error)}
           </p>
         )}
         <form
@@ -43,8 +50,13 @@ export function AuthForm({
         >
           {register && (
             <label>
-              Tên hiển thị
-              <input name="displayName" aria-label="Tên hiển thị" required maxLength={100} />
+              {t(MESSAGE.displayName)}{' '}
+              <input
+                name="displayName"
+                aria-label={t(MESSAGE.displayName)}
+                required
+                maxLength={ACCOUNT_INPUT_LIMITS.displayName}
+              />
             </label>
           )}
           <label>
@@ -52,19 +64,19 @@ export function AuthForm({
             <input name="email" aria-label="Email" type="email" required autoComplete="email" />
           </label>
           <label>
-            Mật khẩu
+            {t(MESSAGE.password)}{' '}
             <input
               name="password"
-              aria-label="Mật khẩu"
+              aria-label={t(MESSAGE.password)}
               type="password"
-              minLength={register ? 12 : 1}
-              maxLength={128}
+              minLength={register ? ACCOUNT_INPUT_LIMITS.passwordMin : 1}
+              maxLength={ACCOUNT_INPUT_LIMITS.passwordMax}
               required
               autoComplete={register ? 'new-password' : 'current-password'}
             />
           </label>
           <button className="primary" disabled={busy}>
-            {busy ? 'Đang xử lý…' : register ? 'Tạo tài khoản' : 'Đăng nhập'}
+            {busy ? t(MESSAGE.processing) : register ? t(MESSAGE.createAccount) : t(MESSAGE.signIn)}
           </button>
         </form>
         <button
@@ -73,7 +85,7 @@ export function AuthForm({
             setError('');
           }}
         >
-          {register ? 'Đã có tài khoản' : 'Tạo tài khoản mới'}
+          {register ? t(MESSAGE.alreadyHaveAnAccount) : t(MESSAGE.createANewAccount)}
         </button>
       </div>
     </div>

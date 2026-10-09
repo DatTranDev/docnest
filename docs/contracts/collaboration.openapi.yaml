@@ -1,0 +1,139 @@
+openapi: 3.0.3
+info:
+  title: Account Collaboration API
+  version: 1.0.0
+  description: Bounded Yjs update relay and native checkpoints. See collaboration.md.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/collaboration/{id}/join:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: joinCollaboration
+      parameters:
+        - in: query
+          name: headRevision
+          required: true
+          schema: { type: integer, format: int64, minimum: 0 }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: First seed or existing room page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Page' }
+        default: { $ref: '#/components/responses/Failure' }
+  /api/v1/collaboration/{id}/updates:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      operationId: readCollaborationUpdates
+      parameters:
+        - in: query
+          name: after
+          schema: { type: integer, format: int64, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Bounded page of durable updates
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Page' }
+        default: { $ref: '#/components/responses/Failure' }
+  /api/v1/collaboration/{id}/updates/{operationId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - in: path
+        name: operationId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: appendCollaborationUpdate
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Committed or previously committed operation cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [sequence]
+                properties:
+                  sequence: { type: integer, format: int64, minimum: 1 }
+        default: { $ref: '#/components/responses/Failure' }
+  /api/v1/collaboration/{id}/checkpoint:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    post:
+      operationId: checkpointCollaboration
+      parameters:
+        - in: query
+          name: sequence
+          required: true
+          schema: { type: integer, format: int64, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '200':
+          description: Native version committed by Document Service
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [revision]
+                properties:
+                  revision: { type: integer, format: int64, minimum: 1 }
+        default: { $ref: '#/components/responses/Failure' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    DocumentId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Failure:
+      description: Authorization, quota, native conflict, checkpoint reservation or unavailable dependency
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [code, message]
+            additionalProperties: false
+            properties:
+              code: { type: string }
+              message: { type: string }
+  schemas:
+    Page:
+      type: object
+      additionalProperties: false
+      required: [headRevision, sequence, updates]
+      properties:
+        headRevision: { type: integer, format: int64, minimum: 0 }
+        sequence: { type: integer, format: int64, minimum: 1 }
+        updates:
+          type: array
+          maxItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [sequence, operationId, payload]
+            properties:
+              sequence: { type: integer, format: int64, minimum: 1 }
+              operationId: { type: string, format: uuid }
+              payload: { type: string, format: byte }

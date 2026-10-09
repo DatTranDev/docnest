@@ -1,6 +1,6 @@
 # Databases and transactions
 
-The lab uses one MySQL instance with identity_db, document_db and processing_db. Each service has a database user restricted to its own database. Flyway has DDL permission in that database. IDs are canonical lowercase UUIDs stored as ASCII CHAR(36); timestamps use UTC DATETIME(6). Do not create foreign keys across databases.
+The local lab uses one MySQL instance with identity_db, document_db, processing_db, collaboration_db and payment_db (ADR027/ADR028). Each service has a database user restricted to its own database. Flyway has DDL permission in that database. IDs are canonical lowercase UUIDs stored as ASCII CHAR(36); timestamps use UTC DATETIME(6). Do not create foreign keys across databases.
 
 ## identity_db
 
@@ -77,3 +77,15 @@ V1 is preserved byte-for-byte. V2 adds Identity `identity_limits` as a singleton
 Document V2 adds `upload_sessions.resumable_uri` for cancellation of expired GCS sessions (credential, never logged or returned in metadata) and deletion-confirmation timestamps on upload/version rows. Tombstones remain until physical deletion is confirmed. Folder mutations obtain an exclusive workspace upsert lock and bounded transaction retry for MySQL deadlocks. Expired trash cannot be restored after its14-day retention while purge is processing read grace. These additions are service-owned, introduce no cross-database foreign keys, and leave API fields, event envelopes and native fixtures unchanged; see ADR015.
 
 Processing V3 adds nullable ASCII `jobs.trace_id` for the originating validated 32-hex HTTP/event trace. Jobs persist it before asynchronous execution; completion envelopes recover it after worker restart. Existing rows remain valid without a trace. This technical observation field introduces no cross-database dependency or public API/event field change. Source `backend/schema/processing/V3__trace_correlation.sql` and the service Flyway resource are identical; apply the migration before rolling out the refactored Processing image. See ADR019 and docs/06_ASYNC_PROCESSING.md.
+
+# Collaboration extension (ADR027)
+
+`backend/schema/collaboration/V1__collaboration.sql` is the Collaboration service's independent schema. `collaboration_rooms` records the native head revision, delivery cursor, byte quota and expiring checkpoint reservation. `collaboration_updates` records binary CRDT updates with unique `(document_id, operation_id)` and ordered `(document_id, sequence)`. User identity plus payload equality guard idempotent retries. Room creation and append serialize on one room row. The existing databases and applied migrations are unchanged; access checks use Document's API rather than cross-database SQL.
+
+## payment_db and service-owned entitlements
+
+Payment V1 adds `payment_accounts` (unique user/customer, plan/expiry, generation, work lease and synchronization revision), `payment_requests` (unique user/idempotency key, bounded expiry, status/hosted URL), `payment_sagas` (phase/state, reply bitmask, previous entitlement), `stripe_receipts` (event ID/fingerprint/type/customer only), `saga_inbox` and `saga_outbox`. Requests are private to their JWT subject. Persist customer mappings before subsequent Stripe operations. SQL/Stripe cannot be atomically committed; stable idempotency keys, lease fencing and current-state reconciliation handle uncertainty. No card or full webhook data is stored.
+
+Identity V3, Document V3, Processing V4 and Collaboration V2 independently add `subscription_entitlements`, `saga_inbox` and `saga_outbox`. Projections use per-user monotonic generations and expire paid grants at the stored UTC expiry. Participant mutation/inbox/reply commit together. Payment account activation waits for all four replies; compensation restores prior grants at a higher generation. No cross-database FKs, SQL, or participant business types are shared. Applied older migrations remain unchanged.
+
+Processing migration `V5__office_exports.sql` expands the owned jobs job_type check to EXPORT_DOCX/EXPORT_PDF. It discovers/drops only the original generated check for job_type in the current database and adds the named `ck_jobs_export_type` invariant. Other constraints/tables/service ownership stay unchanged. Resource/schema copies are identical. Run the Processing migration job before rollout; ordinary cloud service startup keeps Flyway disabled.

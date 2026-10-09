@@ -20,7 +20,15 @@ public final class EventSchemas {
             "document.version.saved.v1",
             "processing.job.requested.v1",
             "processing.job.completed.v1",
-            "editor.dead-letter.v1")) {
+            "editor.dead-letter.v1",
+            "billing.identity.command.v1",
+            "billing.document.command.v1",
+            "billing.processing.command.v1",
+            "billing.collaboration.command.v1",
+            "billing.identity.reply.v1",
+            "billing.document.reply.v1",
+            "billing.processing.reply.v1",
+            "billing.collaboration.reply.v1")) {
       try (var in =
           EventSchemas.class.getResourceAsStream("/contracts/events/" + topic + ".schema.json")) {
         if (in == null) throw new IllegalStateException("Missing event schema " + topic);

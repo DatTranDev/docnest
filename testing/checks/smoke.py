@@ -353,8 +353,23 @@ def main():
         f'/api/v1/folders/{fid}?expectedMetadataRevision={folder["metadataRevision"]}',
         204,
     )
-    trashed = call(alice, "GET", "/api/v1/documents?scope=TRASH")["items"]
-    trashdoc = next(d for d in trashed if d["id"] == did)
+    # Existing local documents may fill several pages; verify the real trash
+    # listing rather than assuming our disposable document is on page one.
+    cursor, seen_cursors, trashdoc = None, set(), None
+    for _ in range(100):
+        params = {"scope": "TRASH"}
+        if cursor is not None:
+            params["cursor"] = cursor
+        page = call(alice, "GET", "/api/v1/documents", params=params)
+        trashdoc = next((d for d in page["items"] if d["id"] == did), None)
+        if trashdoc is not None:
+            break
+        cursor = page.get("nextCursor")
+        if not cursor:
+            break
+        assert cursor not in seen_cursors, "Trash pagination cursor repeated"
+        seen_cursors.add(cursor)
+    assert trashdoc is not None, "Document missing from paginated trash listing"
     restored = call(
         alice,
         "POST",

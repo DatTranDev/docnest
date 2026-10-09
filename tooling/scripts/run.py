@@ -36,6 +36,11 @@ def initialize():
             "KAFKA_DOCUMENT_PASSWORD",
             "KAFKA_PROCESSING_PASSWORD",
             "KAFKA_OPERATOR_PASSWORD",
+            "COLLABORATION_DB_PASSWORD",
+            "PAYMENT_DB_PASSWORD",
+            "KAFKA_IDENTITY_PASSWORD",
+            "KAFKA_COLLABORATION_PASSWORD",
+            "KAFKA_PAYMENT_PASSWORD",
         ]
         if not values.get(k)
     }
@@ -128,11 +133,21 @@ def main():
             debug=debug,
         )
         topics(debug)
+        compose(
+            "exec",
+            "-T",
+            "mysql",
+            "bash",
+            "/docker-entrypoint-initdb.d/01-editor.sh",
+            debug=debug,
+        )
         if not debug:
             for service in [
                 "identity-service",
                 "document-service",
                 "processing-service",
+                "collaboration-service",
+                "payment-service",
                 "web",
             ]:
                 compose("--profile", "app", "build", service)
@@ -224,7 +239,14 @@ def main():
                 row["Service"]
                 for row in rows
                 if row["Service"]
-                in ["identity-service", "document-service", "processing-service", "web"]
+                in [
+                    "identity-service",
+                    "document-service",
+                    "processing-service",
+                    "collaboration-service",
+                    "payment-service",
+                    "web",
+                ]
                 and row["State"] == "running"
             ]
             if running:
@@ -237,7 +259,7 @@ def main():
                         "mysql",
                         "bash",
                         "-c",
-                        'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --routines --events --set-gtid-purged=OFF --databases identity_db document_db processing_db',
+                        'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqldump -uroot --single-transaction --routines --events --set-gtid-purged=OFF --databases identity_db document_db processing_db collaboration_db payment_db',
                         stdout=f,
                     )
                 # Quiesced immutable objects and JWT keys make SQL references recoverable.
@@ -253,7 +275,7 @@ def main():
                             "createdAt": time.strftime(
                                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
                             ),
-                            "scope": "three databases, objects and JWT keys",
+                            "scope": "five databases, objects and JWT keys",
                             "quiesced": True,
                         },
                         indent=2,
@@ -285,6 +307,8 @@ def main():
                 "identity-service",
                 "document-service",
                 "processing-service",
+                "collaboration-service",
+                "payment-service",
                 "web",
             )
             with (path / "databases.sql").open("rb") as f:
@@ -321,6 +345,8 @@ def main():
                 "identity-service",
                 "document-service",
                 "processing-service",
+                "collaboration-service",
+                "payment-service",
                 "web",
             )
 

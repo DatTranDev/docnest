@@ -71,6 +71,10 @@ editor:
     folders: ${MAX_FOLDERS:100}
 
 logging:
+  level:
+    org.springframework.kafka.listener.DefaultErrorHandler: 'OFF'
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: 'OFF'
+    org.springframework.kafka.listener.FailedRecordTracker: 'OFF'
   structured:
     format:
       console: logstash

@@ -8,7 +8,14 @@ import subprocess
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-APPLICATIONS = ("identity-service", "document-service", "processing-service", "web")
+APPLICATIONS = (
+    "identity-service",
+    "document-service",
+    "processing-service",
+    "collaboration-service",
+    "payment-service",
+    "web",
+)
 
 
 def read(relative):
@@ -88,6 +95,8 @@ def main():
         ("IDENTITY_INTERNAL_ORIGIN", "identity-service"),
         ("DOCUMENT_INTERNAL_ORIGIN", "document-service"),
         ("PROCESSING_INTERNAL_ORIGIN", "processing-service"),
+        ("COLLABORATION_INTERNAL_ORIGIN", "collaboration-service"),
+        ("PAYMENT_INTERNAL_ORIGIN", "payment-service"),
     ):
         assert environment[name] == "http://" + service + ":8080"
     for probe in ("startupProbe", "readinessProbe", "livenessProbe"):
@@ -136,7 +145,7 @@ def main():
     checks.append("packaged event schema bytes match authoritative contracts")
 
     migration_inventory = {}
-    for service in ("identity", "document", "processing"):
+    for service in ("identity", "document", "processing", "collaboration", "payment"):
         schema = ROOT / "backend/schema" / service
         deployed = (
             ROOT
@@ -164,7 +173,7 @@ def main():
     checks.extend(
         [
             "all authoritative migration bytes/inventories match service resources",
-            "separate bounded migrate-only Jobs for all three database owners",
+            "separate bounded migrate-only Jobs for all five database owners",
         ]
     )
 
@@ -173,11 +182,13 @@ def main():
     assert "ANONYMOUS" not in broker["KAFKA_SUPER_USERS"]
     assert "CONTROLLER:SASL_PLAINTEXT" in broker["KAFKA_LISTENER_SECURITY_PROTOCOL_MAP"]
     assert (
-        "KAFKA_PASSWORD" not in compose["services"]["identity-service"]["environment"]
+        compose["services"]["identity-service"]["environment"]["KAFKA_USERNAME"]
+        == "identity"
     )
     ci = read(".github/workflows/ci.yml")
     assert "python tooling/scripts/run.py test" in ci and "npm run build" in ci
     assert "npm run worker-check" in ci and "migration_only.py" in ci
+    assert "billing_saga_check.py" in ci
     assert "actions/upload-artifact" not in ci
     quality = read("tooling/scripts/run.py")
     for gate in (
@@ -196,7 +207,7 @@ def main():
     assert (ROOT / "infra/compose" / caddy).resolve().is_file()
     checks.extend(
         [
-            "Kafka service ACL/auth configuration, authenticated controller and no Identity principal",
+            "Kafka service ACL/auth configuration, authenticated controller and five independent service principals",
             "CI enforces formatting/import/type/lint/architecture/tests/build/smoke/Worker without uploading local reports",
             "cloud Compose TLS bind resolves relative to base Compose file",
         ]

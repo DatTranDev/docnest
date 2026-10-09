@@ -19,7 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from run import initialize
 
-SERVICES = ("identity", "document", "processing")
+SERVICES = ("identity", "document", "processing", "collaboration", "payment")
 REPORT = ROOT / "testing/reports" / "migration-only.json"
 COMPOSE = [
     "docker",
@@ -149,13 +149,13 @@ def main():
     secrets = [
         value
         for key, value in values.items()
-        if key.endswith(("PASSWORD", "KEY")) and len(value) > 20
+        if key.endswith(("PASSWORD", "KEY", "SECRET")) and len(value) > 20
     ]
     report = {
         "status": "IN_PROGRESS",
         "startedAt": utc_now(),
         "cases": [],
-        "scope": "three current local Docker app images; cloud profile against each own local MySQL database; no Google Cloud integration",
+        "scope": "five current local Docker app images; cloud profile against each own local MySQL database; no Google Cloud integration",
         "runtimeProbeEnvironment": PROBE_ENVIRONMENT,
         "cloud": "DEPLOY_PENDING; no credentials or resources used",
     }
@@ -225,7 +225,9 @@ def main():
                     result.returncode == 0
                 ), "Migration-only process failed; see redacted log"
                 assert re.search(
-                    r"Successfully validated " + str(len(migrations)) + r" migrations",
+                    r"Successfully validated "
+                    + str(len(migrations))
+                    + r" migrations?\b",
                     output,
                 ), "Flyway validation evidence missing"
                 assert (

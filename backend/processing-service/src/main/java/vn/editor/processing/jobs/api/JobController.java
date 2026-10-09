@@ -27,6 +27,7 @@ import vn.editor.processing.jobs.application.query.JobPage;
 import vn.editor.processing.jobs.application.query.JobView;
 import vn.editor.processing.jobs.application.query.ListJobsQuery;
 import vn.editor.processing.jobs.application.query.ListJobsQueryHandler;
+import vn.editor.processing.jobs.domain.ExportFormat;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
@@ -118,7 +119,7 @@ public final class JobController {
         .header(
             HttpHeaders.CONTENT_DISPOSITION,
             "attachment; filename=\"export."
-                + (job.view().type().equals("EXPORT_HTML") ? "html" : "txt")
+                + ExportFormat.valueOf(job.view().type()).extension()
                 + "\"")
         .body(new InputStreamResource(download.open(job)));
   }

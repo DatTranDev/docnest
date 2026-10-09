@@ -61,6 +61,15 @@ spec:
                 secretKeyRef:
                   name: editor-secrets
                   key: PROCESSING_INTERNAL_KEY
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_PLAINTEXT
+            - name: KAFKA_USERNAME
+              value: identity
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_IDENTITY_PASSWORD
             - name: SPRING_MAIN_WEB_APPLICATION_TYPE
               value: none
             - name: FLYWAY_ENABLED

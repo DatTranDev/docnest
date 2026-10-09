@@ -1,4 +1,6 @@
 'use client';
+import { MESSAGE, useI18n } from '@/lib/i18n';
+
 import { useState, useEffect, useCallback } from 'react';
 import { errorMessage } from '@/lib/http';
 import {
@@ -19,6 +21,8 @@ export function ShareDialog({
   onClose: () => void;
   setError: (s: string) => void;
 }) {
+  const { t, localeTag } = useI18n();
+
   const [permissions, setPermissions] = useState<Permission[]>([]),
     [links, setLinks] = useState<ShareLink[]>([]),
     [created, setCreated] = useState('');
@@ -42,9 +46,9 @@ export function ShareDialog({
     }
   }
   return (
-    <div className="modal" role="dialog" aria-label="Chia sẻ">
+    <div className="modal" role="dialog" aria-label={t(MESSAGE.share)}>
       <div className="panel">
-        <h2>Chia sẻ tài liệu</h2>
+        <h2>{t(MESSAGE.shareDocument)}</h2>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -57,39 +61,39 @@ export function ShareDialog({
           <input
             type="email"
             name="email"
-            aria-label="Email người nhận"
-            placeholder="Email đã đăng ký"
+            aria-label={t(MESSAGE.recipientEmail)}
+            placeholder={t(MESSAGE.registeredEmail)}
             required
           />
-          <select name="role" aria-label="Quyền">
-            <option value="VIEWER">Chỉ xem</option>
-            <option value="EDITOR">Chỉnh sửa</option>
+          <select name="role" aria-label={t(MESSAGE.permission)}>
+            <option value="VIEWER">{t(MESSAGE.viewer)}</option>
+            <option value="EDITOR">{t(MESSAGE.editor)}</option>
           </select>
-          <button>Cấp quyền</button>
+          <button>{t(MESSAGE.grantAccess)}</button>
         </form>
         {permissions.map((p) => (
           <div className="row" key={p.granteeUserId}>
             <span>{p.email ?? p.displayName ?? p.granteeUserId}</span>
             <select
-              aria-label={`Quyền ${p.email ?? p.granteeUserId}`}
+              aria-label={t(MESSAGE.permissionForValue, { p0: p.email ?? p.granteeUserId })}
               value={p.role}
               onChange={(e) => {
                 void action(() => changeAccess(documentId, p.granteeUserId, e.target.value));
               }}
             >
-              <option value="VIEWER">Chỉ xem</option>
-              <option value="EDITOR">Chỉnh sửa</option>
+              <option value="VIEWER">{t(MESSAGE.viewer)}</option>
+              <option value="EDITOR">{t(MESSAGE.editor)}</option>
             </select>
             <button
               onClick={() => {
                 void action(() => revokeAccess(documentId, p.granteeUserId));
               }}
             >
-              Thu hồi
+              {t(MESSAGE.revoke)}{' '}
             </button>
           </div>
         ))}
-        <h3>Liên kết công khai chỉ đọc</h3>
+        <h3>{t(MESSAGE.readOnlyPublicLinks)}</h3>
         <button
           onClick={() => {
             void action(async () => {
@@ -98,25 +102,25 @@ export function ShareDialog({
             });
           }}
         >
-          Tạo liên kết 7 ngày
+          {t(MESSAGE.createA7DayLink)}{' '}
         </button>
         {created && (
           <div className="row">
-            <input aria-label="Liên kết công khai" value={created} readOnly />
+            <input aria-label={t(MESSAGE.publicLink)} value={created} readOnly />
             <button
               onClick={() => {
                 void navigator.clipboard.writeText(created);
               }}
             >
-              Sao chép
+              {t(MESSAGE.copy)}{' '}
             </button>
           </div>
         )}
         {links.map((l) => (
           <div className="row" key={l.id}>
             <span>
-              Hết hạn {new Date(l.expiresAt).toLocaleString('vi-VN')} ·{' '}
-              {l.revokedAt ? 'Đã thu hồi' : 'Đang hoạt động'}
+              {t(MESSAGE.expires)} {new Date(l.expiresAt).toLocaleString(localeTag)} ·{' '}
+              {l.revokedAt ? t(MESSAGE.revoked) : t(MESSAGE.active)}
             </span>
             {!l.revokedAt && (
               <button
@@ -124,16 +128,13 @@ export function ShareDialog({
                   void action(() => revokeShareLink(documentId, l.id));
                 }}
               >
-                Thu hồi liên kết
+                {t(MESSAGE.revokeLink)}{' '}
               </button>
             )}
           </div>
         ))}
-        <p className="muted">
-          Người nhận có thể giữ bản đã tải. Khôi phục từ thùng rác sẽ kích hoạt lại quyền và liên
-          kết còn hạn.
-        </p>
-        <button onClick={onClose}>Đóng</button>
+        <p className="muted">{t(MESSAGE.recipientsMayRetainDownloadedCopiesRestoringFromTrash)} </p>
+        <button onClick={onClose}>{t(MESSAGE.close)}</button>
       </div>
     </div>
   );

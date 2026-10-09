@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://text-editor.example/contracts/native-formatting-v5.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["runs", "paragraphs"],
+  "properties": {
+    "runs": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to"],
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "font": {
+            "enum": ["Arial", "Times New Roman", "Georgia", "Verdana", "Courier New"]
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 8,
+            "maximum": 72
+          },
+          "strike": {
+            "type": "boolean"
+          },
+          "script": {
+            "enum": ["super", "sub"]
+          },
+          "link": {
+            "type": "string",
+            "maxLength": 2048,
+            "pattern": "^([Hh][Tt][Tt][Pp][Ss]?://|[Mm][Aa][Ii][Ll][Tt][Oo]:)"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "background": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          }
+        }
+      }
+    },
+    "paragraphs": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "align"],
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "align": {
+            "enum": ["left", "center", "right", "justify"]
+          },
+          "list": {
+            "enum": ["bullet", "number"]
+          },
+          "indent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 8
+          },
+          "lineSpacing": {
+            "enum": [1, 1.15, 1.5, 2, 2.5, 3]
+          },
+          "spaceBefore": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 72
+          },
+          "spaceAfter": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 72
+          },
+          "pageBreak": {
+            "type": "boolean"
+          },
+          "table": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "columns"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9-]{1,64}$"
+              },
+              "columns": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8
+              }
+            }
+          }
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "header": {
+          "type": "string",
+          "maxLength": 500,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        },
+        "footer": {
+          "type": "string",
+          "maxLength": 500,
+          "pattern": "^[^\\u0000-\\u001f\\u007f]*$"
+        },
+        "pageNumbers": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

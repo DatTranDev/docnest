@@ -1,0 +1,65 @@
+server:
+  port: ${PORT:8084}
+  tomcat:
+    threads:
+      max: 4
+      min-spare: 2
+    max-connections: 64
+    accept-count: 16
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:collaboration}" password="${KAFKA_PASSWORD:}";'
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+    consumer:
+      group-id: billing-collaboration-v1
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.partition.fetch.bytes: 65536
+    listener:
+      ack-mode: manual_immediate
+  application:
+    name: collaboration-service
+  datasource:
+    url: ${COLLABORATION_DB_URL:jdbc:mysql://localhost:3306/collaboration_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${COLLABORATION_DB_USER:collaboration}
+    password: ${COLLABORATION_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 8
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+editor:
+  document-url: ${DOCUMENT_URL:http://localhost:8082}
+  snapshots-bucket: ${SNAPSHOTS_BUCKET:${GCS_SNAPSHOTS_BUCKET:}}
+  jwt:
+    issuer: ${JWT_ISSUER:http://localhost:8080}
+    jwk-uri: ${JWT_JWK_URI:http://localhost:8081/.well-known/jwks.json}

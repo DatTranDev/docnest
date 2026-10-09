@@ -1,8 +1,10 @@
 import { StyleTree, type Run } from './style';
+import { RichFormatting } from './formatting';
+import { ImageStore, IMAGE_PLACEHOLDER } from './images';
 import { graphemes, MAX_BYTES, TextAdapter } from './text';
 import type { Snapshot } from './model';
 export interface Manifest {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2 | 3 | 4 | 5;
   textEncoding: 'utf-8';
   internalEol: 'LF';
   preferredExportEol: 'LF' | 'CRLF';
@@ -14,6 +16,10 @@ export interface Manifest {
   stylesEncoding: 'adaptive-v1';
   textSha256: string;
   stylesSha256: string;
+  formattingEncoding?: 'sparse-v1' | 'sparse-v2' | 'sparse-v3';
+  formattingSha256?: string;
+  mediaEncoding?: 'embedded-v1';
+  mediaSha256?: string;
 }
 const encoder = new TextEncoder(),
   decoder = new TextDecoder('utf-8', { fatal: true }),
@@ -226,8 +232,9 @@ function zipStore(entries: Record<string, Uint8Array>): Uint8Array {
     crc: crc32(payload),
   }));
   const localSize = parts.reduce((n, p) => n + 30 + p.filename.length + p.payload.length, 0),
-    centralSize = parts.reduce((n, p) => n + 46 + p.filename.length, 0),
-    out = new Uint8Array(localSize + centralSize + 22),
+    centralSize = parts.reduce((n, p) => n + 46 + p.filename.length, 0);
+  if (localSize + centralSize + 22 > MAX_NATIVE) throw new Error('FILE_TOO_LARGE');
+  const out = new Uint8Array(localSize + centralSize + 22),
     view = new DataView(out.buffer);
   let local = 0,
     central = localSize;
@@ -270,8 +277,8 @@ function unzipStore(bytes: Uint8Array): Record<string, Uint8Array> {
     end < 0 ||
     d.getUint16(end + 4, true) ||
     d.getUint16(end + 6, true) ||
-    d.getUint16(end + 8, true) !== 3 ||
-    d.getUint16(end + 10, true) !== 3 ||
+    ![3, 4, 5].includes(d.getUint16(end + 8, true)) ||
+    d.getUint16(end + 10, true) !== d.getUint16(end + 8, true) ||
     end + 22 + d.getUint16(end + 20, true) !== bytes.length
   )
     throw new Error('INVALID_ZIP_DIRECTORY');
@@ -280,7 +287,7 @@ function unzipStore(bytes: Uint8Array): Record<string, Uint8Array> {
   const centralEnd = p + d.getUint32(end + 12, true),
     entries: Record<string, Uint8Array> = {};
   if (centralEnd !== end) throw new Error('INVALID_ZIP_DIRECTORY');
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < d.getUint16(end + 8, true); k++) {
     if (p + 46 > end || d.getUint32(p, true) !== 0x02014b50) throw new Error('INVALID_ZIP_ENTRY');
     const flags = d.getUint16(p + 8, true),
       method = d.getUint16(p + 10, true),
@@ -292,7 +299,9 @@ function unzipStore(bytes: Uint8Array): Record<string, Uint8Array> {
       local = d.getUint32(p + 42, true),
       name = decoder.decode(bytes.subarray(p + 46, p + 46 + nameLength));
     if (
-      !['manifest.json', 'text.utf8', 'styles.bin'].includes(name) ||
+      !['manifest.json', 'text.utf8', 'styles.bin', 'formatting.json', 'media.json'].includes(
+        name,
+      ) ||
       Object.hasOwn(entries, name) ||
       flags & ~0x800 ||
       method !== 0 ||
@@ -301,7 +310,11 @@ function unzipStore(bytes: Uint8Array): Record<string, Uint8Array> {
     )
       throw new Error('UNSAFE_ZIP_ENTRY');
     const cap =
-      name === 'manifest.json' ? 65536 : name === 'styles.bin' ? 8 * 1024 * 1024 : MAX_BYTES;
+      name === 'manifest.json'
+        ? 65536
+        : name === 'styles.bin' || name === 'formatting.json' || name === 'media.json'
+          ? 8 * 1024 * 1024
+          : MAX_BYTES;
     if (length > cap || (total += length) > MAX_NATIVE) throw new Error('PAYLOAD_TOO_LARGE');
     if (
       local + 30 > p ||
@@ -335,8 +348,16 @@ function unzipStore(bytes: Uint8Array): Record<string, Uint8Array> {
 export async function encodeNative(s: Snapshot): Promise<Uint8Array> {
   const text = s.text.encodeUtf8(),
     styles = encodeStyles(s.styles),
+    formatting = s.formatting ?? new RichFormatting(),
+    images = s.images ?? new ImageStore(),
+    structured = formatting.structured,
+    extended = formatting.extended,
+    media = !images.empty || extended || structured,
+    rich = !formatting.empty || media,
+    formattingBytes = rich ? encoder.encode(JSON.stringify(formatting.toJSON())) : undefined,
+    mediaBytes = media ? encoder.encode(JSON.stringify(images.toJSON())) : undefined,
     manifest: Manifest = {
-      schemaVersion: 1,
+      schemaVersion: structured ? 5 : extended ? 4 : media ? 3 : rich ? 2 : 1,
       textEncoding: 'utf-8',
       internalEol: 'LF',
       preferredExportEol: s.preferredExportEol,
@@ -348,11 +369,28 @@ export async function encodeNative(s: Snapshot): Promise<Uint8Array> {
       stylesEncoding: 'adaptive-v1',
       textSha256: await sha256(text),
       stylesSha256: await sha256(styles),
+      ...(formattingBytes
+        ? {
+            formattingEncoding: structured
+              ? ('sparse-v3' as const)
+              : extended
+                ? ('sparse-v2' as const)
+                : ('sparse-v1' as const),
+            formattingSha256: await sha256(formattingBytes),
+          }
+        : {}),
+      ...(mediaBytes
+        ? { mediaEncoding: 'embedded-v1' as const, mediaSha256: await sha256(mediaBytes) }
+        : {}),
     };
+  if (formattingBytes && formattingBytes.length > 8 * 1024 * 1024) throw new Error('FORMAT_LIMIT');
+  if (mediaBytes && mediaBytes.length > 8 * 1024 * 1024) throw new Error('MEDIA_LIMIT');
   return zipStore({
     'manifest.json': encoder.encode(JSON.stringify(manifest)),
     'text.utf8': text,
     'styles.bin': styles,
+    ...(formattingBytes ? { 'formatting.json': formattingBytes } : {}),
+    ...(mediaBytes ? { 'media.json': mediaBytes } : {}),
   });
 }
 export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
@@ -360,8 +398,12 @@ export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
     manifest = JSON.parse(decoder.decode(e['manifest.json'])) as Manifest;
   if (
     Object.keys(manifest).sort().join(',') !==
-      'exportBom,internalEol,logicalLines,offsetUnit,preferredExportEol,schemaVersion,stylesEncoding,stylesSha256,textEncoding,textSha256,utf16Length,utf8Bytes' ||
-    manifest.schemaVersion !== 1 ||
+      (manifest.schemaVersion >= 3
+        ? 'exportBom,formattingEncoding,formattingSha256,internalEol,logicalLines,mediaEncoding,mediaSha256,offsetUnit,preferredExportEol,schemaVersion,stylesEncoding,stylesSha256,textEncoding,textSha256,utf16Length,utf8Bytes'
+        : manifest.schemaVersion === 2
+          ? 'exportBom,formattingEncoding,formattingSha256,internalEol,logicalLines,offsetUnit,preferredExportEol,schemaVersion,stylesEncoding,stylesSha256,textEncoding,textSha256,utf16Length,utf8Bytes'
+          : 'exportBom,internalEol,logicalLines,offsetUnit,preferredExportEol,schemaVersion,stylesEncoding,stylesSha256,textEncoding,textSha256,utf16Length,utf8Bytes') ||
+    ![1, 2, 3, 4, 5].includes(manifest.schemaVersion) ||
     manifest.textEncoding !== 'utf-8' ||
     manifest.internalEol !== 'LF' ||
     manifest.offsetUnit !== 'utf16' ||
@@ -369,20 +411,39 @@ export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
     !['LF', 'CRLF'].includes(manifest.preferredExportEol) ||
     typeof manifest.exportBom !== 'boolean' ||
     !/^([a-f0-9]{64})$/.test(manifest.textSha256) ||
-    !/^([a-f0-9]{64})$/.test(manifest.stylesSha256)
+    !/^([a-f0-9]{64})$/.test(manifest.stylesSha256) ||
+    (manifest.schemaVersion >= 2 &&
+      (manifest.formattingEncoding !==
+        (manifest.schemaVersion === 5
+          ? 'sparse-v3'
+          : manifest.schemaVersion === 4
+            ? 'sparse-v2'
+            : 'sparse-v1') ||
+        !/^([a-f0-9]{64})$/.test(manifest.formattingSha256 ?? '') ||
+        !e['formatting.json'])) ||
+    (manifest.schemaVersion === 1 && Boolean(e['formatting.json'])) ||
+    (manifest.schemaVersion >= 3 &&
+      (manifest.mediaEncoding !== 'embedded-v1' ||
+        !/^([a-f0-9]{64})$/.test(manifest.mediaSha256 ?? '') ||
+        !e['media.json'])) ||
+    (manifest.schemaVersion < 3 && Boolean(e['media.json']))
   )
     throw new Error('INVALID_MANIFEST');
   const raw = e['text.utf8']!,
     styleBytes = e['styles.bin']!,
     text = TextAdapter.from(decoder.decode(raw)),
     styles = decodeStyles(styleBytes);
+  const formattingBytes = e['formatting.json'],
+    mediaBytes = e['media.json'];
   if (
     text.length !== manifest.utf16Length ||
     text.lines !== manifest.logicalLines ||
     raw.length !== manifest.utf8Bytes ||
     styles.length !== text.length ||
     (await sha256(raw)) !== manifest.textSha256 ||
-    (await sha256(styleBytes)) !== manifest.stylesSha256
+    (await sha256(styleBytes)) !== manifest.stylesSha256 ||
+    (formattingBytes && (await sha256(formattingBytes)) !== manifest.formattingSha256) ||
+    (mediaBytes && (await sha256(mediaBytes)) !== manifest.mediaSha256)
   )
     throw new Error('NATIVE_MISMATCH');
   // Stream segmentation one line/chunk at a time; carry the final cluster across chunk boundaries.
@@ -410,6 +471,17 @@ export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
   return {
     text,
     styles,
+    formatting: formattingBytes
+      ? RichFormatting.parse(
+          JSON.parse(decoder.decode(formattingBytes)),
+          text,
+          manifest.schemaVersion >= 4,
+          manifest.schemaVersion === 5,
+        )
+      : new RichFormatting(),
+    images: mediaBytes
+      ? ImageStore.parse(JSON.parse(decoder.decode(mediaBytes)), text)
+      : new ImageStore(),
     contentToken: crypto.randomUUID(),
     localRevision: 0,
     preferredExportEol: manifest.preferredExportEol,
@@ -437,8 +509,12 @@ export function importTxt(bytes: Uint8Array): Snapshot {
   };
 }
 export function exportTxt(s: Snapshot): Uint8Array {
+  let plain = s.text.slice();
+  for (const image of [...(s.images?.images ?? [])].reverse())
+    if (plain[image.from] === IMAGE_PLACEHOLDER)
+      plain = plain.slice(0, image.from) + '[Image]' + plain.slice(image.from + 1);
   return encoder.encode(
     (s.exportBom ? '\ufeff' : '') +
-      (s.preferredExportEol === 'CRLF' ? s.text.slice().replace(/\n/g, '\r\n') : s.text.slice()),
+      (s.preferredExportEol === 'CRLF' ? plain.replace(/\n/g, '\r\n') : plain),
   );
 }

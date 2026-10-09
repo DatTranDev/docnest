@@ -7,6 +7,8 @@ resources:
   - identity-service.yaml
   - document-service.yaml
   - processing-service.yaml
+  - collaboration-service.yaml
+  - payment-service.yaml
   - web.yaml
   - mysql.yaml
   - kafka.yaml

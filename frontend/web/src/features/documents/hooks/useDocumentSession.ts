@@ -1,4 +1,7 @@
 'use client';
+import { DOCUMENT_TIMING } from '../model/constants';
+import { MESSAGE, useI18n } from '@/lib/i18n';
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   decodeNative,
@@ -30,9 +33,12 @@ export function useDocumentSession(
   onDocumentsChanged: () => Promise<void>,
   setError: (message: string) => void,
 ) {
+  const { t, locale } = useI18n();
+  const translation = useLatest(t);
+  const currentLocale = useLatest(locale);
   const [active, setActive] = useState<ActiveDocument | null>(null),
     [tick, setTick] = useState(0),
-    [status, setStatus] = useState('Đã lưu'),
+    [status, setStatus] = useState<string>(MESSAGE.saved),
     [draft, setDraft] = useState<DraftMeta | null>(null),
     [recoveryError, setRecoveryError] = useState(''),
     [saving, setSaving] = useState(false);
@@ -55,7 +61,7 @@ export function useDocumentSession(
     openingSequence = useRef(0);
   useEffect(() => {
     const off = () => {
-        setStatus('Ngoại tuyến');
+        setStatus(MESSAGE.offline);
       },
       err = (event: Event) => setError((event as CustomEvent<string>).detail);
     window.addEventListener('offline', off);
@@ -84,8 +90,12 @@ export function useDocumentSession(
       if (activeRef.current?.model !== a.model) return;
       if (d.effectiveRole === 'VIEWER' && !a.readOnly)
         setActive({ ...a, readOnly: true, document: { ...a.document, effectiveRole: 'VIEWER' } });
-      if (a.model.dirty && d.headRevision !== a.document.headRevision) {
-        setStatus('Xung đột');
+      if (
+        !controller.current?.collaboration &&
+        a.model.dirty &&
+        d.headRevision !== a.document.headRevision
+      ) {
+        setStatus(MESSAGE.conflict);
         await preserve(a);
       }
     } catch (e) {
@@ -94,7 +104,7 @@ export function useDocumentSession(
         await preserve(a);
         if (activeRef.current?.model !== a.model) return;
         setActive({ ...a, readOnly: true });
-        setError('Quyền truy cập đã bị thu hồi. Bản nháp của bạn vẫn được giữ.');
+        setError(MESSAGE.accessWasRevokedYourDraftIsRetained);
       }
     }
   }, [activeRef, preserve, setError]);
@@ -103,7 +113,7 @@ export function useDocumentSession(
       const user = userRef.current;
       const sequence = ++openingSequence.current;
       setError('');
-      setStatus('Đang mở');
+      setStatus(MESSAGE.opening);
       setDraft(null);
       try {
         if (activeRef.current) await preserve(activeRef.current);
@@ -120,7 +130,7 @@ export function useDocumentSession(
           readOnly: latest.effectiveRole === 'VIEWER' || revision !== undefined,
           revision,
         });
-        setStatus('Đã lưu');
+        setStatus(MESSAGE.saved);
         dirtySince.current = 0;
         if (user && revision === undefined) {
           const saved = await recover(user.id, d.id);
@@ -137,7 +147,7 @@ export function useDocumentSession(
       } catch (e) {
         if (sequence !== openingSequence.current) return;
         setError(errorMessage(e));
-        setStatus('Không mở được');
+        setStatus(MESSAGE.unableToOpen);
       }
     },
     [activeRef, preserve, setError, userRef],
@@ -151,34 +161,43 @@ export function useDocumentSession(
       return;
     }
     if (!navigator.onLine) {
-      setStatus('Ngoại tuyến');
+      setStatus(MESSAGE.offline);
       await preserve(initial, user?.id);
       return;
     }
-    if (statusRef.current === 'Xung đột') return;
+    if (statusRef.current === MESSAGE.conflict) return;
     saveBusy.current = true;
     setSaving(true);
-    setStatus('Đang lưu');
-    const s = initial.model.snapshot(),
-      base = initial.document.headRevision;
+    setStatus(MESSAGE.saving);
+    let s = initial.model.snapshot();
+    const base = initial.document.headRevision;
     try {
       await checkAccess();
-      if (activeRef.current?.readOnly) throw new Error('Bạn không có quyền sửa tài liệu này.');
-      const native = await (controller.current?.model === initial.model
-          ? controller.current.replica.snapshotFor(s)
-          : encodeNative(s)),
-        result = await saveNativeVersion(initial.document.id, base, native);
+      if (activeRef.current?.readOnly) throw new Error(MESSAGE.youCannotEditThisDocument);
+      const collaborative = controller.current?.collaboration;
+      let revision: number;
+      if (collaborative) {
+        const saved = await controller.current!.saveCollaboration();
+        s = saved.snapshot;
+        revision = saved.revision;
+      } else {
+        const native = await (controller.current?.model === initial.model
+            ? controller.current.replica.snapshotFor(s)
+            : encodeNative(s)),
+          result = await saveNativeVersion(initial.document.id, base, native);
+        revision = result.version.revision;
+      }
       initial.model.savedContentToken = s.contentToken;
       const current = activeRef.current;
       if (current?.model === initial.model) {
         draftWriter.current?.reset(initial.model.snapshot());
         const updated = {
           ...current,
-          document: { ...current.document, headRevision: result.version.revision },
+          document: { ...current.document, headRevision: revision },
         };
         setActive(updated);
         activeRef.current = updated;
-        setStatus(initial.model.dirty ? 'Chưa lưu' : 'Đã lưu');
+        setStatus(initial.model.dirty ? MESSAGE.unsaved : MESSAGE.saved);
         dirtySince.current = initial.model.dirty ? Date.now() : 0;
         if (!initial.model.dirty && user) await clearDraft(user.id, initial.document.id);
       }
@@ -186,14 +205,16 @@ export function useDocumentSession(
     } catch (e) {
       await preserve(initial, user?.id);
       if (activeRef.current?.model !== initial.model) return;
-      if (e instanceof ApiError && e.status === 409) {
-        setStatus('Xung đột');
-        setError('Có phiên bản mới trên máy chủ. Bản nháp được giữ để bạn chọn cách xử lý.');
+      if (e instanceof ApiError && e.status === 423) {
+        setStatus(MESSAGE.unsaved);
+      } else if (e instanceof ApiError && e.status === 409) {
+        setStatus(MESSAGE.conflict);
+        setError(MESSAGE.aNewerVersionExistsOnTheServerYour);
       } else if (e instanceof ApiError && [403, 404].includes(e.status)) {
         setActive({ ...initial, readOnly: true });
-        setError('Quyền sửa đã bị thu hồi. Bạn có thể tải xuống hoặc tạo bản sao.');
+        setError(MESSAGE.editAccessWasRevokedYouCanDownloadThe);
       } else {
-        setStatus(navigator.onLine ? 'Chưa lưu' : 'Ngoại tuyến');
+        setStatus(navigator.onLine ? MESSAGE.unsaved : MESSAGE.offline);
         setError(errorMessage(e));
       }
     } finally {
@@ -201,7 +222,7 @@ export function useDocumentSession(
       setSaving(false);
       if (savePending.current) {
         savePending.current = false;
-        if (statusRef.current !== 'Xung đột') void saveAgain.current();
+        if (statusRef.current !== MESSAGE.conflict) void saveAgain.current();
       }
     }
   }, [activeRef, checkAccess, controller, preserve, reload, setError, statusRef, userRef]);
@@ -209,8 +230,12 @@ export function useDocumentSession(
     async (snapshot?: Snapshot): Promise<void> => {
       const active = activeRef.current;
       const title = window.prompt(
-        'Tên tài liệu',
-        snapshot ? `${active?.document.title ?? 'Bản nháp'} — bản sao` : 'Tài liệu mới',
+        translation.current(MESSAGE.documentName),
+        snapshot
+          ? translation.current(MESSAGE.valueCopy, {
+              p0: active?.document.title ?? translation.current(MESSAGE.draft),
+            })
+          : translation.current(MESSAGE.newDocumentLabel),
       );
       if (!title) return;
       try {
@@ -219,7 +244,7 @@ export function useDocumentSession(
           const m = EditorModel.loaded(snapshot);
           m.savedContentToken = 'unsaved-copy';
           setActive({ document: d, model: m, readOnly: false });
-          setStatus('Chưa lưu');
+          setStatus(MESSAGE.unsaved);
           dirtySince.current = Date.now();
           lastEdit.current = Date.now();
         } else await open(d);
@@ -228,7 +253,7 @@ export function useDocumentSession(
         setError(errorMessage(e));
       }
     },
-    [activeRef, open, parentFolder, reload, setError],
+    [activeRef, open, parentFolder, reload, setError, translation],
   );
 
   useLayoutEffect(() => {
@@ -253,24 +278,48 @@ export function useDocumentSession(
         if (delta) draftWriter.current?.track(delta, document.model.snapshot());
         setTick((value) => value + 1);
         lastEdit.current = Date.now();
-        if (!dirtySince.current) dirtySince.current = Date.now();
+        dirtySince.current = document.model.dirty ? dirtySince.current || Date.now() : 0;
         changeCount.current++;
-        setStatus(navigator.onLine ? 'Chưa lưu' : 'Ngoại tuyến');
+        setStatus(
+          navigator.onLine
+            ? document.model.dirty
+              ? MESSAGE.unsaved
+              : MESSAGE.saved
+            : MESSAGE.offline,
+        );
       },
       selectedReadOnly,
+      () => {
+        const current = activeRef.current;
+        const head = controller.current?.collaboration?.headRevision;
+        if (
+          current?.model === document.model &&
+          head !== undefined &&
+          head !== current.document.headRevision
+        ) {
+          const updated = { ...current, document: { ...current.document, headRevision: head } };
+          activeRef.current = updated;
+          setActive(updated);
+        }
+        setTick((value) => value + 1);
+      },
     );
+    instance.setLanguage(currentLocale.current);
     controller.current = instance;
     return () => {
       instance.destroy();
       if (controller.current === instance) controller.current = null;
     };
-  }, [activeRef, selectedModel, selectedReadOnly, userRef]);
+  }, [activeRef, selectedModel, selectedReadOnly, userRef, currentLocale]);
   useEffect(() => {
     const timer = setInterval(() => {
       const document = activeRef.current,
         currentUser = userRef.current;
       if (!document || !currentUser || !document.model.dirty) return;
-      if (Date.now() - lastEdit.current >= 2000 || changeCount.current >= 50) {
+      if (
+        Date.now() - lastEdit.current >= DOCUMENT_TIMING.draftIdleMs ||
+        changeCount.current >= DOCUMENT_TIMING.draftChangeCount
+      ) {
         changeCount.current = 0;
         lastEdit.current = Date.now();
         void (
@@ -281,13 +330,9 @@ export function useDocumentSession(
             document.document.headRevision,
             document.model.snapshot(),
           )
-        ).catch((error) =>
-          setRecoveryError(
-            `Không thể khôi phục bản nháp: ${errorMessage(error)}. Hãy tải bản nháp xuống.`,
-          ),
-        );
+        ).catch(() => setRecoveryError(MESSAGE.draftRecoveryFailed));
       }
-    }, 1000);
+    }, DOCUMENT_TIMING.tickMs);
     return () => clearInterval(timer);
   }, [activeRef, userRef]);
   useEffect(() => {
@@ -299,18 +344,19 @@ export function useDocumentSession(
         document.readOnly ||
         !navigator.onLine ||
         saveBusy.current ||
-        statusRef.current === 'Xung đột'
+        statusRef.current === MESSAGE.conflict
       )
         return;
       const now = Date.now();
       if (
-        now - lastAuto.current >= 15000 &&
-        (now - lastEdit.current >= 5000 || now - dirtySince.current >= 60000)
+        now - lastAuto.current >= DOCUMENT_TIMING.autosaveIntervalMs &&
+        (now - lastEdit.current >= DOCUMENT_TIMING.autosaveIdleMs ||
+          now - dirtySince.current >= DOCUMENT_TIMING.autosaveMaxDirtyMs)
       ) {
         lastAuto.current = now;
         void saveAgain.current();
       }
-    }, 1000);
+    }, DOCUMENT_TIMING.tickMs);
     return () => clearInterval(timer);
   }, [activeRef, statusRef]);
   const activeId = active?.document.id;
@@ -318,7 +364,7 @@ export function useDocumentSession(
     if (!activeId) return;
     const timer = setInterval(() => {
         void checkAccess();
-      }, 30000),
+      }, DOCUMENT_TIMING.accessPollMs),
       focus = () => {
         void checkAccess();
       };
@@ -336,6 +382,10 @@ export function useDocumentSession(
     async (file: File) => {
       const document = activeRef.current;
       if (!document || document.readOnly) return;
+      if (controller.current?.collaboration) {
+        setError(MESSAGE.importIntoANewDocumentWhileCollaborationIs);
+        return;
+      }
       try {
         const bytes = new Uint8Array(await file.arrayBuffer()),
           snapshot = file.name.endsWith('.tedoc') ? await decodeNative(bytes) : importTxt(bytes);
@@ -344,7 +394,7 @@ export function useDocumentSession(
         const model = EditorModel.loaded(snapshot);
         model.savedContentToken = 'imported';
         setActive({ ...document, model });
-        setStatus('Chưa lưu');
+        setStatus(MESSAGE.unsaved);
         lastEdit.current = Date.now();
         dirtySince.current = Date.now();
       } catch (error) {
@@ -356,6 +406,10 @@ export function useDocumentSession(
   const recoverLocal = useCallback(async () => {
     const document = activeRef.current;
     if (!document || !draft) return;
+    if (controller.current?.collaboration) {
+      setError(MESSAGE.collaborativeDraftsSyncAutomaticallyCreateACopyTo);
+      return;
+    }
     const snapshot = await restoreDraft(draft),
       model = EditorModel.loaded(snapshot);
     if (activeRef.current?.model !== document.model) return;
@@ -365,9 +419,13 @@ export function useDocumentSession(
       model,
       document: { ...document.document, headRevision: draft.baseHeadRevision },
     });
-    setStatus(draft.baseHeadRevision === document.document.headRevision ? 'Chưa lưu' : 'Xung đột');
+    setStatus(
+      draft.baseHeadRevision === document.document.headRevision
+        ? MESSAGE.unsaved
+        : MESSAGE.conflict,
+    );
     setDraft(null);
-  }, [activeRef, draft]);
+  }, [activeRef, draft, setError]);
   const discardDraft = useCallback(() => {
     setDraft(null);
     const currentUser = userRef.current,
@@ -376,11 +434,32 @@ export function useDocumentSession(
   }, [activeRef, userRef]);
   const clearHistory = useCallback(() => {
     const document = activeRef.current;
-    if (document && window.confirm('Xóa lịch sử hoàn tác? Nội dung hiện tại được giữ.')) {
+    if (
+      document &&
+      window.confirm(translation.current(MESSAGE.clearUndoHistoryCurrentContentWillBeRetained))
+    ) {
       document.model.clearHistory();
+      controller.current?.collaboration?.shared.undoManager.clear();
       setTick((value) => value + 1);
     }
-  }, [activeRef]);
+  }, [activeRef, translation]);
+  const collaborate = useCallback(async () => {
+    const a = activeRef.current,
+      user = userRef.current;
+    if (!a || !user || a.readOnly || !controller.current) return;
+    try {
+      if (a.model.dirty) await save();
+      if (a.model.dirty) throw new Error(MESSAGE.saveTheDocumentBeforeStartingCollaboration);
+      await controller.current.startCollaboration(
+        a.document.id,
+        user.id,
+        activeRef.current!.document.headRevision,
+      );
+      setTick((value) => value + 1);
+    } catch (error) {
+      setError(errorMessage(error));
+    }
+  }, [activeRef, userRef, save, setError]);
   return {
     active,
     activeRef,
@@ -401,5 +480,6 @@ export function useDocumentSession(
     recoverLocal,
     discardDraft,
     clearHistory,
+    collaborate,
   };
 }

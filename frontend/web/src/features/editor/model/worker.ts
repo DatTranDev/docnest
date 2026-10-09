@@ -1,8 +1,24 @@
 import { ChangeSet } from '@codemirror/state';
-import { decodeStyles, encodeNative, TextAdapter, type Snapshot } from '@ted/editor-core';
+import {
+  decodeStyles,
+  encodeNative,
+  RichFormatting,
+  ImageStore,
+  TextAdapter,
+  type FormattingData,
+  type ImageData,
+  type Snapshot,
+} from '@ted/editor-core';
 type Range = { from: number; to: number; styles: Uint8Array };
 type Message =
-  | { type: 'init'; generationId: number; revision: number; text: string; styles: Uint8Array }
+  | {
+      type: 'init';
+      generationId: number;
+      revision: number;
+      text: string;
+      styles: Uint8Array;
+      formatting: FormattingData;
+    }
   | {
       type: 'delta';
       generationId: number;
@@ -10,6 +26,7 @@ type Message =
       revision: number;
       changes: unknown;
       ranges: Range[];
+      formatting: FormattingData;
     }
   | {
       type: 'search';
@@ -27,6 +44,7 @@ type Message =
       contentToken: string;
       preferredExportEol: 'LF' | 'CRLF';
       exportBom: boolean;
+      images?: ImageData;
     }
   | { type: 'cancel'; requestId: number };
 let replica: Snapshot | null = null,
@@ -48,9 +66,11 @@ self.onmessage = (event: MessageEvent<Message>) => {
   }
   if (m.type === 'init') {
     generation = m.generationId;
+    const text = TextAdapter.from(m.text);
     replica = {
-      text: TextAdapter.from(m.text),
+      text,
       styles: decodeStyles(m.styles),
+      formatting: RichFormatting.parse(m.formatting, text),
       localRevision: m.revision,
       contentToken: 'replica',
       preferredExportEol: 'LF',
@@ -68,7 +88,14 @@ self.onmessage = (event: MessageEvent<Message>) => {
     const changes = ChangeSet.fromJSON(m.changes);
     let styles = replica.styles;
     for (const r of m.ranges) styles = styles.replace(r.from, r.to, decodeStyles(r.styles));
-    replica = { ...replica, text: replica.text.apply(changes), styles, localRevision: m.revision };
+    const text = replica.text.apply(changes);
+    replica = {
+      ...replica,
+      text,
+      styles,
+      formatting: RichFormatting.parse(m.formatting, text),
+      localRevision: m.revision,
+    };
     self.postMessage({ type: 'ack', generationId: generation, revision: m.revision });
     return;
   }
@@ -80,6 +107,7 @@ self.onmessage = (event: MessageEvent<Message>) => {
   if (m.type === 'snapshot') {
     void encodeNative({
       ...pinned,
+      images: m.images ? ImageStore.parse(m.images, pinned.text) : new ImageStore(),
       contentToken: m.contentToken,
       preferredExportEol: m.preferredExportEol,
       exportBom: m.exportBom,

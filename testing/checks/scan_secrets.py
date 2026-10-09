@@ -24,7 +24,7 @@ if env.exists():
         if "=" in line:
             key, val = line.split("=", 1)
             if (
-                key.endswith(("PASSWORD", "KEY"))
+                key.endswith(("PASSWORD", "KEY", "SECRET"))
                 and len(val) > 20
                 and not val.startswith(("YOUR_", "REPLACE_"))
             ):

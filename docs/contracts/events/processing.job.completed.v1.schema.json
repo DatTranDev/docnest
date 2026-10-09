@@ -41,7 +41,7 @@
           "maximum": 9007199254740991
         },
         "type": {
-          "enum": ["PREVIEW", "EXPORT_TXT", "EXPORT_HTML"]
+          "enum": ["PREVIEW", "EXPORT_TXT", "EXPORT_HTML", "EXPORT_DOCX", "EXPORT_PDF"]
         },
         "state": {
           "enum": ["SUCCEEDED", "FAILED", "CANCELLED"]

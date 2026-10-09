@@ -1,3 +1,4 @@
+import { MESSAGE } from '@/lib/i18n/messages';
 import { configureAuthentication, request, resetCsrf } from '@/lib/http';
 import type { Session } from '../model/types';
 let session: Session | null = null;
@@ -48,10 +49,10 @@ export async function login(email: string, password: string): Promise<Session> {
   refreshing = null;
   return mutateSessionCookie(async () => {
     if (generation !== sessionGeneration)
-      throw new Error('Phiên đăng nhập đã thay đổi. Hãy đăng nhập lại.');
+      throw new Error(MESSAGE.yourSessionHasChangedPleaseSignInAgain);
     const result = await request<Session>('/api/v1/auth/login', 'POST', { email, password });
     if (generation !== sessionGeneration)
-      throw new Error('Phiên đăng nhập đã thay đổi. Hãy đăng nhập lại.');
+      throw new Error(MESSAGE.yourSessionHasChangedPleaseSignInAgain);
     session = result;
     return session;
   });

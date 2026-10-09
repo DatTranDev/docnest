@@ -1,10 +1,21 @@
 import { ChangeSet } from '@codemirror/state';
-import { decodeNative, decodeStyles, encodeNative, type Snapshot } from '@ted/editor-core';
+import {
+  decodeNative,
+  decodeStyles,
+  encodeNative,
+  RichFormatting,
+  ImageStore,
+  type FormattingData,
+  type ImageData,
+  type Snapshot,
+} from '@ted/editor-core';
 export interface DraftDelta {
   changes: unknown;
   ranges: { from: number; to: number; styles: Uint8Array }[];
   revision: number;
   token: string;
+  formatting?: FormattingData;
+  images?: ImageData;
   checkpoint?: boolean;
 }
 export interface DraftMeta {
@@ -112,12 +123,15 @@ export async function restoreDraft(meta: DraftMeta): Promise<Snapshot> {
   let s = await decodeNative(meta.native);
   for (const delta of meta.journal ?? []) {
     const changes = ChangeSet.fromJSON(delta.changes);
+    const text = s.text.apply(changes);
     let styles = s.styles;
     for (const r of delta.ranges) styles = styles.replace(r.from, r.to, decodeStyles(r.styles));
     s = {
       ...s,
-      text: s.text.apply(changes),
+      text,
       styles,
+      formatting: delta.formatting ? RichFormatting.parse(delta.formatting, text) : s.formatting,
+      images: delta.images ? ImageStore.parse(delta.images, text) : s.images?.map(changes),
       localRevision: delta.revision,
       contentToken: delta.token,
     };
@@ -161,6 +175,8 @@ export class DraftWriter {
     this.bytes +=
       JSON.stringify(delta.changes).length * 2 +
       delta.ranges.reduce((n, r) => n + r.styles.length, 0);
+    this.bytes += JSON.stringify(delta.formatting ?? {}).length;
+    this.bytes += JSON.stringify(delta.images ?? {}).length;
     if (this.journal.length >= 100 || this.bytes >= 1024 * 1024) {
       this.base = snapshot;
       this.journal = [];

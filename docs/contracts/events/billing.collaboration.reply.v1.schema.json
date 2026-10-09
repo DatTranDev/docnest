@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://text-editor.example/contracts/events/billing.collaboration.reply.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "EntitlementCompleted"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "collaboration-service"
+    },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sagaId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "phase": {
+          "enum": ["APPLY", "COMPENSATE"]
+        },
+        "participant": {
+          "const": "collaboration"
+        },
+        "outcome": {
+          "enum": ["APPLIED", "REJECTED"]
+        },
+        "reason": {
+          "enum": ["NONE", "ACCOUNT_INACTIVE", "STALE"]
+        }
+      },
+      "required": ["userId", "sagaId", "generation", "phase", "participant", "outcome", "reason"]
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "schemaVersion",
+    "occurredAt",
+    "producer",
+    "traceId",
+    "payload"
+  ]
+}

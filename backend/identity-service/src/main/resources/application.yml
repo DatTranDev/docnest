@@ -5,6 +5,31 @@ server:
     include-message: never
     include-stacktrace: never
 spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:identity}" password="${KAFKA_PASSWORD:}";'
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+    consumer:
+      group-id: billing-identity-v1
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.partition.fetch.bytes: 65536
+    listener:
+      ack-mode: manual_immediate
   application:
     name: identity-service
   data:
@@ -46,6 +71,10 @@ editor:
     max-users: ${MAX_USERS:10}
 
 logging:
+  level:
+    org.springframework.kafka.listener.DefaultErrorHandler: 'OFF'
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: 'OFF'
+    org.springframework.kafka.listener.FailedRecordTracker: 'OFF'
   structured:
     format:
       console: logstash

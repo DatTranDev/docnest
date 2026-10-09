@@ -123,6 +123,14 @@ export function loadConfig(env = process.env) {
       env.PROCESSING_INTERNAL_ORIGIN ?? 'http://processing-service:8080',
       'PROCESSING_INTERNAL_ORIGIN',
     ),
+    collaborationOrigin: origin(
+      env.COLLABORATION_INTERNAL_ORIGIN ?? 'http://collaboration-service:8080',
+      'COLLABORATION_INTERNAL_ORIGIN',
+    ),
+    paymentOrigin: origin(
+      env.PAYMENT_INTERNAL_ORIGIN ?? 'http://payment-service:8080',
+      'PAYMENT_INTERNAL_ORIGIN',
+    ),
     trustedProxyCidrs: parseTrustedProxyCidrs(env.TRUSTED_PROXY_CIDRS ?? ''),
     requestTimeoutMs: REQUEST_TIMEOUT_MS,
     maxBodyBytes: MAX_BODY_BYTES,
@@ -165,6 +173,8 @@ function upstreamOrigin(path, config) {
   if (isPrefix(pathname, '/api/v1/auth') || isPrefix(pathname, '/.well-known'))
     return config.identityOrigin;
   if (isPrefix(pathname, '/api/v1/jobs')) return config.processingOrigin;
+  if (isPrefix(pathname, '/api/v1/collaboration')) return config.collaborationOrigin;
+  if (isPrefix(pathname, '/api/v1/billing')) return config.paymentOrigin;
   if (isPrefix(pathname, '/api')) return config.documentOrigin;
   return config.nextOrigin;
 }

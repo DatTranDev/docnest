@@ -1,6 +1,6 @@
 # Architecture and service boundaries
 
-Three services own three logical databases. Folders and ACLs stay in Document Service because document operations require consistent checks against both. A separate Storage Service or Folder Service in the MVP would add network hops and distributed transactions with little additional learning value.
+Five services own five logical databases after the collaboration and subscription extensions (ADR027/ADR028). Identity, Document and Processing retain their original ownership; Collaboration stores the durable CRDT operation log in `collaboration_db`. Folders and ACLs stay in Document Service because document operations require consistent checks against both.
 
 ## Stack
 
@@ -9,7 +9,7 @@ Three services own three logical databases. Folders and ACLs stay in Document Se
 | Backend          | Java 21, Spring Boot 4.1.1, Maven Wrapper, Spring Security, Spring JDBC (JdbcTemplate), Flyway       |
 | Frontend         | Next.js 16.3.8 App Router, TypeScript strict, React 19.3.0, CodeMirror 6, Web Worker                 |
 | Frontend runtime | Node 24.11.1 standalone production server behind a streaming Node gateway; Vite remains test tooling |
-| Database         | MySQL 8.4 LTS; one instance, three databases and three application accounts                          |
+| Database         | MySQL 8.4 LTS; one instance, five databases and five application accounts                            |
 | Events           | Apache Kafka 4.x KRaft; one combined broker/controller for the lab                                   |
 | Cache            | Redis 8.x; one instance; no canonical text storage                                                   |
 | Files            | Local filesystem adapter for local development; Google Cloud Storage in the cloud                    |
@@ -30,6 +30,7 @@ frontend/web/server                          # production streaming gateway
 backend/identity-service/.../identity/{auth,bootstrap}
 backend/document-service/.../document/{documents,folders,sharing,shared,bootstrap}
 backend/processing-service/.../processing/{jobs,bootstrap}
+backend/collaboration-service/.../collaboration/{rooms,bootstrap}
 backend/common/.../common/{codec,storage,messaging,observability}
 backend/common/src/benchmark/java        # harness excluded from runtime jars
 frontend/editor-core/src                 # framework-independent model/history/codec/search
@@ -43,7 +44,7 @@ tooling/scripts
 testing/{checks,benchmark,reports}
 ```
 
-A root Maven reactor builds three independent services. The backend uses JdbcTemplate and explicit SQL for row locks and compare-and-set (CAS); do not add an ORM to the MVP. Spring's transaction manager wraps short transactions. Keep network and file I/O outside transactions. frontend/editor-core is a TypeScript package for text, style, history, codec and search that does not depend on React screens. Share generated DTOs or schemas between backends, not JPA entities or business services. A small logging/JWT validation library is acceptable; it must not create a shared business database.
+A root Maven reactor builds five independent services. The backend uses JdbcTemplate and explicit SQL for row locks and compare-and-set (CAS); do not add an ORM to the MVP. Spring's transaction manager wraps short transactions. Keep network and file I/O outside transactions. frontend/editor-core is a TypeScript package for text, style, history, codec, search and the bounded CRDT projection that does not depend on React screens. Share generated DTOs or schemas between backends, not JPA entities or business services. A small logging/JWT validation library is acceptable; it must not create a shared business database.
 
 | Service feature    | Responsibilities                                                                               | Representative use cases                                                                                     |
 | ------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
@@ -55,7 +56,7 @@ A root Maven reactor builds three independent services. The backend uses JdbcTem
 
 Each business feature contains meaningful `api`, `application/command`, `application/query`, `application/port`, `domain`, and `infrastructure` packages. `bootstrap` contains entry points and wiring. Domain types enforce actual invariants and depend only on Java/domain types. Application handlers use ports and domain types; infrastructure implements ports; controllers map HTTP and call handlers. Cross-feature interaction uses explicit application interfaces. Document's `shared` package contains only its own shared policy, transaction, pagination and HTTP support.
 
-Logical CQRS separates mutation handlers from query handlers/read ports returning purpose-specific DTOs. It retains one MySQL instance, three databases and direct handler calls; Kafka remains the asynchronous outbox/inbox transport. Preserve exclusive tree/requester locks, committed refresh-family revocation, CAS revisions, ACL checks, idempotency and atomic mutation/outbox writes. Processing ports use the shared storage reference DTO while concrete local/GCS adapters stay in infrastructure. Common contains technical codec/storage/backend/schema/observation code; heavy optional dependencies are declared by the services that use them. `NativeBenchmark` builds through `-Pbenchmark test-compile` and is excluded from production jars.
+Logical CQRS separates mutation handlers from query handlers/read ports returning purpose-specific DTOs. It retains one MySQL instance, five databases and direct handler calls; Kafka remains the asynchronous outbox/inbox transport. Preserve exclusive tree/requester locks, committed refresh-family revocation, CAS revisions, ACL checks, idempotency and atomic mutation/outbox writes. Processing ports use the shared storage reference DTO while concrete local/GCS adapters stay in infrastructure. Common contains technical codec/storage/backend/schema/observation code; heavy optional dependencies are declared by the services that use them. `NativeBenchmark` builds through `-Pbenchmark test-compile` and is excluded from production jars.
 
 Frontend features contain components, hooks, API functions, model types and tests where there is actual implementation. Cross-feature imports use public feature indexes; shared modules cannot depend on features; cycles are rejected. Workspace/editor/public-view initialization stays behind client-only dynamic boundaries. IndexedDB and workers start in the client lifecycle. React subscribes to small UI state while editor-core/CodeMirror retain canonical text, styles, undo and snapshot consistency. Routes support direct public-link navigation and benchmark/worker validation pages.
 
@@ -105,3 +106,27 @@ JWT does not determine document permissions. Document reads the owner and grants
 ## Trade-offs
 
 Three services provide sufficient scope to learn ownership, APIs, outbox and workers. One physical MySQL instance saves money but creates a shared failure domain. One Kafka node has persistence without high availability. Snapshots on every save are simple to verify, but bandwidth grows with save frequency. Throttle autosave and bound version retention. Delta persistence and collaboration require new ADRs and must not be silently added to the MVP.
+
+## Subscription orchestration (ADR028)
+
+Payment owns billing accounts, durable Stripe requests/webhook receipts and subscription saga state in `payment_db`. It orchestrates four entitlement participants through private command/reply Kafka topics. Each participant owns its own projection and atomically commits the mutation, inbox and reply outbox. Generation fencing handles delayed commands and higher-generation compensation; there is no shared database transaction. Existing preview/export processing keeps its event-driven outbox/inbox. Independent consumer groups and SASL principals isolate the new transport. Stripe I/O occurs outside SQL transactions; expiring worker and publication leases fence interrupted attempts. See [billing contract](contracts/billing.md) and [sandbox setup](STRIPE_SETUP.md).
+
+```mermaid
+flowchart LR
+  S[Stripe Checkout / signed webhook] --> P[Payment orchestrator]
+  P --> PD[(payment_db + outbox)]
+  PD --> K[Kafka commands]
+  K --> I[Identity participant]
+  K --> D[Document participant]
+  K --> W[Processing participant]
+  K --> C[Collaboration participant]
+  I & D & W & C --> R[Own SQL + inbox + reply outbox]
+  R --> KR[Kafka replies]
+  KR --> P
+```
+
+## Interface localization (ADR029)
+
+English and Vietnamese catalogs live under `frontend/web/src/lib/i18n`; `config/locale.ts` owns the allowlisted locales, default and preference cookie. The server reads the cookie for matching HTML language/metadata and passes it to a client provider. Changing locale updates labels in place without refreshing the page or recreating the document, controller, worker, draft or CRDT session. CodeMirror uses a reconfigurable language compartment and viewport image labels; Blob URLs and canonical data are retained. UI save/sync states use stable message IDs; translated text never controls state transitions.
+
+Dates and numbers use the selected locale. API error codes map to translated notices while transport envelopes remain intact; unknown errors use a generic localized notice rather than displaying private server/provider details. Document text, titles, recipients, native formats, API roles and event identifiers are not translated. Add a key to both catalogs and keep interpolation placeholders identical. Feature-owned constants hold input limits, autosave/poll timing, formatting defaults, clipboard/page bounds and link lifetime; protocol constants and CSS dimensions remain in their owning modules.

@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate-payment-service
+  labels:
+    app: migrate-payment-service
+    application: text-editor
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: payment-service
+        application: text-editor
+    spec:
+      serviceAccountName: payment-service
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: migrate
+          image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/payment-service:REPLACE_WITH_DIGEST
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: data
+              mountPath: /data
+          envFrom:
+            - configMapRef:
+                name: editor-config
+          env:
+            - name: PAYMENT_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: PAYMENT_DB_PASSWORD
+            - name: KAFKA_SECURITY_PROTOCOL
+              value: SASL_PLAINTEXT
+            - name: KAFKA_USERNAME
+              value: payment
+            - name: KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: KAFKA_PAYMENT_PASSWORD
+            - name: STRIPE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: STRIPE_SECRET_KEY
+            - name: STRIPE_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: editor-secrets
+                  key: STRIPE_WEBHOOK_SECRET
+            - name: SPRING_MAIN_WEB_APPLICATION_TYPE
+              value: none
+            - name: FLYWAY_ENABLED
+              value: 'true'
+          args:
+            - --editor.migrate-only=true
+            - --spring.flyway.enabled=true
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: data
+          emptyDir: {}
+      restartPolicy: Never

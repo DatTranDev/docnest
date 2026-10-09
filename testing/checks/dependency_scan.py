@@ -18,7 +18,7 @@ for p in repo.rglob("*.jar"):
         )
 artifacts = set()
 unresolved = []
-for service in ["identity", "document", "processing"]:
+for service in ["identity", "document", "processing", "collaboration", "payment"]:
     jar = (
         ROOT / f"backend/{service}-service/target/{service}-service-1.0.0-SNAPSHOT.jar"
     )
@@ -121,7 +121,7 @@ for offset in range(0, len(artifacts), 100):
 report = {
     "status": "FINDINGS" if findings else ("UNVERIFIED" if unresolved else "PASS"),
     "source": "https://api.osv.dev/v1/querybatch",
-    "scope": "resolved Maven runtime dependencies in three packaged jars; excludes OS/base images and tests",
+    "scope": "resolved Maven runtime dependencies in four packaged jars; excludes OS/base images and tests",
     "packagesQueried": len(artifacts),
     "unresolved": sorted(set(unresolved)),
     "findings": findings,

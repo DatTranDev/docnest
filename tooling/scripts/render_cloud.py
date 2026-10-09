@@ -11,9 +11,16 @@ root = pathlib.Path(__file__).resolve().parents[2]
 if not a.origin.startswith("https://"):
     raise SystemExit("Cloud requires HTTPS origin")
 digests = json.loads(pathlib.Path(a.digests).read_text())
-names = ["identity-service", "document-service", "processing-service", "web"]
+names = [
+    "identity-service",
+    "document-service",
+    "processing-service",
+    "collaboration-service",
+    "payment-service",
+    "web",
+]
 if set(digests) != set(names):
-    raise SystemExit("Digest file must map all four service names")
+    raise SystemExit("Digest file must map all six application names")
 for v in digests.values():
     if not re.fullmatch(r"[a-z0-9._:/-]+@sha256:[a-f0-9]{64}", v):
         raise SystemExit("Every image must be a registry digest")

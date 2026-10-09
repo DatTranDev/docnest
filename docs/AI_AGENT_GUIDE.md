@@ -1,6 +1,6 @@
 # Guide for the AI coding agent
 
-Implement and maintain the text editor with folders and sharing using these contracts, the Identity, Document and Processing services, and a USD 300 lab budget. Work through P00 to P15; P16 is optional. The accepted refactor supersedes Vite hosting and flat Java packages with Next.js App Router and feature/layer organization. Read AGENTS.md and docs/PROJECT_STATUS.md before resuming. This is the sole project status file. These instructions do not authorize cloud provisioning or changing unrelated repositories.
+Implement and maintain the text editor with folders and sharing using these contracts, Identity, Document, Processing and the ADR027 Collaboration extension, and a USD 300 lab budget. Work through P00 to P15; P16 is optional. The accepted refactor supersedes Vite hosting and flat Java packages with Next.js App Router and feature/layer organization. Read AGENTS.md and docs/PROJECT_STATUS.md before resuming. This is the sole project status file. These instructions do not authorize cloud provisioning or changing unrelated repositories.
 
 ## Authoritative sources
 
@@ -10,7 +10,7 @@ Implement and maintain the text editor with folders and sharing using these cont
 4. docs/04_EDITOR_ENGINE.md for editor invariants and the native format.
 5. docs/06_ASYNC_PROCESSING.md, the runbook and the AI plan for workflows.
 
-Report conflicts explicitly and update relevant sources together when a justified decision is necessary. Use agreed ADRs for routine decisions and continue without per-step review prompts. Do not add real-time editing or public write access. Do not switch providers or adopt managed Kafka without recalculating the budget.
+Report conflicts explicitly and update relevant sources together when a justified decision is necessary. Use agreed ADRs for routine decisions and continue without per-step review prompts. The owner has authorized account-based concurrent editing (ADR027); public write access remains forbidden. Do not switch providers or adopt managed Kafka without recalculating the budget.
 
 ## Boundaries
 
@@ -35,3 +35,7 @@ Use the exact tool pins and commands in docs/versions.lock.md and AGENTS.md. CI 
 ## Definition of done
 
 The MVP passes editing, saving and reopening with styles, folder operations, moving and trash, account sharing, public viewing and revocation, conflict and draft recovery, export jobs, schema and contract checks, and the benchmark report. Deployment passes after smoke tests, backup restoration and cost checks. Real-time collaboration is outside the MVP definition of done.
+
+## Subscription extension
+
+ADR028 selects Payment orchestration with participant transactional outbox/inbox; preserve the original preview/export flow. Five services own five databases. Billing APIs/schemas are in `docs/contracts/billing*` and `docs/contracts/events/billing*`; sandbox configuration is in `docs/STRIPE_SETUP.md`. Preserve generation fencing, account/saga lock order, stable provider/event idempotency and raw-byte webhook signatures. Keep Stripe test mode only until separately authorized. Provider HTTP contract tests/SQL-seeded saga checks never certify real Stripe payments. `docs/PROJECT_STATUS.md` is the sole checkpoint.

@@ -1,0 +1,16 @@
+{
+  "eventId": "00000000-0000-4000-8000-000000000001",
+  "eventType": "EntitlementRequested",
+  "schemaVersion": 1,
+  "occurredAt": "2026-10-09T00:00:00Z",
+  "producer": "payment-service",
+  "traceId": "11111111111111111111111111111111",
+  "payload": {
+    "userId": "00000000-0000-4000-8000-000000000002",
+    "sagaId": "00000000-0000-4000-8000-000000000003",
+    "generation": 1,
+    "phase": "APPLY",
+    "plan": "PRO_MONTHLY",
+    "expiresAt": "2026-11-09T00:00:00Z"
+  }
+}

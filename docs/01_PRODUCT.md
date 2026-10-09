@@ -4,23 +4,23 @@ Users can create folders and documents, enter and format text, save to the cloud
 
 ## Scope
 
-| Area       | MVP                                                                                                         |
-| ---------- | ----------------------------------------------------------------------------------------------------------- |
-| Accounts   | Register, log in, refresh tokens, log out and view profile                                                  |
-| Folders    | Create, rename and move within a personal tree; delete empty folders                                        |
-| Documents  | Create empty, rename, move, open, edit, save, list versions, trash and restore                              |
-| Editor     | Combine bold, italic and underline; undo/redo; literal find/replace; import TXT/native; download native/TXT |
-| Sharing    | Grant VIEWER/EDITOR to existing accounts; Shared with me; revoke; read-only public links                    |
-| Processing | Automatic preview and word count; TXT/HTML exports with job status                                          |
-| Offline    | Recover drafts through IndexedDB; no automatic queue that overwrites cloud content on reconnect             |
+| Area       | MVP                                                                                                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts   | Register, log in, refresh tokens, log out and view profile                                                                                          |
+| Folders    | Create, rename and move within a personal tree; delete empty folders                                                                                |
+| Documents  | Create empty, rename, move, open, edit, save, list versions, trash and restore                                                                      |
+| Editor     | Bold, italic, underline, basic font family/size/color, paragraph alignment; undo/redo; literal find/replace; import TXT/native; download native/TXT |
+| Sharing    | Grant VIEWER/EDITOR to existing accounts; Shared with me; revoke; read-only public links                                                            |
+| Processing | Automatic preview and word count; TXT/HTML exports with job status                                                                                  |
+| Offline    | Recover drafts through IndexedDB; no automatic queue that overwrites cloud content on reconnect                                                     |
 
-Outside the MVP: folder sharing, email invitations, OTP/email verification, email password reset, real-time OT/CRDT, Word-style images/tables/layout, DOCX/RTF round trips, a mobile editor, unbounded regular expressions, and multiple active large documents. These are lab scope decisions, not claims that the features are impossible.
+Outside the MVP: folder sharing, email invitations, OTP/email verification, email password reset, real-time OT/CRDT, tables, DOCX/RTF round trips, a mobile editor, unbounded regular expressions, and multiple active large documents. PNG/JPEG insertion and a bounded read-only A4 page preview are supported. These are lab scope decisions, not claims that the other features are impossible.
 
 ## Screens
 
 1. Login and Register. Show input validation errors. Keep the access token in memory and the refresh token in an HttpOnly cookie.
 2. Workspace. The sidebar contains My files, Shared with me and Trash. Show folder breadcrumbs and lists paginated at 50 items. Folders and documents are separate item types. Provide New folder, New document, Rename, Move and Delete.
-3. Editor. Show the document title, owner-only breadcrumb, permission label, B/I/U toolbar, undo/redo, search, Save, Export and Share. Statuses are Saved, Unsaved, Saving, Offline and Conflict.
+3. Editor. Show the document title, owner-only breadcrumb, permission label, B/I/U, font, size, color and paragraph alignment controls, undo/redo, search, Save, Export and Share. Statuses are Saved, Unsaved, Saving, Offline and Conflict.
 4. Share dialog. The owner enters a registered account's email, selects VIEWER or EDITOR, changes or revokes a grant, and creates, copies or revokes a public link. Do not send email automatically.
 5. Version history. List up to 20 recent retained versions. Open older versions read-only. Save as new document forks a version. Restoring over an existing version is outside the MVP.
 6. Public viewer. Open a link without login in read-only mode. Do not expose owner email, folder path or ACL. Invalid, expired and revoked links all return 404.
@@ -47,7 +47,7 @@ The owner is documents.owner_user_id, not an EDITOR grant. Ownership transfer is
 | --- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | F01 | Sign in again after closing a tab | A valid refresh issues a new token; reuse of a consumed refresh is rejected and revokes its family                  |
 | F02 | Organize files in folders         | Create and move correctly; prevent cycles; reject depth 21; another owner's folder returns 404                      |
-| F03 | Write and reopen                  | Preserve text, B/I/U, Unicode and EOL preference across save/load                                                   |
+| F03 | Write and reopen                  | Preserve text, B/I/U, basic font/size/color/alignment, Unicode and EOL preference across save/load                  |
 | F04 | Save while continuing to type     | Save snapshot R; edits at R+1 remain Unsaved; do not falsely display Saved                                          |
 | F05 | Two people edit the same document | One commit wins; the stale base receives 409; preserve the losing draft                                             |
 | F06 | Share as VIEWER                   | The recipient opens through Shared with me and cannot save through UI or API                                        |
@@ -70,3 +70,11 @@ Cloud autosave uses a 5-second debounce, at least 15 seconds between automatic s
 ## Lab limits
 
 Proposed limits: 10 test accounts, 100 documents per account, 100 folders per account, 20 versions per document, and 5 queued or running jobs per account. Record configuration in the environment and test atomic server enforcement. Document titles allow at most 200 code points; folder names allow 120. Apply Unicode NFC to names only, not document content. Duplicate document titles are allowed. Sibling folder names must be unique after normalization and case-insensitive, accent-sensitive comparison.
+
+# Account collaboration extension (ADR027)
+
+Account owners/editors may opt into **Cùng chỉnh sửa** for a document. All participants explicitly join the same room. Concurrent text and supported formatting edits merge with CRDT identities, and undo affects the caller's local actions. Read-only public links remain outside collaboration. Current limits and pending cloud/recovery work are recorded in `contracts/collaboration.md` and the sole status checkpoint.
+
+## Subscription extension (ADR028)
+
+The Payment service adds Free, Pro monthly and Pro yearly catalog entries with server-configured Stripe recurring Prices, hosted Checkout/Portal and period-end cancellation. Current features/quotas remain available on Free until plan-specific benefits are agreed. A return redirect cannot activate paid access; verified current subscription/invoice state and completed entitlement orchestration drive the account plan. Only sandbox credentials/events are enabled at this checkpoint. Real Stripe acceptance remains pending configuration; see `docs/STRIPE_SETUP.md`.

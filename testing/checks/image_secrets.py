@@ -15,7 +15,14 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from run import initialize
 
-SERVICES = ("identity-service", "document-service", "processing-service", "web")
+SERVICES = (
+    "identity-service",
+    "document-service",
+    "processing-service",
+    "collaboration-service",
+    "payment-service",
+    "web",
+)
 PRIVATE_PEM = re.compile(rb"-----BEGIN (?:RSA )?PRIVATE KEY-----\s+[A-Za-z0-9+/]{40}")
 
 
@@ -53,7 +60,7 @@ def main():
     needles = [
         value.encode()
         for key, value in values.items()
-        if key.endswith(("PASSWORD", "KEY")) and len(value) > 20
+        if key.endswith(("PASSWORD", "KEY", "SECRET")) and len(value) > 20
     ]
     scratch = ROOT / ".tools" / "image-scan"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -124,7 +131,7 @@ def main():
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     print(
-        "PASS four images: nonroot, no generated credentials/private PEMs in config or first-party payloads"
+        "PASS six images: nonroot, no generated credentials/private PEMs in config or first-party payloads"
     )
 
 

@@ -2,6 +2,8 @@ export interface ServiceOrigins {
   identity: string;
   document: string;
   processing: string;
+  collaboration: string;
+  payment: string;
 }
 function origin(value: string | undefined, fallback: string, name: string): string {
   const url = new URL(value ?? fallback);
@@ -22,6 +24,16 @@ export function serviceOrigins(
   environment: Readonly<Record<string, string | undefined>>,
 ): ServiceOrigins {
   return {
+    payment: origin(
+      environment.PAYMENT_INTERNAL_ORIGIN,
+      'http://127.0.0.1:8085',
+      'PAYMENT_INTERNAL_ORIGIN',
+    ),
+    collaboration: origin(
+      environment.COLLABORATION_INTERNAL_ORIGIN,
+      'http://127.0.0.1:8084',
+      'COLLABORATION_INTERNAL_ORIGIN',
+    ),
     identity: origin(
       environment.IDENTITY_INTERNAL_ORIGIN,
       'http://127.0.0.1:8081',

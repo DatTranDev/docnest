@@ -191,6 +191,9 @@ def fixture():
 
 def check_recovery(data):
     db = IsolatedDatabase()
+    sql(
+        "USE collaboration_db; INSERT INTO collaboration_rooms(document_id,head_revision,sequence,log_bytes) VALUES('00000000-0000-0000-0000-000000000001',1,1,2); INSERT INTO collaboration_updates(document_id,sequence,operation_id,user_id,payload) VALUES('00000000-0000-0000-0000-000000000001',1,'00000000-0000-0000-0000-000000000002','00000000-0000-0000-0000-000000000003',0x00ff);"
+    )
     records = backup.capture_records(db)
     CHECKS.append(
         "All reference columns captured from current V1/V2 plus Processing V3 schemas, including attempt_id"
@@ -206,7 +209,7 @@ def check_recovery(data):
     for database in backup.DBS:
         sql(patches[database])
     CHECKS.append(
-        "Three generated database-specific SQL files execute successfully against original schemas"
+        "Five generated database-specific SQL files execute successfully against original schemas"
     )
     fresh = backup.capture_records(db)
     replacements = {
@@ -298,8 +301,116 @@ def check_recovery(data):
     for database in backup.DBS:
         sql(patches[database])
     assert backup.capture_records(db) == fresh
+    assert db.query(
+        "collaboration_db",
+        "SELECT JSON_OBJECT('payload',HEX(payload)) FROM collaboration_updates;",
+    ) == [{"payload": "00FF"}]
+    CHECKS.append(
+        "Collaboration V1 binary operation log survives reference restoration unchanged"
+    )
     CHECKS.append(
         "Second application is harmless; original-reference guards prevent repeated or unrelated rewrites"
+    )
+
+
+def check_billing_restore(data):
+    user, saga, request, event = data["owner"], identifier(), identifier(), identifier()
+    envelope = json.loads(
+        (
+            ROOT / "docs/contracts/events/billing.identity.command.v1.example.json"
+        ).read_text(encoding="utf-8")
+    )
+    envelope["eventId"] = event
+    envelope["payload"].update(
+        userId=user,
+        sagaId=saga,
+        generation=7,
+        phase="COMPENSATE",
+        plan="FREE",
+        expiresAt=None,
+    )
+    raw = backup.sql_text(json.dumps(envelope, separators=(",", ":")))
+    sql(
+        f"""USE payment_db;
+        INSERT INTO payment_accounts(user_id,generation,saga_id,review_needed) VALUES('{user}',7,'{saga}',1);
+        INSERT INTO payment_sagas(id,user_id,generation,phase,state,plan,previous_plan,trace_id)
+        VALUES('{saga}','{user}',7,'COMPENSATE','COMPENSATING','PRO_MONTHLY','FREE','{'a' * 32}');
+        INSERT INTO payment_requests(id,user_id,request_key,kind,expires_at) VALUES('{request}','{user}','{request}','SYNC','2027-01-01');
+        INSERT INTO stripe_receipts(event_id,fingerprint,event_type) VALUES('evt_restore','{'a' * 64}','invoice.paid');
+        INSERT INTO saga_inbox(event_id,fingerprint,completed) VALUES('{event}','{'b' * 64}',1);
+        INSERT INTO saga_outbox(event_id,topic,aggregate_key,payload) VALUES('{event}','billing.identity.command.v1','{user}',{raw});"""
+    )
+    for owner in ("identity", "document", "processing", "collaboration"):
+        sql(
+            f"USE {owner}_db; INSERT INTO subscription_entitlements(user_id,generation,plan,saga_id,phase) VALUES('{user}',7,'FREE','{saga}','COMPENSATE');"
+        )
+
+    def billing_state():
+        db = IsolatedDatabase()
+        return {
+            "account": db.query(
+                "payment_db",
+                "SELECT JSON_OBJECT('user',user_id,'generation',generation,'saga',saga_id,'review',review_needed) FROM payment_accounts;",
+            ),
+            "saga": db.query(
+                "payment_db",
+                "SELECT JSON_OBJECT('phase',phase,'state',state,'generation',generation,'replies',replies) FROM payment_sagas;",
+            ),
+            "outbox": db.query("payment_db", "SELECT payload FROM saga_outbox;"),
+            "request": db.query(
+                "payment_db",
+                "SELECT JSON_OBJECT('id',id,'kind',kind,'status',status) FROM payment_requests;",
+            ),
+            "receipt": db.query(
+                "payment_db",
+                "SELECT JSON_OBJECT('id',event_id,'hash',fingerprint) FROM stripe_receipts;",
+            ),
+            "inbox": db.query(
+                "payment_db",
+                "SELECT JSON_OBJECT('id',event_id,'hash',fingerprint,'completed',completed) FROM saga_inbox;",
+            ),
+            "grants": {
+                owner: db.query(
+                    owner + "_db",
+                    "SELECT JSON_OBJECT('generation',generation,'plan',plan,'phase',phase,'saga',saga_id) FROM subscription_entitlements;",
+                )
+                for owner in ("identity", "document", "processing", "collaboration")
+            },
+        }
+
+    before = billing_state()
+    archive = command(
+        [
+            "docker",
+            "exec",
+            CONTAINER,
+            "bash",
+            "-c",
+            'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysqldump -uroot --single-transaction --hex-blob --set-gtid-purged=OFF --databases '
+            + " ".join(backup.DBS),
+        ]
+    ).stdout
+    assert archive, "Five-database dump empty"
+    sql("\n".join("DROP DATABASE " + database + ";" for database in backup.DBS))
+    command(
+        [
+            "docker",
+            "exec",
+            "-i",
+            CONTAINER,
+            "bash",
+            "-c",
+            'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --default-character-set=utf8mb4',
+        ],
+        archive,
+    )
+    assert billing_state() == before
+    assert IsolatedDatabase().query(
+        "collaboration_db",
+        "SELECT JSON_OBJECT('payload',HEX(payload)) FROM collaboration_updates;",
+    ) == [{"payload": "00FF"}]
+    CHECKS.append(
+        "Actual five-database mysqldump/restore preserves payment requests/receipts, compensation generation, inbox/outbox envelopes, all four entitlement projections and CRDT bytes"
     )
 
 
@@ -378,6 +489,7 @@ def main():
         data = fixture()
         sql("USE processing_db; UPDATE jobs SET trace_id='" + "a" * 32 + "';")
         check_recovery(data)
+        check_billing_restore(data)
         success = True
     except (AssertionError, OSError, ValueError, subprocess.TimeoutExpired) as error:
         failure = (

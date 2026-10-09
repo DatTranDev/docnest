@@ -1,3 +1,5 @@
+'use client';
+import { MESSAGE, useI18n } from '@/lib/i18n';
 import { useState } from 'react';
 import type { Folder } from '@/features/folders';
 import type { MoveTarget } from '../model/types';
@@ -12,17 +14,19 @@ export function MoveDialog({
   onMove: (target: string | null) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
+
   const [target, setTarget] = useState('');
   return (
-    <div className="modal" role="dialog" aria-label="Di chuyển">
+    <div className="modal" role="dialog" aria-label={t(MESSAGE.move)}>
       <div className="panel">
-        <h2>Di chuyển</h2>
+        <h2>{t(MESSAGE.move)}</h2>
         <select
-          aria-label="Thư mục đích"
+          aria-label={t(MESSAGE.destinationFolder)}
           value={target}
           onChange={(event) => setTarget(event.target.value)}
         >
-          <option value="">Gốc</option>
+          <option value="">{t(MESSAGE.root)}</option>
           {folders
             .filter((folder) => destination.kind !== 'folder' || folder.id !== destination.item.id)
             .map((folder) => (
@@ -31,8 +35,8 @@ export function MoveDialog({
               </option>
             ))}
         </select>
-        <button onClick={() => onMove(target || null)}>Di chuyển</button>
-        <button onClick={onClose}>Hủy</button>
+        <button onClick={() => onMove(target || null)}>{t(MESSAGE.move)}</button>
+        <button onClick={onClose}>{t(MESSAGE.cancel)}</button>
       </div>
     </div>
   );

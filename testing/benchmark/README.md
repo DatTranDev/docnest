@@ -8,7 +8,7 @@ npx playwright install chromium
 ```
 
 `npm run worker-check` builds and starts a production Next.js webpack server on
-`127.0.0.1:5176`, executes the six real Chromium worker protocol cases, writes
+`127.0.0.1:5176`, executes the eight real Chromium worker protocol cases, writes
 `testing/reports/worker-contract.json`, then closes its browser and server. It imports the
 actual feature modules through `/worker-contract`; it uses no worker mocks or
 development-server source imports. An occupied port is an error.
@@ -58,3 +58,14 @@ Each runner hashes the actual editor feature modules and core sources before and
 after execution. A source change during measurement makes the run fail. The
 Windows memory sampler is bounded and closes on the runner's stop marker. Owned
 servers and browsers are closed even when a workload fails.
+
+## Collaboration boundary sample
+
+Start the local app, then run `node testing/benchmark/collaboration.cjs`. The runner
+creates a 200,000-unit ASCII document, joins collaboration, measures join latency
+and the main page's additional JS heap after GC through Chromium CDP, and verifies
+that an extra character is rejected in both the editor and saved native document.
+It writes `testing/reports/collaboration-benchmark.json` and moves the temporary
+document to Trash. This is one sample without a latency/RAM acceptance target.
+It excludes worker heaps, decoded images and browser/process memory; it cannot
+certify the seven-workload RAM targets or 10 MiB collaborative editing.

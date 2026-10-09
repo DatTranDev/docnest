@@ -25,7 +25,7 @@ jobs:
           REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/editor
         run: |
           set -euo pipefail
-          for service in identity-service document-service processing-service; do
+          for service in identity-service document-service processing-service collaboration-service payment-service; do
             docker build -f infra/compose/Service.Dockerfile --build-arg SERVICE="$service" -t "text-editor/$service:local" -t "$REGISTRY/$service:$GITHUB_SHA" .
           done
           docker build -f infra/compose/Web.Dockerfile -t text-editor/web:local -t "$REGISTRY/web:$GITHUB_SHA" .
@@ -40,7 +40,7 @@ jobs:
           REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/editor
         run: |
           set -euo pipefail
-          for service in identity-service document-service processing-service web; do
+          for service in identity-service document-service processing-service collaboration-service payment-service web; do
             docker push "$REGISTRY/$service:$GITHUB_SHA"
             docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$service:$GITHUB_SHA" >> image-digests.txt
           done

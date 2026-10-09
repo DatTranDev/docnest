@@ -1,0 +1,1 @@
+export const DEFAULT_LINK_LIFETIME_SECONDS = 7 * 24 * 60 * 60;

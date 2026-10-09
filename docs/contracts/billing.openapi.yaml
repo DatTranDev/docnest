@@ -1,0 +1,281 @@
+openapi: 3.0.3
+info:
+  title: Subscription Billing API
+  version: 1.0.0
+  description: Stripe sandbox integration and orchestrated entitlement sagas. See
+    billing.md.
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/billing/plans:
+    get:
+      operationId: getBillingPlans
+      responses:
+        '200':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - enabled
+                  - testMode
+                  - plans
+                properties:
+                  enabled:
+                    type: boolean
+                  testMode:
+                    type: boolean
+                  plans:
+                    type: array
+                    items:
+                      type: string
+                      enum:
+                        - FREE
+                        - PRO_MONTHLY
+                        - PRO_YEARLY
+        default: &id001
+          description: 401 authentication; 404 not owned; 409 conflict; 429 bounded
+            queue; 503 Stripe unconfigured. Other invalid inputs return 400.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingError'
+      security: []
+  /api/v1/billing/subscription:
+    get:
+      operationId: getOwnSubscription
+      responses:
+        '200':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        default: *id001
+  /api/v1/billing/requests/{id}:
+    get:
+      operationId: getOwnBillingRequest
+      responses:
+        '200':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema: &id002
+                $ref: '#/components/schemas/BillingRequest'
+        default: *id001
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /api/v1/billing/checkout:
+    post:
+      operationId: createBillingCheckout
+      responses:
+        '202':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema: *id002
+        default: *id001
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - plan
+              properties:
+                plan:
+                  type: string
+                  enum:
+                    - PRO_MONTHLY
+                    - PRO_YEARLY
+  /api/v1/billing/portal:
+    post:
+      operationId: createBillingPortal
+      responses:
+        '202':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema: *id002
+        default: *id001
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /api/v1/billing/cancel:
+    post:
+      operationId: createBillingCancel
+      responses:
+        '202':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema: *id002
+        default: *id001
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /api/v1/billing/reconcile:
+    post:
+      operationId: createBillingReconcile
+      responses:
+        '202':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema: *id002
+        default: *id001
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /api/v1/billing/webhooks/stripe:
+    post:
+      operationId: receiveStripeWebhook
+      responses:
+        '200':
+          description: Durable result; no Stripe redirect can grant access.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - received
+                properties:
+                  received:
+                    type: boolean
+        default: *id001
+      security: []
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+            maxLength: 2048
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Raw signed Stripe snapshot event, at most 1 MiB. Exact
+                bytes are verified before parsing.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    BillingRequest:
+      type: object
+      required:
+        - id
+        - kind
+        - status
+        - url
+        - errorCode
+        - expiresAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum:
+            - CHECKOUT
+            - PORTAL
+            - CANCEL
+            - SYNC
+        status:
+          type: string
+          enum:
+            - PENDING
+            - RUNNING
+            - SUCCEEDED
+            - FAILED
+            - REVIEW
+        url:
+          type: string
+          nullable: true
+        errorCode:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+    Subscription:
+      type: object
+      required:
+        - plan
+        - state
+        - stripeStatus
+        - expiresAt
+        - cancelAtPeriodEnd
+        - sagaId
+      properties:
+        plan:
+          type: string
+          enum:
+            - FREE
+            - PRO_MONTHLY
+            - PRO_YEARLY
+        state:
+          type: string
+          enum:
+            - NONE
+            - PROVISIONING
+            - COMPENSATING
+            - COMPLETE
+            - MANUAL_REVIEW
+        stripeStatus:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelAtPeriodEnd:
+          type: boolean
+        sagaId:
+          type: string
+          format: uuid
+          nullable: true
+    BillingError:
+      type: object
+      required:
+        - code
+        - message
+        - details
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object

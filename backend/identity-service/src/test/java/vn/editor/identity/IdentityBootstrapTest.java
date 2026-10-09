@@ -51,6 +51,9 @@ class IdentityBootstrapTest {
         SpringApplication.run(
             IdentityApplication.class,
             "--server.port=0",
+            "--spring.kafka.listener.auto-startup=false",
+            "--spring.kafka.bootstrap-servers=127.0.0.1:1",
+            "--spring.kafka.producer.properties.max.block.ms=100",
             "--spring.datasource.url="
                 + mysql.getJdbcUrl()
                 + (mysql.getJdbcUrl().contains("?") ? "&" : "?")

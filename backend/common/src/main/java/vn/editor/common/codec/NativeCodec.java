@@ -17,6 +17,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -53,13 +54,132 @@ public final class NativeCodec {
           "stylesEncoding",
           "textSha256",
           "stylesSha256");
+  private static final Set<String> RICH_FIELDS =
+      Set.of(
+          "schemaVersion",
+          "textEncoding",
+          "internalEol",
+          "preferredExportEol",
+          "exportBom",
+          "offsetUnit",
+          "utf8Bytes",
+          "utf16Length",
+          "logicalLines",
+          "stylesEncoding",
+          "textSha256",
+          "stylesSha256",
+          "formattingEncoding",
+          "formattingSha256");
+  private static final Set<String> IMAGE_FIELDS =
+      Set.of(
+          "schemaVersion",
+          "textEncoding",
+          "internalEol",
+          "preferredExportEol",
+          "exportBom",
+          "offsetUnit",
+          "utf8Bytes",
+          "utf16Length",
+          "logicalLines",
+          "stylesEncoding",
+          "textSha256",
+          "stylesSha256",
+          "formattingEncoding",
+          "formattingSha256",
+          "mediaEncoding",
+          "mediaSha256");
+
+  public record FormatRun(
+      int from,
+      int to,
+      String font,
+      Integer size,
+      String color,
+      String background,
+      boolean strike,
+      String script,
+      String link) {
+    public FormatRun(
+        int from,
+        int to,
+        String font,
+        Integer size,
+        String color,
+        String background,
+        boolean strike,
+        String script) {
+      this(from, to, font, size, color, background, strike, script, null);
+    }
+
+    public FormatRun(int from, int to, String font, Integer size, String color) {
+      this(from, to, font, size, color, null, false, null, null);
+    }
+  }
+
+  public record TableCell(String id, int columns) {}
+
+  public record PageSettings(String header, String footer, boolean pageNumbers) {
+    public static PageSettings empty() {
+      return new PageSettings("", "", false);
+    }
+  }
+
+  public record ParagraphFormat(
+      int from,
+      String align,
+      String list,
+      int indent,
+      double lineSpacing,
+      int spaceBefore,
+      int spaceAfter,
+      boolean pageBreak,
+      TableCell table) {
+    public ParagraphFormat(int from, String align) {
+      this(from, align, null, 0, 1.15, 0, 0, false, null);
+    }
+  }
+
+  public record EmbeddedImage(
+      int from, String id, String mime, int width, int height, String data) {}
+
+  public record Formatting(
+      List<FormatRun> runs, List<ParagraphFormat> paragraphs, PageSettings page) {
+    public Formatting(List<FormatRun> runs, List<ParagraphFormat> paragraphs) {
+      this(runs, paragraphs, PageSettings.empty());
+    }
+
+    public static Formatting empty() {
+      return new Formatting(List.of(), List.of());
+    }
+  }
 
   public record Decoded(
       Map<String, Object> manifest,
       String text,
       byte[] masks,
       int nativeBytes,
-      String nativeSha256) {}
+      String nativeSha256,
+      Formatting formatting,
+      List<EmbeddedImage> images) {
+    public Decoded(
+        Map<String, Object> manifest,
+        String text,
+        byte[] masks,
+        int nativeBytes,
+        String nativeSha256) {
+      this(manifest, text, masks, nativeBytes, nativeSha256, Formatting.empty(), List.of());
+    }
+
+    public Decoded(
+        Map<String, Object> manifest,
+        String text,
+        byte[] masks,
+        int nativeBytes,
+        String nativeSha256,
+        Formatting formatting) {
+      this(manifest, text, masks, nativeBytes, nativeSha256, formatting, List.of());
+    }
+  }
 
   public static Decoded decode(Path path) throws IOException {
     long size = Files.size(path);
@@ -76,6 +196,8 @@ public final class NativeCodec {
               case "manifest.json" -> 65536;
               case "text.utf8" -> MAX_TEXT;
               case "styles.bin" -> MAX_STYLES;
+              case "formatting.json" -> MAX_STYLES;
+              case "media.json" -> MAX_STYLES;
               default -> throw new InvalidNative("INVALID_NATIVE_FILE");
             };
         if (e.getMethod() != ZipEntry.STORED
@@ -95,16 +217,31 @@ public final class NativeCodec {
     } catch (ZipException ex) {
       throw new InvalidNative("INVALID_NATIVE_FILE");
     }
-    if (entries.size() != 3) throw new InvalidNative("INVALID_NATIVE_FILE");
+    if (entries.size() < 3 || entries.size() > 5) throw new InvalidNative("INVALID_NATIVE_FILE");
     Map<String, Object> m;
     try {
       m = JSON.readValue(strictUtf8(entries.get("manifest.json")), Map.class);
     } catch (Exception ex) {
       throw new InvalidNative("INVALID_NATIVE_FILE");
     }
+    boolean structured = m != null && Objects.equals(m.get("schemaVersion"), 5);
+    boolean extended = m != null && (Objects.equals(m.get("schemaVersion"), 4) || structured);
+    boolean media = m != null && (Objects.equals(m.get("schemaVersion"), 3) || extended);
+    boolean rich = m != null && (Objects.equals(m.get("schemaVersion"), 2) || media);
     if (m == null
-        || !m.keySet().equals(FIELDS)
-        || !Objects.equals(m.get("schemaVersion"), 1)
+        || !m.keySet().equals(media ? IMAGE_FIELDS : rich ? RICH_FIELDS : FIELDS)
+        || (!rich && !Objects.equals(m.get("schemaVersion"), 1))
+        || entries.containsKey("formatting.json") != rich
+        || entries.containsKey("media.json") != media
+        || (media
+            && (!Objects.equals(m.get("mediaEncoding"), "embedded-v1")
+                || !Objects.equals(m.get("mediaSha256"), sha256(entries.get("media.json")))))
+        || (rich
+            && (!Objects.equals(
+                    m.get("formattingEncoding"),
+                    structured ? "sparse-v3" : extended ? "sparse-v2" : "sparse-v1")
+                || !Objects.equals(
+                    m.get("formattingSha256"), sha256(entries.get("formatting.json")))))
         || !Objects.equals(m.get("textEncoding"), "utf-8")
         || !Objects.equals(m.get("internalEol"), "LF")
         || !Objects.equals(m.get("offsetUnit"), "utf16")
@@ -127,6 +264,11 @@ public final class NativeCodec {
         || !Objects.equals(m.get("stylesSha256"), sha256(styles)))
       throw new InvalidNative("INVALID_NATIVE_FILE");
     byte[] masks = decodeStyles(styles, text.length());
+    Formatting formatting =
+        rich
+            ? decodeFormatting(entries.get("formatting.json"), text, extended, structured)
+            : Formatting.empty();
+    List<EmbeddedImage> images = media ? decodeImages(entries.get("media.json"), text) : List.of();
     BreakIterator graphemes = BreakIterator.getCharacterInstance(ULocale.ROOT);
     graphemes.setText(text);
     for (int from = graphemes.first(), to = graphemes.next();
@@ -135,7 +277,184 @@ public final class NativeCodec {
       for (int i = from + 1; i < to; i++)
         if (masks[i] != masks[from]) throw new InvalidNative("INVALID_NATIVE_FILE");
     return new Decoded(
-        Collections.unmodifiableMap(m), text, masks, archive.length, sha256(archive));
+        Collections.unmodifiableMap(m),
+        text,
+        masks,
+        archive.length,
+        sha256(archive),
+        formatting,
+        images);
+  }
+
+  private static List<EmbeddedImage> decodeImages(byte[] raw, String text) throws InvalidNative {
+    try {
+      Map<?, ?> root = JSON.readValue(strictUtf8(raw), Map.class);
+      if (root == null
+          || !root.keySet().equals(Set.of("images"))
+          || !(root.get("images") instanceof List<?> rows)
+          || rows.size() > 100) throw new InvalidNative("INVALID_NATIVE_FILE");
+      List<EmbeddedImage> images = new ArrayList<>();
+      Set<String> ids = new HashSet<>();
+      int previous = -1;
+      for (Object value : rows) {
+        if (!(value instanceof Map<?, ?> row)
+            || !row.keySet().equals(Set.of("from", "id", "mime", "width", "height", "data"))
+            || !(row.get("from") instanceof Integer from)
+            || !(row.get("id") instanceof String id)
+            || !(row.get("mime") instanceof String mime)
+            || !(row.get("width") instanceof Integer width)
+            || !(row.get("height") instanceof Integer height)
+            || !(row.get("data") instanceof String data)
+            || from <= previous
+            || from >= text.length()
+            || text.charAt(from) != '\ufffc'
+            || !id.matches("[0-9a-fA-F-]{36}")
+            || !ids.add(id)
+            || !Set.of("image/png", "image/jpeg").contains(mime)
+            || width < 1
+            || height < 1
+            || width > 4096
+            || height > 4096
+            || data.length() > 2796204) throw new InvalidNative("INVALID_NATIVE_FILE");
+        byte[] bytes = Base64.getDecoder().decode(data);
+        if (bytes.length == 0
+            || bytes.length > 2097152
+            || !Base64.getEncoder().encodeToString(bytes).equals(data))
+          throw new InvalidNative("INVALID_NATIVE_FILE");
+        int[] dimensions = imageDimensions(bytes, mime);
+        if (dimensions == null || dimensions[0] != width || dimensions[1] != height)
+          throw new InvalidNative("INVALID_NATIVE_FILE");
+        images.add(new EmbeddedImage(from, id, mime, width, height, data));
+        previous = from;
+      }
+      return List.copyOf(images);
+    } catch (IOException | IllegalArgumentException ex) {
+      throw new InvalidNative("INVALID_NATIVE_FILE");
+    }
+  }
+
+  private static int[] imageDimensions(byte[] bytes, String mime) {
+    if (mime.equals("image/png")) {
+      byte[] signature = {(byte) 137, 80, 78, 71, 13, 10, 26, 10};
+      if (bytes.length < 24
+          || !Arrays.equals(Arrays.copyOf(bytes, 8), signature)
+          || !Arrays.equals(
+              Arrays.copyOfRange(bytes, 12, 16), "IHDR".getBytes(StandardCharsets.US_ASCII)))
+        return null;
+      ByteBuffer view = ByteBuffer.wrap(bytes).order(ByteOrder.BIG_ENDIAN);
+      return new int[] {view.getInt(16), view.getInt(20)};
+    }
+    if (bytes.length < 4 || (bytes[0] & 255) != 255 || (bytes[1] & 255) != 216) return null;
+    for (int p = 2; p + 9 < bytes.length; ) {
+      if ((bytes[p++] & 255) != 255) return null;
+      int marker = bytes[p++] & 255;
+      while (marker == 255 && p < bytes.length) marker = bytes[p++] & 255;
+      if (marker == 217 || marker == 218 || p + 2 > bytes.length) return null;
+      if (marker == 1 || (marker >= 208 && marker <= 215)) continue;
+      int size = ((bytes[p] & 255) << 8) | (bytes[p + 1] & 255);
+      if (size < 2 || p + size > bytes.length) return null;
+      if (marker >= 192 && marker <= 195 && size >= 7)
+        return new int[] {
+          ((bytes[p + 5] & 255) << 8) | (bytes[p + 6] & 255),
+          ((bytes[p + 3] & 255) << 8) | (bytes[p + 4] & 255)
+        };
+      p += size;
+    }
+    return null;
+  }
+
+  private static Formatting decodeFormatting(
+      byte[] raw, String text, boolean extended, boolean structured) throws InvalidNative {
+    try {
+      Map<?, ?> data = JSON.readValue(strictUtf8(raw), Map.class);
+      if (data == null
+          || !data.keySet()
+              .equals(
+                  structured && data.containsKey("page")
+                      ? Set.of("runs", "paragraphs", "page")
+                      : Set.of("runs", "paragraphs")))
+        throw new InvalidNative("INVALID_NATIVE_FILE");
+      if (!(data.get("runs") instanceof List<?> rows)
+          || !(data.get("paragraphs") instanceof List<?> lines)
+          || rows.size() > 100000
+          || lines.size() > 100000) throw new InvalidNative("INVALID_NATIVE_FILE");
+      List<FormatRun> runs = new ArrayList<>();
+      BreakIterator boundaries = BreakIterator.getCharacterInstance(ULocale.ROOT);
+      boundaries.setText(text);
+      int last = 0;
+      for (Object value : rows) {
+        if (!(value instanceof Map<?, ?> r)
+            || !r.keySet().containsAll(Set.of("from", "to"))
+            || !(structured
+                    ? Set.of(
+                        "from",
+                        "to",
+                        "font",
+                        "size",
+                        "color",
+                        "background",
+                        "strike",
+                        "script",
+                        "link")
+                    : extended
+                        ? Set.of(
+                            "from", "to", "font", "size", "color", "background", "strike", "script")
+                        : Set.of("from", "to", "font", "size", "color"))
+                .containsAll(r.keySet())
+            || !(r.get("from") instanceof Integer from)
+            || !(r.get("to") instanceof Integer to)
+            || from < last
+            || to <= from
+            || to > text.length()) throw new InvalidNative("INVALID_NATIVE_FILE");
+        if (!boundaries.isBoundary(from) || !boundaries.isBoundary(to))
+          throw new InvalidNative("INVALID_NATIVE_FILE");
+        String font = r.get("font") instanceof String f ? f : null;
+        Integer size = r.get("size") instanceof Integer s ? s : null;
+        String color = r.get("color") instanceof String c ? c : null;
+        String background = r.get("background") instanceof String b ? b : null;
+        String script = r.get("script") instanceof String s ? s : null;
+        boolean strike = Boolean.TRUE.equals(r.get("strike"));
+        String link = r.get("link") instanceof String l ? l : null;
+        if ((r.containsKey("link") && (link == null || !StructureCodec.safeLink(link)))
+            || (r.containsKey("font") && font == null)
+            || (r.containsKey("size") && size == null)
+            || (r.containsKey("color") && color == null)
+            || (r.containsKey("background") && background == null)
+            || (r.containsKey("script") && script == null && link == null)
+            || (r.containsKey("strike") && !(r.get("strike") instanceof Boolean))
+            || (background != null && !background.matches("#[0-9a-fA-F]{6}"))
+            || (script != null && !Set.of("super", "sub").contains(script))
+            || (font == null
+                && size == null
+                && color == null
+                && background == null
+                && !strike
+                && script == null
+                && link == null)
+            || (font != null
+                && !Set.of("Arial", "Times New Roman", "Georgia", "Verdana", "Courier New")
+                    .contains(font))
+            || (size != null && (size < 8 || size > 72))
+            || (color != null && !color.matches("#[0-9a-fA-F]{6}")))
+          throw new InvalidNative("INVALID_NATIVE_FILE");
+        runs.add(new FormatRun(from, to, font, size, color, background, strike, script, link));
+        last = to;
+      }
+      List<ParagraphFormat> paragraphs = new ArrayList<>();
+      last = -1;
+      for (Object value : lines) {
+        ParagraphFormat paragraph = StructureCodec.paragraph(value, text, last, structured);
+        paragraphs.add(paragraph);
+        last = paragraph.from();
+      }
+      StructureCodec.tables(paragraphs, text);
+      return new Formatting(
+          List.copyOf(runs),
+          List.copyOf(paragraphs),
+          data.containsKey("page") ? StructureCodec.page(data.get("page")) : PageSettings.empty());
+    } catch (IOException | ClassCastException ex) {
+      throw new InvalidNative("INVALID_NATIVE_FILE");
+    }
   }
 
   private static void validateZip(byte[] a) throws InvalidNative {
@@ -151,8 +470,8 @@ public final class NativeCodec {
     if (end < 0
         || b.getShort(end + 4) != 0
         || b.getShort(end + 6) != 0
-        || Short.toUnsignedInt(b.getShort(end + 8)) != 3
-        || Short.toUnsignedInt(b.getShort(end + 10)) != 3)
+        || !Set.of(3, 4, 5).contains(Short.toUnsignedInt(b.getShort(end + 8)))
+        || b.getShort(end + 10) != b.getShort(end + 8))
       throw new InvalidNative("INVALID_NATIVE_FILE");
     long central = Integer.toUnsignedLong(b.getInt(end + 16)),
         length = Integer.toUnsignedLong(b.getInt(end + 12));
@@ -160,7 +479,7 @@ public final class NativeCodec {
     int p = (int) central;
     Set<String> names = new HashSet<>();
     List<long[]> regions = new ArrayList<>();
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < Short.toUnsignedInt(b.getShort(end + 8)); i++) {
       if (p < 0 || p + 46 > end || b.getInt(p) != 0x02014b50)
         throw new InvalidNative("INVALID_NATIVE_FILE");
       int flags = Short.toUnsignedInt(b.getShort(p + 8)),
@@ -174,8 +493,9 @@ public final class NativeCodec {
           || mode == 0120000
           || p + 46 + n + extra + comment > end) throw new InvalidNative("INVALID_NATIVE_FILE");
       String name = new String(a, p + 46, n, StandardCharsets.UTF_8);
-      if (!Set.of("manifest.json", "text.utf8", "styles.bin").contains(name) || !names.add(name))
-        throw new InvalidNative("INVALID_NATIVE_FILE");
+      if (!Set.of("manifest.json", "text.utf8", "styles.bin", "formatting.json", "media.json")
+              .contains(name)
+          || !names.add(name)) throw new InvalidNative("INVALID_NATIVE_FILE");
       long local = Integer.toUnsignedLong(b.getInt(p + 42));
       if (local + 30 > central || b.getInt((int) local) != 0x04034b50)
         throw new InvalidNative("INVALID_NATIVE_FILE");

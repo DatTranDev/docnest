@@ -72,6 +72,12 @@ write(
                 "DOCUMENT_DB_USER": "document",
                 "PROCESSING_DB_URL": "jdbc:mysql://mysql:3306/processing_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true",
                 "PROCESSING_DB_USER": "processing",
+                "COLLABORATION_DB_URL": "jdbc:mysql://mysql:3306/collaboration_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true",
+                "COLLABORATION_DB_USER": "collaboration",
+                "PAYMENT_DB_URL": "jdbc:mysql://mysql:3306/payment_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true",
+                "PAYMENT_DB_USER": "payment",
+                "STRIPE_PRO_MONTHLY_PRICE": "price_CONFIGURE_MONTHLY",
+                "STRIPE_PRO_YEARLY_PRICE": "price_CONFIGURE_YEARLY",
                 "KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
                 "SPRING_KAFKA_BOOTSTRAP_SERVERS": "kafka:9092",
                 "REDIS_HOST": "redis",
@@ -96,10 +102,23 @@ write(
         }
     ],
 )
-for name in ["identity-service", "document-service", "processing-service", "web"]:
+for name in [
+    "identity-service",
+    "document-service",
+    "processing-service",
+    "collaboration-service",
+    "payment-service",
+    "web",
+]:
     isweb = name == "web"
-    req = "128Mi" if isweb else ("128Mi" if name == "identity-service" else "256Mi")
-    limit = "512Mi" if isweb else ("512Mi" if name == "identity-service" else "768Mi")
+    small = name in [
+        "web",
+        "identity-service",
+        "collaboration-service",
+        "payment-service",
+    ]
+    req = "128Mi" if small else "256Mi"
+    limit = "512Mi" if small else "768Mi"
     cont = {
         "name": name,
         "image": f"YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/{name}:REPLACE_WITH_DIGEST",
@@ -143,9 +162,12 @@ for name in ["identity-service", "document-service", "processing-service", "web"
         cont["envFrom"] = [{"configMapRef": {"name": "editor-config"}}]
         cont["env"] = [
             envsecret(name.split("-")[0].upper() + "_DB_PASSWORD"),
-            envsecret("DOCUMENT_INTERNAL_KEY"),
-            envsecret("PROCESSING_INTERNAL_KEY"),
         ]
+        if name not in ["collaboration-service", "payment-service"]:
+            cont["env"] += [
+                envsecret("DOCUMENT_INTERNAL_KEY"),
+                envsecret("PROCESSING_INTERNAL_KEY"),
+            ]
         cont["volumeMounts"].append({"name": "data", "mountPath": "/data"})
         volumes.append({"name": "data", "emptyDir": {}})
     if name == "identity-service":
@@ -153,7 +175,13 @@ for name in ["identity-service", "document-service", "processing-service", "web"
             {"name": "jwt", "mountPath": "/keys", "readOnly": True}
         )
         volumes.append({"name": "jwt", "secret": {"secretName": "editor-jwt"}})
-    if name in ["document-service", "processing-service"]:
+    if name in [
+        "identity-service",
+        "document-service",
+        "processing-service",
+        "collaboration-service",
+        "payment-service",
+    ]:
         principal = name.split("-")[0]
         cont["env"] += [
             {"name": "KAFKA_SECURITY_PROTOCOL", "value": "SASL_PLAINTEXT"},
@@ -168,6 +196,10 @@ for name in ["identity-service", "document-service", "processing-service", "web"
                 },
             },
         ]
+    if name == "payment-service":
+        cont["env"] += [
+            envsecret(key) for key in ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]
+        ]
     if isweb:
         cont["env"] = [
             {"name": key, "value": value}
@@ -179,6 +211,8 @@ for name in ["identity-service", "document-service", "processing-service", "web"
                 "IDENTITY_INTERNAL_ORIGIN": "http://identity-service:8080",
                 "DOCUMENT_INTERNAL_ORIGIN": "http://document-service:8080",
                 "PROCESSING_INTERNAL_ORIGIN": "http://processing-service:8080",
+                "COLLABORATION_INTERNAL_ORIGIN": "http://collaboration-service:8080",
+                "PAYMENT_INTERNAL_ORIGIN": "http://payment-service:8080",
                 "TRUSTED_PROXY_CIDRS": "",
             }.items()
         ]
@@ -191,7 +225,7 @@ for name in ["identity-service", "document-service", "processing-service", "web"
     if isweb:
         pod["securityContext"] = {"fsGroup": 1000}
     serviceaccount = meta(name)
-    if not isweb:
+    if name not in ["web", "collaboration-service", "payment-service"]:
         serviceaccount["annotations"] = {
             "iam.gke.io/gcp-service-account": f'editor-{name.split("-")[0]}@YOUR_PROJECT.iam.gserviceaccount.com'
         }
@@ -267,6 +301,8 @@ mysql = {
             "IDENTITY_DB_PASSWORD",
             "DOCUMENT_DB_PASSWORD",
             "PROCESSING_DB_PASSWORD",
+            "COLLABORATION_DB_PASSWORD",
+            "PAYMENT_DB_PASSWORD",
         ]
     ],
     "args": ["--innodb-buffer-pool-size=256M", "--max-connections=100"],
@@ -355,7 +391,16 @@ kafka["env"] = (
     + [{"name": k, "value": v} for k, v in security.items()]
     + [
         envsecret("KAFKA_" + p + "_PASSWORD")
-        for p in ["BROKER", "ADMIN", "DOCUMENT", "PROCESSING", "OPERATOR"]
+        for p in [
+            "BROKER",
+            "ADMIN",
+            "DOCUMENT",
+            "PROCESSING",
+            "OPERATOR",
+            "IDENTITY",
+            "COLLABORATION",
+            "PAYMENT",
+        ]
     ]
 )
 kafka["volumeMounts"].append(
@@ -538,8 +583,8 @@ write(
         },
     ],
 )
-(base / "mysql-init.sh").write_text(
-    (root / "infra/compose/mysql-init.sh").read_text(encoding="utf-8"), encoding="utf-8"
+(base / "mysql-init.sh").write_bytes(
+    (root / "infra/compose/mysql-init.sh").read_bytes()
 )
 for filename in ["kafka-start.sh", "kafka-init-acls.sh"]:
     (base / filename).write_text(

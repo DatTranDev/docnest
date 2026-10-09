@@ -1,0 +1,86 @@
+server:
+  port: ${PORT:8085}
+  tomcat:
+    threads:
+      max: 4
+      min-spare: 2
+    max-connections: 64
+    accept-count: 16
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+  task:
+    scheduling:
+      pool:
+        size: 2
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: PLAIN
+      sasl.jaas.config: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="${KAFKA_USERNAME:payment}" password="${KAFKA_PASSWORD:}";'
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.block.ms: 5000
+        delivery.timeout.ms: 10000
+        request.timeout.ms: 5000
+    consumer:
+      group-id: billing-payment-v1
+      enable-auto-commit: false
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.partition.fetch.bytes: 65536
+    listener:
+      ack-mode: manual_immediate
+  application:
+    name: payment-service
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:mysql://localhost:3306/payment_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 8
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+editor:
+  jwt:
+    issuer: ${JWT_ISSUER:http://localhost:8080}
+    jwk-uri: ${JWT_JWK_URI:http://localhost:8081/.well-known/jwks.json}
+
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+    monthly-price: ${STRIPE_PRO_MONTHLY_PRICE:}
+    yearly-price: ${STRIPE_PRO_YEARLY_PRICE:}
+    public-origin: ${WEB_ORIGIN:http://localhost:8080}
+
+logging:
+  level:
+    org.springframework.kafka.listener.DefaultErrorHandler: 'OFF'
+    org.springframework.kafka.listener.KafkaMessageListenerContainer: 'OFF'
+    org.springframework.kafka.listener.FailedRecordTracker: 'OFF'
+  structured:
+    format:
+      console: logstash

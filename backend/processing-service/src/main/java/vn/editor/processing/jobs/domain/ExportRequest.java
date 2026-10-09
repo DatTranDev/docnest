@@ -14,7 +14,7 @@ public record ExportRequest(String documentId, long revision, String type) {
     documentId = UUID.fromString(documentId).toString();
     if (revision < 1
         || revision > MAX_REVISION
-        || !Set.of("EXPORT_TXT", "EXPORT_HTML").contains(type)) {
+        || !Set.of("EXPORT_TXT", "EXPORT_HTML", "EXPORT_DOCX", "EXPORT_PDF").contains(type)) {
       throw new IllegalArgumentException("Invalid export request");
     }
   }

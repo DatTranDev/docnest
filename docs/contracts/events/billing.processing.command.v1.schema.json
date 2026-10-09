@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://text-editor.example/contracts/events/billing.processing.command.v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "eventType": {
+      "const": "EntitlementRequested"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "const": "payment-service"
+    },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "userId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sagaId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "phase": {
+          "enum": ["APPLY", "COMPENSATE"]
+        },
+        "plan": {
+          "enum": ["FREE", "PRO_MONTHLY", "PRO_YEARLY"]
+        },
+        "expiresAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "sagaId", "generation", "phase", "plan", "expiresAt"]
+    }
+  },
+  "required": [
+    "eventId",
+    "eventType",
+    "schemaVersion",
+    "occurredAt",
+    "producer",
+    "traceId",
+    "payload"
+  ]
+}

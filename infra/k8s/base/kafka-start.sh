@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 # Only generated hexadecimal/base64url lab secrets. Reject JAAS metacharacters.
-for name in KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD; do
+for name in KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD KAFKA_IDENTITY_PASSWORD KAFKA_COLLABORATION_PASSWORD KAFKA_PAYMENT_PASSWORD; do
   value=${!name:-}
   [[ "$value" =~ ^[a-zA-Z0-9_-]{20,128}$ ]] || { echo "Missing or invalid Kafka credential configuration" >&2; exit 1; }
 done
@@ -16,10 +16,13 @@ KafkaServer {
   user_admin="$KAFKA_ADMIN_PASSWORD"
   user_document="$KAFKA_DOCUMENT_PASSWORD"
   user_processing="$KAFKA_PROCESSING_PASSWORD"
+  user_identity="$KAFKA_IDENTITY_PASSWORD"
+  user_collaboration="$KAFKA_COLLABORATION_PASSWORD"
+  user_payment="$KAFKA_PAYMENT_PASSWORD"
   user_operator="$KAFKA_OPERATOR_PASSWORD";
 };
 JAAS
-for user in admin document processing operator; do
+for user in admin document processing operator identity collaboration payment; do
   name="KAFKA_${user^^}_PASSWORD"
   value=${!name}
   cat > "/tmp/editor-kafka/$user.properties" <<CLIENT
@@ -30,5 +33,5 @@ CLIENT
 done
 export KAFKA_OPTS="${KAFKA_OPTS:-} -Djava.security.auth.login.config=/tmp/editor-kafka/server-jaas.conf"
 # These are input secrets, not Kafka server properties; keep Docker's property renderer from seeing them.
-unset KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD
+unset KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD KAFKA_IDENTITY_PASSWORD KAFKA_COLLABORATION_PASSWORD KAFKA_PAYMENT_PASSWORD
 exec /etc/kafka/docker/run

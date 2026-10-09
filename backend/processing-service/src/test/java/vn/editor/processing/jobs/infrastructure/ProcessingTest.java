@@ -40,6 +40,54 @@ class ProcessingTest {
   }
 
   @Test
+  void htmlPreservesFontColorSizeAndParagraphAlignment() throws Exception {
+    var formatting =
+        new NativeCodec.Formatting(
+            java.util.List.of(new NativeCodec.FormatRun(0, 5, "Georgia", 18, "#aabbcc")),
+            java.util.List.of(new NativeCodec.ParagraphFormat(0, "center")));
+    var decoded =
+        new NativeCodec.Decoded(
+            Map.of(), "Hello\nworld", new byte[11], 100, "a".repeat(64), formatting);
+    var out = new ByteArrayOutputStream();
+    ExportRenderer.html(decoded, out, () -> {});
+    String html = out.toString(StandardCharsets.UTF_8);
+    assertTrue(html.contains("text-align:center"));
+    assertTrue(html.contains("font-family:'Georgia'"));
+    assertTrue(html.contains("font-size:18pt"));
+    assertTrue(html.contains("color:#aabbcc"));
+    assertTrue(html.contains("Hello"));
+  }
+
+  @Test
+  void htmlAndTxtRenderEmbeddedImage() throws Exception {
+    var image =
+        new NativeCodec.EmbeddedImage(
+            1,
+            "c7400587-68dd-4afa-a90e-358783bf2dc0",
+            "image/png",
+            1,
+            1,
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==");
+    var document =
+        new NativeCodec.Decoded(
+            Map.of("exportBom", false, "preferredExportEol", "LF"),
+            "A\ufffcB",
+            new byte[3],
+            100,
+            "a".repeat(64),
+            NativeCodec.Formatting.empty(),
+            java.util.List.of(image));
+    var html = new ByteArrayOutputStream();
+    ExportRenderer.html(document, html, () -> {});
+    assertTrue(
+        html.toString(StandardCharsets.UTF_8)
+            .contains("<img alt=\"Image\" src=\"data:image/png;base64,"));
+    var txt = new ByteArrayOutputStream();
+    ExportRenderer.txt(document, txt, () -> {});
+    assertEquals("A[Image]B", txt.toString(StandardCharsets.UTF_8));
+  }
+
+  @Test
   void txtUsesStoredEolAndBomWithoutFakeFormatting() throws Exception {
     String text = "A\nB😀";
     byte[] masks = new byte[text.length()];

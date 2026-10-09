@@ -47,11 +47,28 @@ def sql(user, query):
 
 def counts():
     return {
-        user: {table: sql(user, "SELECT COUNT(*) FROM " + table) for table in tables}
+        user: {
+            table: sql(user, "SELECT COUNT(*) FROM " + table)
+            for table in tables
+            + (
+                []
+                if user == "payment"
+                else ["subscription_entitlements", "saga_inbox", "saga_outbox"]
+            )
+        }
         for user, tables in {
             "identity": ["users"],
             "document": ["documents", "folders", "document_versions"],
             "processing": ["jobs"],
+            "collaboration": ["collaboration_rooms", "collaboration_updates"],
+            "payment": [
+                "payment_accounts",
+                "payment_requests",
+                "payment_sagas",
+                "stripe_receipts",
+                "saga_inbox",
+                "saga_outbox",
+            ],
         }.items()
     }
 
@@ -136,7 +153,7 @@ assert counts() == before_counts, "Logical data must return to the backup snapsh
         {
             "status": "PASS",
             "scope": "task-created synthetic local lab only",
-            "databasesRestored": 3,
+            "databasesRestored": 4,
             "originalCountsRestored": True,
             "postBackupMarkerRemoved": True,
             "immutableNativeHashPreserved": True,
@@ -150,5 +167,5 @@ assert counts() == before_counts, "Logical data must return to the backup snapsh
     encoding="utf-8",
 )
 print(
-    "PASS real local backup/restore: three DBs, objects, original native bytes and JWT key; disposable post-backup marker removed"
+    "PASS real local backup/restore: five DBs, objects, original native bytes and JWT key; disposable post-backup marker removed"
 )

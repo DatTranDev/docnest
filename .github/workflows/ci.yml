@@ -32,7 +32,12 @@ jobs:
       - run: python tooling/scripts/run.py up
       - run: python testing/checks/migration_only.py
       - run: python tooling/scripts/run.py smoke
+      - run: python testing/checks/billing_saga_check.py
       - run: npx playwright install --with-deps chromium
+      - run: node testing/checks/collaboration-browser.cjs
+      - run: node testing/checks/billing-browser.cjs
+      - run: node testing/checks/i18n-browser.cjs
+      - run: node testing/checks/structure-browser.cjs
       - run: npm run worker-check
       - run: python tooling/scripts/run.py down
         if: always()

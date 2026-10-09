@@ -126,13 +126,20 @@ for f in (P / "docs/contracts/events").glob("*.schema.json"):
     example = json.loads(f.with_name(f.name.replace(".schema", ".example")).read_text())
     assert_schema(s, example, f.name)
     schemas.append(s)
-assert len(schemas) == 4
-ok("Four event schemas parse and examples satisfy all schema keywords used by this kit")
+assert len(schemas) == 12
+ok(
+    "Twelve event schemas parse and examples satisfy all schema keywords used by this kit"
+)
 
 
 table_names = {}
-for service in ["identity", "document", "processing"]:
-    sql = (P / f"backend/schema/{service}/V1__init.sql").read_text()
+for service in ["identity", "document", "processing", "collaboration", "payment"]:
+    migration = (
+        "V1__billing.sql"
+        if service == "payment"
+        else "V1__collaboration.sql" if service == "collaboration" else "V1__init.sql"
+    )
+    sql = (P / f"backend/schema/{service}/{migration}").read_text()
     names = re.findall(r"CREATE TABLE (\w+)", sql)
     assert len(names) == len(set(names))
     assert not re.search(r"REFERENCES\s+\w+\.", sql), service
@@ -143,9 +150,11 @@ assert (
     len(table_names["identity"]) == 2
     and len(table_names["document"]) == 10
     and len(table_names["processing"]) == 5
+    and len(table_names["collaboration"]) == 2
+    and len(table_names["payment"]) == 6
 )
 ok(
-    "DDL structural checks: 2/10/5 tables, all FK targets local; no SQL execution or MySQL runtime validation claimed"
+    "DDL structural checks: 2/10/5/2/6 initial tables, all FK targets local; no SQL execution or MySQL runtime validation claimed"
 )
 
 excluded = {

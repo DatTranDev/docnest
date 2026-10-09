@@ -1,3 +1,4 @@
+import { MESSAGE } from '@/lib/i18n/messages';
 export interface Page<T> {
   items: T[];
   nextCursor: string | null;
@@ -34,7 +35,7 @@ export async function csrfToken(): Promise<CsrfToken> {
       credentials: 'include',
       cache: 'no-store',
     });
-    if (!response.ok) throw new Error('Không lấy được mã bảo vệ phiên.');
+    if (!response.ok) throw new Error(MESSAGE.unableToObtainSessionProtectionPleaseTryAgain);
     const token = (await response.json()) as CsrfToken;
     if (generation === csrfGeneration) csrf = token;
     return token;
@@ -72,9 +73,10 @@ export async function request<T>(
   if (response.status === 401 && !auth && retry && (await authentication.refresh()))
     return request(path, method, body, headers, false);
   if (!response.ok) {
-    const error = (await response
-      .json()
-      .catch(() => ({ code: 'NETWORK_ERROR', message: 'Yêu cầu không thành công.' }))) as {
+    const error = (await response.json().catch(() => ({
+      code: 'NETWORK_ERROR',
+      message: MESSAGE.theRequestFailedPleaseTryAgain,
+    }))) as {
       code: string;
       message: string;
       details?: Record<string, unknown>;
@@ -106,8 +108,34 @@ export async function bytes(
   if (response.status === 401 && authenticated && retry && (await authentication.refresh()))
     return bytes(path, options, authenticated, false);
   if (!response.ok)
-    throw new ApiError(response.status, 'DOWNLOAD_FAILED', 'Không thể tải nội dung.');
+    throw new ApiError(response.status, 'DOWNLOAD_FAILED', MESSAGE.unableToDownloadContent);
   return new Uint8Array(await response.arrayBuffer());
+}
+export async function binaryRequest<T>(
+  path: string,
+  payload: Uint8Array,
+  retry = true,
+): Promise<T> {
+  const token = authentication.accessToken();
+  const response = await fetch(path, {
+    method: 'POST',
+    credentials: 'omit',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: new Blob([payload as Uint8Array<ArrayBuffer>]),
+  });
+  if (response.status === 401 && retry && (await authentication.refresh()))
+    return binaryRequest(path, payload, false);
+  if (!response.ok) {
+    const error = (await response.json().catch(() => ({ code: 'COLLABORATION_UNAVAILABLE' }))) as {
+      code: string;
+    };
+    throw new ApiError(response.status, error.code, error.code);
+  }
+  return response.json() as Promise<T>;
 }
 export function download(data: Uint8Array, name: string, type = 'application/octet-stream'): void {
   const url = URL.createObjectURL(new Blob([data as Uint8Array<ArrayBuffer>], { type }));
@@ -118,5 +146,9 @@ export function download(data: Uint8Array, name: string, type = 'application/oct
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Đã xảy ra lỗi.';
+  return error instanceof ApiError
+    ? error.code
+    : error instanceof Error
+      ? error.message
+      : MESSAGE.somethingWentWrongPleaseTryAgain;
 }

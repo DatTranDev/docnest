@@ -1,5 +1,11 @@
 import { ChangeSet } from '@codemirror/state';
-import { encodeStyles, type EditorModel, type SearchResult, type Snapshot } from '@ted/editor-core';
+import {
+  encodeStyles,
+  type EditorModel,
+  type FormattingData,
+  type SearchResult,
+  type Snapshot,
+} from '@ted/editor-core';
 export class ReplicaBridge {
   readonly worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
   generation = 0;
@@ -74,6 +80,7 @@ export class ReplicaBridge {
       revision: model.localRevision,
       text: model.text.slice(),
       styles: encodeStyles(model.styles),
+      formatting: model.formatting.toJSON(),
     });
   }
   update(
@@ -111,6 +118,7 @@ export class ReplicaBridge {
       revision: model.localRevision,
       changes: changes.toJSON(),
       ranges: encoded,
+      formatting: model.formatting.toJSON() satisfies FormattingData,
     });
     this.queueBytes += size;
     this.queueCount++;
@@ -165,6 +173,7 @@ export class ReplicaBridge {
         contentToken: s.contentToken,
         preferredExportEol: s.preferredExportEol,
         exportBom: s.exportBom,
+        images: s.images?.toJSON(),
       });
     });
   }

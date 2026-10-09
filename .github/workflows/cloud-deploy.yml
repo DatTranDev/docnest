@@ -74,7 +74,7 @@ jobs:
           # Existing bootstrap, secrets, IAM, SQL and Kafka are operator prerequisites.
           # Capture previous deployment images without reading Kubernetes secrets.
           mkdir -p deployment-evidence
-          for service in identity-service document-service processing-service web; do
+          for service in identity-service document-service processing-service collaboration-service payment-service web; do
             kubectl -n editor-lab get deployment "$service" -o jsonpath='{.metadata.name}{" "}{.spec.template.spec.containers[0].image}{"\n"}' >> deployment-evidence/previous-digests.txt
           done
           cp digests.json deployment-evidence/reviewed-digests.json
@@ -89,15 +89,15 @@ jobs:
           kubectl apply --dry-run=server -f cloud-render/applications.yaml
           python - <<'PY'
           import json, subprocess
-          for name in ('identity-service','document-service','processing-service'):
+          for name in ('identity-service','document-service','processing-service','collaboration-service','payment-service'):
               r=subprocess.run(['kubectl','-n','editor-lab','get','job','migrate-'+name,'--ignore-not-found','-o','json'],check=True,capture_output=True,text=True)
               if r.stdout and json.loads(r.stdout).get('status',{}).get('active',0): raise SystemExit('A migration Job is still active; inspect it before retrying')
           PY
-          kubectl -n editor-lab delete job migrate-identity-service migrate-document-service migrate-processing-service --ignore-not-found
+          kubectl -n editor-lab delete job migrate-identity-service migrate-document-service migrate-processing-service migrate-collaboration-service migrate-payment-service --ignore-not-found
           kubectl apply -f cloud-render/migrations.yaml
-          kubectl -n editor-lab wait --for=condition=complete --timeout=300s job/migrate-identity-service job/migrate-document-service job/migrate-processing-service
+          kubectl -n editor-lab wait --for=condition=complete --timeout=300s job/migrate-identity-service job/migrate-document-service job/migrate-processing-service job/migrate-collaboration-service job/migrate-payment-service
           kubectl apply -f cloud-render/applications.yaml
-          for service in identity-service document-service processing-service web; do
+          for service in identity-service document-service processing-service collaboration-service payment-service web; do
             kubectl -n editor-lab rollout status deployment/"$service" --timeout=300s
           done
           curl --fail --silent --show-error "$ORIGIN/healthz" > deployment-evidence/public-health.txt

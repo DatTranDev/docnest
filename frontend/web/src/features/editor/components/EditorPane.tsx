@@ -1,8 +1,24 @@
 'use client';
-import { useState, type ReactNode, type RefObject } from 'react';
+import { MESSAGE, useI18n } from '@/lib/i18n';
+
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react';
 import { encodeNative, exportTxt, type EditorModel, type Snapshot } from '@ted/editor-core';
+import { Icon } from '@/components/ui/Icon';
+import { roleLabel } from '@/components/ui/roleLabel';
 import { download, errorMessage } from '@/lib/http';
 import type { EditorController } from '../model/EditorController';
+import { STYLE_BITS } from '../model/constants';
+import { ParagraphTools } from './ParagraphTools';
+import { CharacterFormattingTools } from './CharacterFormattingTools';
+import { PagedPreview } from './PagedPreview';
+
 interface EditorSurface {
   model: EditorModel;
   readOnly: boolean;
@@ -19,14 +35,20 @@ interface EditorPaneProps {
   host: RefObject<HTMLDivElement | null>;
   recovery: ReactNode;
   onSave: () => Promise<void>;
+  onCollaborate: () => Promise<void>;
   onCopy: (snapshot: Snapshot) => Promise<void>;
   onImport: (file: File) => Promise<void>;
-  onExport: (type: 'EXPORT_TXT' | 'EXPORT_HTML') => Promise<void>;
+  onExport: (type: 'EXPORT_TXT' | 'EXPORT_HTML' | 'EXPORT_DOCX' | 'EXPORT_PDF') => Promise<void>;
   onHistory: () => void;
   onShare: () => void;
   onClearHistory: () => void;
   onError: (message: string) => void;
 }
+
+function keepSelection(event: MouseEvent<HTMLButtonElement>) {
+  event.preventDefault();
+}
+
 export function EditorPane({
   active,
   tick,
@@ -37,6 +59,7 @@ export function EditorPane({
   host,
   recovery,
   onSave,
+  onCollaborate,
   onCopy,
   onImport,
   onExport,
@@ -45,180 +68,385 @@ export function EditorPane({
   onClearHistory,
   onError,
 }: EditorPaneProps) {
+  const { t, localize, locale, countLabel } = useI18n();
+
   const [query, setQuery] = useState(''),
     [replacement, setReplacement] = useState(''),
     [count, setCount] = useState<number | null>(null),
-    [ignoreCase, setIgnoreCase] = useState(false);
+    [ignoreCase, setIgnoreCase] = useState(false),
+    [searchOpen, setSearchOpen] = useState(false);
+  const [pagePreview, setPagePreview] = useState(false);
+  useEffect(() => {
+    controller.current?.setLanguage(locale);
+  }, [controller, locale, active.model, active.readOnly]);
+  const importInput = useRef<HTMLInputElement>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const mask = active.model.pendingMask;
+  const character = active.model.pendingFormat;
+  const lineStart = active.model.text.text.lineAt(active.model.selection.main.head).from;
+  const alignment = active.model.formatting.alignAt(lineStart);
+  const find = () => {
+    void controller.current
+      ?.find(query, ignoreCase)
+      .then(setCount)
+      .catch((error) => onError(errorMessage(error)));
+  };
+
   return (
-    <section className="editor-section" inert={status === 'Đang mở'}>
-      <div className="row">
-        <h2>
-          {active.document.title}
-          {active.revision !== undefined && ` — phiên bản ${active.revision}`}
-        </h2>
-        <span className="badge">
-          {active.document.effectiveRole}
-          {active.readOnly ? ' · chỉ đọc' : ''}
-        </span>
-        <span role="status" aria-live="polite">
-          {!online ? 'Ngoại tuyến' : status}
-        </span>
+    <section
+      className="editor-section"
+      inert={status === MESSAGE.opening}
+      aria-label={t(MESSAGE.textEditor)}
+    >
+      <div className="editor-heading">
+        {!active.readOnly && (
+          <button
+            type="button"
+            disabled={!!controller.current?.collaboration || !online || saving}
+            onClick={() => void onCollaborate()}
+          >
+            {localize(controller.current?.collaboration?.status ?? MESSAGE.editTogether)}
+          </button>
+        )}
+        <div className="editor-heading-main">
+          <span className="document-mark">
+            <Icon name="document" size={23} />
+          </span>
+          <div className="editor-identity">
+            <h1>{active.document.title}</h1>
+            <div className="editor-meta">
+              {active.revision !== undefined && (
+                <span>
+                  {t(MESSAGE.version)} {active.revision} ·{' '}
+                </span>
+              )}
+              <span>{localize(roleLabel(active.document.effectiveRole))}</span>
+              {active.readOnly && <span> {t(MESSAGE.readOnlyLabel)}</span>}
+              <span className="meta-dot" aria-hidden="true">
+                ·
+              </span>
+              <span className="save-status" role="status" aria-live="polite">
+                {localize(!online ? MESSAGE.offline : status)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="editor-heading-actions">
+          <button
+            className="editor-action"
+            disabled={active.readOnly || saving || status === MESSAGE.conflict}
+            onClick={() => {
+              void onSave();
+            }}
+          >
+            <Icon name="save" size={17} /> {t(MESSAGE.save)}{' '}
+          </button>
+          {active.document.effectiveRole === 'OWNER' && (
+            <button className="primary share-action" onClick={onShare}>
+              <Icon name="share" size={17} /> {t(MESSAGE.share)}{' '}
+            </button>
+          )}
+        </div>
       </div>
-      <div className="toolbar">
-        <button
-          aria-label="In đậm"
-          disabled={active.readOnly}
-          onClick={() => controller.current?.format(1)}
-        >
-          <b>B</b>
-        </button>
-        <button
-          aria-label="In nghiêng"
-          disabled={active.readOnly}
-          onClick={() => controller.current?.format(2)}
-        >
-          <i>I</i>
-        </button>
-        <button
-          aria-label="Gạch chân"
-          disabled={active.readOnly}
-          onClick={() => controller.current?.format(4)}
-        >
-          <u>U</u>
-        </button>
-        <button disabled={active.readOnly} onClick={() => controller.current?.undo()}>
-          Hoàn tác
-        </button>
-        <button disabled={active.readOnly} onClick={() => controller.current?.redo()}>
-          Làm lại
-        </button>
-        <button disabled={active.readOnly} onClick={onClearHistory}>
-          Xóa lịch sử hoàn tác
-        </button>
-        <button
-          className="primary"
-          disabled={active.readOnly || saving || status === 'Xung đột'}
-          onClick={() => {
-            void onSave();
-          }}
-        >
-          Lưu
-        </button>
-        <label className="button">
-          Nhập tệp
+
+      <div className="editor-toolbar" role="toolbar" aria-label={t(MESSAGE.editorToolbar)}>
+        <div className="tool-group" aria-label={t(MESSAGE.editHistory)}>
+          <button
+            className="tool-icon"
+            title={t(MESSAGE.undoCtrlZ)}
+            aria-label={t(MESSAGE.undo)}
+            disabled={active.readOnly}
+            onMouseDown={keepSelection}
+            onClick={() => controller.current?.undo()}
+          >
+            <Icon name="undo" />
+          </button>
+          <button
+            className="tool-icon"
+            title={t(MESSAGE.redoCtrlShiftZ)}
+            aria-label={t(MESSAGE.redo)}
+            disabled={active.readOnly}
+            onMouseDown={keepSelection}
+            onClick={() => controller.current?.redo()}
+          >
+            <Icon name="redo" />
+          </button>
+        </div>
+        <div className="tool-group format-group" aria-label={t(MESSAGE.textFormatting)}>
+          <span className="tool-label">{t(MESSAGE.format)}</span>
+          <button
+            className="tool-icon format-button"
+            title={t(MESSAGE.boldCtrlB)}
+            aria-label={t(MESSAGE.bold)}
+            aria-pressed={Boolean(mask & STYLE_BITS.bold)}
+            disabled={active.readOnly}
+            onMouseDown={keepSelection}
+            onClick={() => controller.current?.format(STYLE_BITS.bold)}
+          >
+            <b>B</b>
+          </button>
+          <button
+            className="tool-icon format-button"
+            title={t(MESSAGE.italicCtrlI)}
+            aria-label={t(MESSAGE.italic)}
+            aria-pressed={Boolean(mask & STYLE_BITS.italic)}
+            disabled={active.readOnly}
+            onMouseDown={keepSelection}
+            onClick={() => controller.current?.format(STYLE_BITS.italic)}
+          >
+            <i>I</i>
+          </button>
+          <button
+            className="tool-icon format-button"
+            title={t(MESSAGE.underlineCtrlU)}
+            aria-label={t(MESSAGE.underline)}
+            aria-pressed={Boolean(mask & STYLE_BITS.underline)}
+            disabled={active.readOnly}
+            onMouseDown={keepSelection}
+            onClick={() => controller.current?.format(STYLE_BITS.underline)}
+          >
+            <u>U</u>
+          </button>
+        </div>
+        <CharacterFormattingTools
+          character={character}
+          mask={mask}
+          readOnly={active.readOnly}
+          controller={controller}
+        />
+        <ParagraphTools
+          controller={controller}
+          paragraph={active.model.formatting.paragraphAt(lineStart)}
+          page={active.model.formatting.page}
+          readOnly={active.readOnly}
+          onError={onError}
+        />
+        <div className="tool-group alignment-group" aria-label={t(MESSAGE.paragraphAlignment)}>
+          {(
+            [
+              ['left', MESSAGE.alignLeft, 'align-left'],
+              ['center', MESSAGE.alignCenter, 'align-center'],
+              ['right', MESSAGE.alignRight, 'align-right'],
+              ['justify', MESSAGE.alignJustify, 'align-justify'],
+            ] as const
+          ).map(([value, label, icon]) => (
+            <button
+              key={value}
+              className={`tool-icon align-button align-button-${value}`}
+              title={localize(label)}
+              aria-label={localize(label)}
+              aria-pressed={alignment === value}
+              disabled={active.readOnly}
+              onMouseDown={keepSelection}
+              onClick={() => controller.current?.alignParagraph(value)}
+            >
+              <Icon name={icon} size={17} />
+            </button>
+          ))}
+        </div>
+        <div className="tool-group" aria-label={t(MESSAGE.insertContent)}>
+          <button
+            className="tool-text"
+            disabled={active.readOnly}
+            onMouseDown={keepSelection}
+            onClick={() => imageInput.current?.click()}
+          >
+            {t(MESSAGE.insertImage)}{' '}
+          </button>
           <input
-            aria-label="Nhập tệp"
+            ref={imageInput}
+            className="menu-file-input"
             type="file"
-            accept=".txt,.tedoc"
+            accept="image/png,image/jpeg"
+            aria-label={t(MESSAGE.chooseAPngOrJpegImage)}
             disabled={active.readOnly}
             onChange={(event) => {
               const file = event.target.files?.[0];
-              if (file) void onImport(file);
+              if (file)
+                void controller.current
+                  ?.addImage(file)
+                  .catch((error) => onError(errorMessage(error)));
               event.target.value = '';
             }}
           />
-        </label>
+        </div>
+        <div className="tool-group">
+          <button
+            className={`tool-text${searchOpen ? ' is-active' : ''}`}
+            aria-expanded={searchOpen}
+            aria-controls="document-search"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            <Icon name="search" /> {t(MESSAGE.findReplace)}{' '}
+          </button>
+        </div>
+        <div className="tool-spacer" />
         <button
-          onClick={() => {
-            void encodeNative(active.model.snapshot())
-              .then((bytes) => download(bytes, `${active.document.title}.tedoc`))
-              .catch((error) => onError(errorMessage(error)));
-          }}
+          className="tool-text"
+          aria-pressed={pagePreview}
+          onClick={() => setPagePreview(!pagePreview)}
         >
-          Tải native
+          {pagePreview ? t(MESSAGE.closePagePreview) : t(MESSAGE.pagePreview)}
         </button>
-        <button
-          onClick={() =>
-            download(
-              exportTxt(active.model.snapshot()),
-              `${active.document.title}.txt`,
-              'text/plain;charset=utf-8',
-            )
-          }
-        >
-          Tải TXT
+        <button className="tool-text" onClick={onHistory}>
+          <Icon name="history" /> {t(MESSAGE.version)}{' '}
         </button>
-        <button
-          disabled={!active.document.headRevision}
-          onClick={() => {
-            void onExport('EXPORT_TXT');
-          }}
-        >
-          Xuất TXT
-        </button>
-        <button
-          disabled={!active.document.headRevision}
-          onClick={() => {
-            void onExport('EXPORT_HTML');
-          }}
-        >
-          Xuất HTML
-        </button>
-        <button onClick={onHistory}>Lịch sử</button>
-        <button
-          onClick={() => {
-            void onCopy(active.model.snapshot());
-          }}
-        >
-          Lưu bản sao
-        </button>
-        {active.document.effectiveRole === 'OWNER' && <button onClick={onShare}>Chia sẻ</button>}
+        <details className="tool-menu">
+          <summary>
+            <Icon name="download" /> {t(MESSAGE.file)} <Icon name="chevron" size={13} />
+          </summary>
+          <div className="tool-menu-panel">
+            <button disabled={active.readOnly} onClick={() => importInput.current?.click()}>
+              <Icon name="upload" /> {t(MESSAGE.importTxtNative)}{' '}
+            </button>
+            <input
+              ref={importInput}
+              className="menu-file-input"
+              aria-label={t(MESSAGE.importFile)}
+              type="file"
+              accept=".txt,.tedoc"
+              disabled={active.readOnly}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void onImport(file);
+                event.target.value = '';
+              }}
+            />
+            <button
+              onClick={() => {
+                void encodeNative(active.model.snapshot())
+                  .then((bytes) => download(bytes, `${active.document.title}.tedoc`))
+                  .catch((error) => onError(errorMessage(error)));
+              }}
+            >
+              <Icon name="download" /> {t(MESSAGE.downloadNativeFile)}{' '}
+            </button>
+            <button
+              onClick={() =>
+                download(
+                  exportTxt(active.model.snapshot()),
+                  `${active.document.title}.txt`,
+                  'text/plain;charset=utf-8',
+                )
+              }
+            >
+              <Icon name="download" /> {t(MESSAGE.downloadTxt)}{' '}
+            </button>
+            <div className="menu-divider" />
+            <button
+              disabled={!active.document.headRevision}
+              onClick={() => {
+                void onExport('EXPORT_TXT');
+              }}
+            >
+              {t(MESSAGE.exportTxtOnServer)}{' '}
+            </button>
+            <button
+              disabled={!active.document.headRevision}
+              onClick={() => {
+                void onExport('EXPORT_HTML');
+              }}
+            >
+              {t(MESSAGE.exportHtmlOnServer)}{' '}
+            </button>
+            {(['EXPORT_DOCX', 'EXPORT_PDF'] as const).map((type) => (
+              <button
+                key={type}
+                disabled={!active.document.headRevision}
+                onClick={() => void onExport(type)}
+              >
+                {t(type === 'EXPORT_DOCX' ? MESSAGE.exportDocx : MESSAGE.exportPdf)}
+              </button>
+            ))}
+            <div className="menu-divider" />
+            <button
+              onClick={() => {
+                void onCopy(active.model.snapshot());
+              }}
+            >
+              <Icon name="copy" /> {t(MESSAGE.saveACopy)}{' '}
+            </button>
+            <button disabled={active.readOnly} onClick={onClearHistory}>
+              {t(MESSAGE.clearUndoHistory)}{' '}
+            </button>
+          </div>
+        </details>
       </div>
-      <div className="search">
-        <input
-          aria-label="Tìm kiếm"
-          placeholder="Tìm trong tài liệu"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <label>
-          <input
-            type="checkbox"
-            checked={ignoreCase}
-            onChange={(event) => setIgnoreCase(event.target.checked)}
-          />
-          Bỏ qua hoa/thường ASCII
-        </label>
-        <button
-          onClick={() => {
-            void controller.current
-              ?.find(query, ignoreCase)
-              .then(setCount)
-              .catch((error) => onError(errorMessage(error)));
-          }}
-        >
-          Tìm
-        </button>
-        {count !== null && <span>{count} kết quả</span>}
-        <input
-          aria-label="Thay thế"
-          placeholder="Thay bằng"
-          value={replacement}
-          onChange={(event) => setReplacement(event.target.value)}
-        />
-        <button
-          disabled={active.readOnly || !query}
-          onClick={() => {
-            try {
-              controller.current?.replaceAll(query, replacement, ignoreCase);
-            } catch (error) {
-              onError(errorMessage(error));
-            }
-          }}
-        >
-          Thay tất cả
-        </button>
-      </div>
+
+      {searchOpen && (
+        <div className="search" id="document-search" role="search">
+          <div className="search-fields">
+            <input
+              aria-label={t(MESSAGE.search)}
+              placeholder={t(MESSAGE.findInDocument)}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setCount(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') find();
+              }}
+            />
+            <button disabled={!query} onClick={find}>
+              {t(MESSAGE.find)}{' '}
+            </button>
+            {count !== null && <span className="search-count">{countLabel(count, 'matches')}</span>}
+            <input
+              aria-label={t(MESSAGE.replace)}
+              placeholder={t(MESSAGE.replaceWith)}
+              value={replacement}
+              onChange={(event) => setReplacement(event.target.value)}
+            />
+            <button
+              disabled={active.readOnly || !query}
+              onClick={() => {
+                try {
+                  controller.current?.replaceAll(query, replacement, ignoreCase);
+                  setCount(null);
+                } catch (error) {
+                  onError(errorMessage(error));
+                }
+              }}
+            >
+              {t(MESSAGE.replaceAll)}{' '}
+            </button>
+          </div>
+          <label className="search-option">
+            <input
+              type="checkbox"
+              checked={ignoreCase}
+              onChange={(event) => setIgnoreCase(event.target.checked)}
+            />{' '}
+            {t(MESSAGE.ignoreAsciiCase)}{' '}
+          </label>
+          <button
+            className="tool-icon search-close"
+            aria-label={t(MESSAGE.closeSearch)}
+            onClick={() => setSearchOpen(false)}
+          >
+            <Icon name="close" size={16} />
+          </button>
+        </div>
+      )}
       {recovery}
-      <div className="editor-host" ref={host} />
-      <footer>
-        {active.model.text.utf8Bytes.toLocaleString()} byte ·{' '}
-        {active.model.text.lines.toLocaleString()} dòng · {tick >= 0 && active.model.localRevision}{' '}
-        thay đổi
-        <p className="muted">
-          Tệp lớn, nhiều định dạng hoặc một dòng rất dài có thể dùng nhiều bộ nhớ, cuộn chậm và hoàn
-          tác chậm trên thiết bị này. Hãy dùng tìm kiếm hoặc tải tệp xuống khi cần.
-        </p>
+      {pagePreview && (
+        <PagedPreview
+          model={active.model}
+          imageUrl={(image) => controller.current!.imageUrl(image)}
+          onClose={() => setPagePreview(false)}
+        />
+      )}
+      <div className="editor-canvas" hidden={pagePreview}>
+        <div className="editor-page">
+          <div className="editor-host" ref={host} />
+        </div>
+      </div>
+      <footer className="editor-footer">
+        <span>{countLabel(active.model.text.utf8Bytes, 'bytes')}</span>
+        <span>{countLabel(active.model.text.lines, 'lines')}</span>
+        <span>{tick >= 0 && countLabel(active.model.localRevision, 'changes')}</span>
+        <span className="editor-footer-note">{t(MESSAGE.largeFilesMayScrollAndUndoSlowlyOn)} </span>
       </footer>
     </section>
   );

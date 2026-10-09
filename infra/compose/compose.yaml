@@ -46,6 +46,8 @@ services:
       IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
       DOCUMENT_DB_PASSWORD: ${DOCUMENT_DB_PASSWORD:?}
       PROCESSING_DB_PASSWORD: ${PROCESSING_DB_PASSWORD:?}
+      COLLABORATION_DB_PASSWORD: ${COLLABORATION_DB_PASSWORD:?}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?}
     command: [--innodb-buffer-pool-size=256M, --max-connections=100]
     volumes:
       - mysql-data:/var/lib/mysql
@@ -84,6 +86,9 @@ services:
       KAFKA_DOCUMENT_PASSWORD: ${KAFKA_DOCUMENT_PASSWORD:?}
       KAFKA_PROCESSING_PASSWORD: ${KAFKA_PROCESSING_PASSWORD:?}
       KAFKA_OPERATOR_PASSWORD: ${KAFKA_OPERATOR_PASSWORD:?}
+      KAFKA_IDENTITY_PASSWORD: ${KAFKA_IDENTITY_PASSWORD:?}
+      KAFKA_COLLABORATION_PASSWORD: ${KAFKA_COLLABORATION_PASSWORD:?}
+      KAFKA_PAYMENT_PASSWORD: ${KAFKA_PAYMENT_PASSWORD:?}
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
@@ -133,6 +138,9 @@ services:
       JWT_KEY_PATH: /data/keys/identity-key.pem
       JWT_ALLOW_KEY_GENERATION: 'true'
       SECURE_COOKIES: 'false'
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: identity
+      KAFKA_PASSWORD: ${KAFKA_IDENTITY_PASSWORD:?}
     volumes: [identity-keys:/data/keys]
   document-service:
     <<: *app
@@ -175,6 +183,53 @@ services:
       GCS_BUCKET: ${GCS_RESULTS_BUCKET:-YOUR_PRIVATE_RESULTS_BUCKET}
       SNAPSHOTS_BUCKET: ${GCS_SNAPSHOTS_BUCKET:-YOUR_PRIVATE_SNAPSHOTS_BUCKET}
     volumes: [objects:/data/objects]
+  collaboration-service:
+    <<: *app
+    image: text-editor/collaboration-service:local
+    build:
+      context: ../..
+      dockerfile: infra/compose/Service.Dockerfile
+      args: { SERVICE: collaboration-service }
+    mem_limit: 512m
+    environment:
+      PORT: 8080
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -Dfile.encoding=UTF-8
+      COLLABORATION_DB_URL: jdbc:mysql://mysql:3306/collaboration_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      COLLABORATION_DB_USER: collaboration
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: collaboration
+      KAFKA_PASSWORD: ${KAFKA_COLLABORATION_PASSWORD:?}
+      SNAPSHOTS_BUCKET: ${GCS_SNAPSHOTS_BUCKET:-YOUR_PRIVATE_SNAPSHOTS_BUCKET}
+      COLLABORATION_DB_PASSWORD: ${COLLABORATION_DB_PASSWORD:?}
+      DOCUMENT_URL: http://document-service:8080
+      JWT_ISSUER: ${JWT_ISSUER:-http://identity-service:8080}
+      JWT_JWK_URI: http://identity-service:8080/.well-known/jwks.json
+  payment-service:
+    <<: *app
+    image: text-editor/payment-service:local
+    build:
+      context: ../..
+      dockerfile: infra/compose/Service.Dockerfile
+      args: { SERVICE: payment-service }
+    mem_limit: 512m
+    environment:
+      PORT: 8080
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -Dfile.encoding=UTF-8
+      PAYMENT_DB_URL: jdbc:mysql://mysql:3306/payment_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+      PAYMENT_DB_USER: payment
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?}
+      JWT_ISSUER: ${JWT_ISSUER:-http://identity-service:8080}
+      JWT_JWK_URI: http://identity-service:8080/.well-known/jwks.json
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: SASL_PLAINTEXT
+      KAFKA_USERNAME: payment
+      KAFKA_PASSWORD: ${KAFKA_PAYMENT_PASSWORD:?}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8080}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRO_MONTHLY_PRICE: ${STRIPE_PRO_MONTHLY_PRICE:-}
+      STRIPE_PRO_YEARLY_PRICE: ${STRIPE_PRO_YEARLY_PRICE:-}
   web:
     profiles: [app]
     image: text-editor/web:local
@@ -191,12 +246,16 @@ services:
       IDENTITY_INTERNAL_ORIGIN: http://identity-service:8080
       DOCUMENT_INTERNAL_ORIGIN: http://document-service:8080
       PROCESSING_INTERNAL_ORIGIN: http://processing-service:8080
+      COLLABORATION_INTERNAL_ORIGIN: http://collaboration-service:8080
+      PAYMENT_INTERNAL_ORIGIN: http://payment-service:8080
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
     ports: ['127.0.0.1:${WEB_PORT:-8080}:8080']
     depends_on:
       identity-service: { condition: service_healthy }
       document-service: { condition: service_healthy }
       processing-service: { condition: service_healthy }
+      collaboration-service: { condition: service_healthy }
+      payment-service: { condition: service_healthy }
     healthcheck:
       test:
         [

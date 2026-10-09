@@ -27,11 +27,12 @@ def sql(user, db, statement, success=True):
 
 
 checks = []
-for user in ["identity", "document", "processing"]:
+owners = ("identity", "document", "processing", "collaboration", "payment")
+for user in owners:
     own = user + "_db"
     sql(user, own, "SELECT DATABASE()")
     checks.append(user + " own DB accessible")
-    for other in ["identity", "document", "processing"]:
+    for other in owners:
         if other == user:
             continue
         try:
@@ -50,7 +51,7 @@ before = {
         u + "_db",
         "SELECT installed_rank,version,checksum,success FROM flyway_schema_history ORDER BY installed_rank",
     )
-    for u in ["identity", "document", "processing"]
+    for u in owners
 }
 compose("restart", "mysql", "kafka")
 for _ in range(60):
@@ -61,7 +62,7 @@ for _ in range(60):
         time.sleep(1)
 else:
     raise AssertionError("MySQL failed restart")
-compose("restart", "identity-service", "document-service", "processing-service")
+compose("restart", *(user + "-service" for user in owners))
 time.sleep(10)
 after = {
     u: sql(

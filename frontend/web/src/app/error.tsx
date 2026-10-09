@@ -1,4 +1,6 @@
 'use client';
+import { MESSAGE, useI18n } from '@/lib/i18n';
+
 import { ErrorNotice } from '@/components/ui/ErrorNotice';
 export default function ErrorBoundary({
   reset,
@@ -6,10 +8,12 @@ export default function ErrorBoundary({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <main>
-      <ErrorNotice message="Không thể mở trang. Bản nháp trên thiết bị vẫn được giữ." />
-      <button onClick={reset}>Thử lại</button>
+      <ErrorNotice message={MESSAGE.unableToOpenThePageDraftsOnThis} />
+      <button onClick={reset}>{t(MESSAGE.tryAgain)}</button>
     </main>
   );
 }

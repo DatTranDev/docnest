@@ -14,6 +14,12 @@ data:
   DOCUMENT_DB_USER: document
   PROCESSING_DB_URL: jdbc:mysql://mysql:3306/processing_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
   PROCESSING_DB_USER: processing
+  COLLABORATION_DB_URL: jdbc:mysql://mysql:3306/collaboration_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+  COLLABORATION_DB_USER: collaboration
+  PAYMENT_DB_URL: jdbc:mysql://mysql:3306/payment_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+  PAYMENT_DB_USER: payment
+  STRIPE_PRO_MONTHLY_PRICE: price_CONFIGURE_MONTHLY
+  STRIPE_PRO_YEARLY_PRICE: price_CONFIGURE_YEARLY
   KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
   REDIS_HOST: redis

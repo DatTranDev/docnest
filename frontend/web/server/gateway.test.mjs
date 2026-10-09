@@ -139,7 +139,7 @@ async function environment(t, overrides = {}, options = {}) {
   const calls = [];
   const servers = [];
   const peers = {};
-  for (const name of ['identity', 'document', 'processing', 'next']) {
+  for (const name of ['identity', 'document', 'processing', 'collaboration', 'payment', 'next']) {
     peers[name] = await fixture((req, res) => {
       calls.push({ name, path: req.url, headers: req.headers });
       let count = 0;
@@ -171,6 +171,8 @@ async function environment(t, overrides = {}, options = {}) {
     identityOrigin: peers.identity.origin,
     documentOrigin: peers.document.origin,
     processingOrigin: peers.processing.origin,
+    collaborationOrigin: peers.collaboration.origin,
+    paymentOrigin: peers.payment.origin,
     ...overrides,
   };
   const server = createGateway(config, options);
@@ -214,12 +216,14 @@ test('completed streamed responses preserve pooled upstream sockets for the next
   );
 });
 
-test('routes four actual HTTP origins, preserves protocol fields and multiple cookies', async (t) => {
+test('routes six actual HTTP origins, preserves protocol fields and multiple cookies', async (t) => {
   const env = await environment(t);
   for (const [path, name] of [
     ['/api/v1/auth/login', 'identity'],
     ['/.well-known/jwks.json', 'identity'],
     ['/api/v1/jobs/a', 'processing'],
+    ['/api/v1/collaboration/a/updates', 'collaboration'],
+    ['/api/v1/billing/webhooks/stripe', 'payment'],
     ['/api/v1/documents/a', 'document'],
     ['/', 'next'],
   ]) {

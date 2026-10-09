@@ -21,7 +21,14 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_IMAGES = [
     f"text-editor/{service}:local"
-    for service in ["identity-service", "document-service", "processing-service", "web"]
+    for service in [
+        "identity-service",
+        "document-service",
+        "processing-service",
+        "collaboration-service",
+        "payment-service",
+        "web",
+    ]
 ]
 
 
@@ -111,7 +118,7 @@ def summarize(report):
         bool(finding.get("FixedVersion")) for finding in all_findings
     )
     report["countingNote"] = (
-        "Severity totals count CVE/package/image combinations. Shared runtime packages repeat across the three Java images; uniqueCveCount deduplicates CVE IDs."
+        "Severity totals count CVE/package/image combinations. Shared runtime packages repeat across the four Java images; uniqueCveCount deduplicates CVE IDs."
     )
 
 
@@ -144,7 +151,7 @@ def main():
     if not report:
         report = {
             "startedAt": utc_now(),
-            "scope": "OS packages in the four locally built Linux application images only",
+            "scope": "OS packages in the six locally built Linux application images only",
             "exclusions": [
                 "Java/JavaScript dependency advisories",
                 "Secrets and IaC",

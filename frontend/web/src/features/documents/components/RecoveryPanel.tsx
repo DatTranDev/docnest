@@ -1,3 +1,5 @@
+'use client';
+import { MESSAGE, useI18n } from '@/lib/i18n';
 import { encodeNative, type Snapshot } from '@ted/editor-core';
 import type { DraftMeta } from '@/features/editor';
 import { download, errorMessage } from '@/lib/http';
@@ -21,40 +23,42 @@ export function RecoveryPanel({
   onCopy: (snapshot: Snapshot) => Promise<void>;
   onError: (message: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <>
       {draft && (
         <div className="recovery" role="alert">
-          Có bản nháp trên thiết bị{' '}
+          {t(MESSAGE.aDraftIsAvailableOnThisDevice)}{' '}
           {draft.baseHeadRevision !== active.document.headRevision
-            ? 'từ phiên bản khác. Khôi phục sẽ giữ trạng thái xung đột.'
+            ? t(MESSAGE.fromAnotherVersionRecoveringItWillPreserveThe)
             : ''}
           <button
             onClick={() => {
               void onRecover().catch((error) => onError(errorMessage(error)));
             }}
           >
-            Khôi phục bản nháp
+            {t(MESSAGE.recoverDraft)}{' '}
           </button>
-          <button onClick={onDiscard}>Bỏ bản nháp</button>
+          <button onClick={onDiscard}>{t(MESSAGE.discardDraft)}</button>
         </div>
       )}
-      {status === 'Xung đột' && (
+      {status === MESSAGE.conflict && (
         <div className="recovery">
-          Phiên bản máy chủ đã thay đổi.
+          {t(MESSAGE.theServerVersionHasChanged)}{' '}
           <button
             onClick={() => {
               void onOpenLatest();
             }}
           >
-            Mở mới nhất
+            {t(MESSAGE.openLatest)}{' '}
           </button>
           <button
             onClick={() => {
               void onCopy(active.model.snapshot());
             }}
           >
-            Lưu thay đổi thành tài liệu mới
+            {t(MESSAGE.saveChangesAsANewDocument)}{' '}
           </button>
           <button
             onClick={() => {
@@ -63,10 +67,10 @@ export function RecoveryPanel({
                 .catch((error) => onError(errorMessage(error)));
             }}
           >
-            Tải bản nháp
+            {t(MESSAGE.downloadDraft)}{' '}
           </button>
-          <button onClick={() => onError('Bản nháp vẫn được giữ; lưu tạm dừng khi có xung đột.')}>
-            Hủy
+          <button onClick={() => onError(MESSAGE.yourDraftIsRetainedSavingIsPausedDuring)}>
+            {t(MESSAGE.cancel)}{' '}
           </button>
         </div>
       )}

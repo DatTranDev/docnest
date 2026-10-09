@@ -16,6 +16,8 @@
     <module>backend/identity-service</module>
     <module>backend/document-service</module>
     <module>backend/processing-service</module>
+    <module>backend/collaboration-service</module>
+    <module>backend/payment-service</module>
   </modules>
   <properties>
     <java.version>21</java.version>

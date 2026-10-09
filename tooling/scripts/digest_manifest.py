@@ -1,8 +1,15 @@
-"""Convert reviewed registry digest lines to a strictly scoped four-image manifest."""
+"""Convert reviewed registry digest lines to a strictly scoped six-image manifest."""
 
 import argparse, json, pathlib, re
 
-NAMES = ("identity-service", "document-service", "processing-service", "web")
+NAMES = (
+    "identity-service",
+    "document-service",
+    "processing-service",
+    "collaboration-service",
+    "payment-service",
+    "web",
+)
 
 
 def validate_manifest(values, project, region):
@@ -11,7 +18,7 @@ def validate_manifest(values, project, region):
     if not re.fullmatch(r"[a-z]+-[a-z]+[0-9]+", region):
         raise ValueError("Invalid registry region")
     if not isinstance(values, dict) or set(values) != set(NAMES):
-        raise ValueError("Exactly four application digests required")
+        raise ValueError("Exactly six application digests required")
     for name, image in values.items():
         prefix = f"{region}-docker.pkg.dev/{project}/editor/{name}@sha256:"
         if (
@@ -45,7 +52,7 @@ def main():
     pathlib.Path(a.output).write_text(
         json.dumps(values, indent=2) + "\n", encoding="utf-8"
     )
-    print("Validated four project-scoped immutable image digests")
+    print("Validated six project-scoped immutable image digests")
 
 
 if __name__ == "__main__":

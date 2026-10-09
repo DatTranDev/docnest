@@ -1,3 +1,4 @@
+import { DEFAULT_LINK_LIFETIME_SECONDS } from '../model/constants';
 import { bytes, request, type Page } from '@/lib/http';
 import type { Permission, PublicShare, ShareLink } from '../model/types';
 const route = (id: string) => `/api/v1/documents/${id}`;
@@ -20,7 +21,9 @@ export function revokeAccess(id: string, userId: string): Promise<void> {
   return request(`${route(id)}/permissions/${userId}`, 'DELETE');
 }
 export function createShareLink(id: string): Promise<{ viewerPath: string }> {
-  return request(`${route(id)}/share-links`, 'POST', { expiresInSeconds: 604800 });
+  return request(`${route(id)}/share-links`, 'POST', {
+    expiresInSeconds: DEFAULT_LINK_LIFETIME_SECONDS,
+  });
 }
 export function revokeShareLink(id: string, linkId: string): Promise<void> {
   return request(`${route(id)}/share-links/${linkId}`, 'DELETE');

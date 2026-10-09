@@ -14,6 +14,12 @@ services:
   processing-service:
     image: ${PROCESSING_IMAGE:?Use Artifact Registry image digest}
     environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false', STORAGE_PROVIDER: GCS }
+  payment-service:
+    image: ${PAYMENT_IMAGE:?Use Artifact Registry image digest}
+    environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false' }
+  collaboration-service:
+    image: ${COLLABORATION_IMAGE:?Use Artifact Registry image digest}
+    environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false' }
   web:
     image: ${WEB_IMAGE:?Use Artifact Registry image digest}
     environment:
