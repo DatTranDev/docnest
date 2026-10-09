@@ -217,6 +217,8 @@ class OfficeExporterTest {
       assertEquals(2, text.split("Footer Việt", -1).length - 1);
       assertTrue(pdf.getPage(0).getAnnotations().size() > 0);
       var renderer = new org.apache.pdfbox.rendering.PDFRenderer(pdf);
+      Path imageEvidence = Path.of("../../testing/reports/raw/structure-pdf-0.png");
+      Files.createDirectories(imageEvidence.getParent());
       for (int page = 0; page < pdf.getNumberOfPages(); page++) {
         javax.imageio.ImageIO.write(
             renderer.renderImageWithDPI(page, 96),
