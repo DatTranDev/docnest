@@ -1,6 +1,5 @@
 package vn.editor.document.folders.api;
 
-import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -12,21 +11,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import vn.editor.document.folders.application.command.CreateFolderCommand;
+import vn.editor.document.folders.api.dto.CreateFolderRequestDto;
+import vn.editor.document.folders.api.dto.MoveFolderRequestDto;
 import vn.editor.document.folders.application.command.DeleteFolderCommand;
-import vn.editor.document.folders.application.command.FolderCommandHandler;
-import vn.editor.document.folders.application.command.MoveFolderCommand;
-import vn.editor.document.folders.application.query.FolderQueryHandler;
+import vn.editor.document.folders.application.command.FolderCommandService;
+import vn.editor.document.folders.application.query.FolderQueryService;
 import vn.editor.document.folders.application.query.GetFolderQuery;
 import vn.editor.document.folders.application.query.ListFoldersQuery;
 import vn.editor.document.shared.domain.Values;
 
 @RestController
 public class FolderController {
-  private final FolderCommandHandler commands;
-  private final FolderQueryHandler queries;
+  private final FolderCommandService commands;
+  private final FolderQueryService queries;
 
-  public FolderController(FolderCommandHandler commands, FolderQueryHandler queries) {
+  public FolderController(FolderCommandService commands, FolderQueryService queries) {
     this.commands = commands;
     this.queries = queries;
   }
@@ -46,9 +45,8 @@ public class FolderController {
 
   @PostMapping("/api/v1/folders")
   ResponseEntity<?> createFolder(
-      @AuthenticationPrincipal Jwt jwt, @RequestBody Map<String, Object> b) {
-    return ResponseEntity.status(201)
-        .body(commands.handle(CreateFolderCommand.from(actor(jwt), b)));
+      @AuthenticationPrincipal Jwt jwt, @RequestBody CreateFolderRequestDto request) {
+    return ResponseEntity.status(201).body(commands.handle(request.command(actor(jwt))));
   }
 
   @GetMapping("/api/v1/folders/{id}")
@@ -60,8 +58,8 @@ public class FolderController {
   Object patchFolder(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
-      @RequestBody Map<String, Object> b) {
-    return commands.handle(MoveFolderCommand.from(actor(jwt), id, b));
+      @RequestBody MoveFolderRequestDto request) {
+    return commands.handle(request.command(actor(jwt), id));
   }
 
   @DeleteMapping("/api/v1/folders/{id}")

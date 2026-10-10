@@ -5,15 +5,15 @@ Read `README.md`, `docs/AI_AGENT_GUIDE.md`, the relevant design documents, contr
 ## Ownership and dependencies
 
 - Keep Identity, Document, and Processing separate. Each service accesses only its own MySQL database. Preserve API fields, event envelopes, native file semantics, SQL locking, optimistic revision checks, idempotency, ACL checks, and outbox/inbox guarantees.
-- Organize backend features as `api`, `application/command`, `application/query`, `application/port`, `domain`, and `infrastructure`; put entry points and dependency wiring in `bootstrap`.
+- Organize backend features as `api` (with `api/dto` for HTTP request records), `application/command`, `application/query`, `application/port`, `domain`, and `infrastructure`; put entry points and dependency wiring in `bootstrap`.
 - Domain code is plain Java and depends only on Java/domain types. Put actual business invariants in domain entities, value objects, and policies.
 - Application handlers orchestrate domain operations through ports. They cannot import Spring, HTTP, JDBC, Redis, Kafka, concrete storage adapters, controllers, or another service. Processing may use the shared storage reference record as a technical port DTO.
-- Controllers delegate to command/query handlers. Infrastructure implements ports and cannot call controllers. Cross-feature operations use explicit application interfaces. Preserve short SQL transactions; keep storage/network I/O outside them.
+- Controllers depend on `*Service` interfaces implemented by command/query handlers. Persistence ports use `*Repository` interfaces in `application/port`; JDBC adapters use `Jdbc*Dao` implementations in `infrastructure`. Infrastructure cannot call controllers. Cross-feature operations use explicit application interfaces. Preserve short SQL transactions; keep storage/network I/O outside them.
 - Shared production code belongs in `common.codec`, `common.storage`, `common.messaging`, and `common.observability`. Never move business entities, repositories, or use cases into common. Benchmark harnesses belong in benchmark/test sources and must not ship in service jars.
 
 ## Frontend boundaries
 
-- Use Next.js App Router with strict TypeScript. Keep routes thin and behavior under `features/auth`, `workspace`, `folders`, `documents`, `editor`, `sharing`, and `export-jobs`.
+- Use Next.js App Router with strict TypeScript. Keep routes thin and behavior under `features/auth`, `workspace`, `folders`, `documents`, `editor`, `sharing`, `export-jobs`, and `local-tools`. Local tools and their standalone static entry point must not initiate authenticated API requests or upload file contents.
 - Cross-feature imports use public `index.ts` files. Do not import another feature's private implementation. `lib`, `config`, and reusable UI components cannot depend on features. Keep the import graph acyclic.
 - `frontend/editor-core` stays independent of React, Next.js, and application features. Canonical text/style/history belong in editor-core and CodeMirror. Preserve viewport rendering, worker cancellation and snapshot consistency. React receives small UI state, not whole documents per keystroke.
 - Initialize browser APIs in client effects or an explicitly client-only dynamic import. Keep JWTs in memory, serialize refresh-cookie mutations, preserve signed CSRF handling, and prevent private responses from shared caching.

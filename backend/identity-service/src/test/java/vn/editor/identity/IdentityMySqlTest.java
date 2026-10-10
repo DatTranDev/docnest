@@ -39,9 +39,9 @@ import vn.editor.identity.auth.application.query.ResolveAccountHandler;
 import vn.editor.identity.auth.application.query.ResolveAccountQuery;
 import vn.editor.identity.auth.application.query.UserView;
 import vn.editor.identity.auth.domain.AuthenticationFailure;
-import vn.editor.identity.auth.infrastructure.persistence.JdbcAccountCommands;
-import vn.editor.identity.auth.infrastructure.persistence.JdbcAccountReads;
-import vn.editor.identity.auth.infrastructure.persistence.JdbcRefreshSessions;
+import vn.editor.identity.auth.infrastructure.persistence.JdbcAccountCommandDao;
+import vn.editor.identity.auth.infrastructure.persistence.JdbcAccountReadDao;
+import vn.editor.identity.auth.infrastructure.persistence.JdbcRefreshSessionDao;
 import vn.editor.identity.auth.infrastructure.persistence.SpringTransactions;
 import vn.editor.identity.auth.infrastructure.security.Argon2PasswordHashes;
 import vn.editor.identity.auth.infrastructure.security.DocumentServiceCaller;
@@ -76,8 +76,8 @@ class IdentityMySqlTest {
   }
 
   void wire(int maximum) throws Exception {
-    var accounts = new JdbcAccountCommands(jdbc);
-    var sessions = new JdbcRefreshSessions(jdbc);
+    var accounts = new JdbcAccountCommandDao(jdbc);
+    var sessions = new JdbcRefreshSessionDao(jdbc);
     var transactions =
         new SpringTransactions(
             new TransactionTemplate(new DataSourceTransactionManager(jdbc.getDataSource())));
@@ -232,7 +232,7 @@ class IdentityMySqlTest {
   @Test
   void readPortsExposeOnlyPublicProfileAndInternalResolutionRequiresDocumentCaller() {
     UserView user = register("Reader@example.com", "a strong password", "Reader");
-    var reads = new JdbcAccountReads(jdbc);
+    var reads = new JdbcAccountReadDao(jdbc);
     var profile = new GetProfileHandler(reads);
     assertEquals(user, profile.handle(new GetProfileQuery(user.id())));
     var resolve = new ResolveAccountHandler(reads, new DocumentServiceCaller("document-key"));

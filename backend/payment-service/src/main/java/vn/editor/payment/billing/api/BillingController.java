@@ -18,24 +18,23 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import vn.editor.payment.billing.application.command.BillingCommandHandler;
+import vn.editor.payment.billing.api.dto.CheckoutRequestDto;
+import vn.editor.payment.billing.application.command.BillingCommandService;
 import vn.editor.payment.billing.application.port.PaymentGateway;
 import vn.editor.payment.billing.application.port.StripeSignatures;
-import vn.editor.payment.billing.application.query.BillingQueryHandler;
+import vn.editor.payment.billing.application.query.BillingQueryService;
 import vn.editor.payment.billing.domain.BillingFailure;
 
 @RestController
 public final class BillingController {
-  public record Checkout(String plan) {}
-
-  private final BillingCommandHandler commands;
-  private final BillingQueryHandler queries;
+  private final BillingCommandService commands;
+  private final BillingQueryService queries;
   private final PaymentGateway gateway;
   private final StripeSignatures signatures;
 
   public BillingController(
-      BillingCommandHandler commands,
-      BillingQueryHandler queries,
+      BillingCommandService commands,
+      BillingQueryService queries,
       PaymentGateway gateway,
       StripeSignatures signatures) {
     this.commands = commands;
@@ -69,7 +68,7 @@ public final class BillingController {
   public ResponseEntity<?> checkout(
       @AuthenticationPrincipal Jwt jwt,
       @RequestHeader("Idempotency-Key") UUID key,
-      @RequestBody Checkout input) {
+      @RequestBody CheckoutRequestDto input) {
     return ResponseEntity.accepted()
         .body(commands.request(UUID.fromString(jwt.getSubject()), key, "CHECKOUT", input.plan()));
   }

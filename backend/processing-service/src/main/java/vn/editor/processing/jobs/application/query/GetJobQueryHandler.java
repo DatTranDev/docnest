@@ -3,7 +3,7 @@ package vn.editor.processing.jobs.application.query;
 import vn.editor.processing.jobs.application.port.DocumentAccessPort;
 import vn.editor.processing.jobs.application.port.JobReadRepository;
 
-public final class GetJobQueryHandler {
+public final class GetJobQueryHandler implements GetJobQueryService {
   private final JobReadRepository reads;
   private final DocumentAccessPort documents;
 

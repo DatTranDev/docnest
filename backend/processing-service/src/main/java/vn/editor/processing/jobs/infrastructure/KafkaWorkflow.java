@@ -20,14 +20,14 @@ import vn.editor.common.observability.TraceContext;
 
 @Component
 class KafkaWorkflow {
-  private final JdbcJobRepository jobs;
+  private final JdbcJobDao jobs;
   private final ProcessingEvents events;
   private final KafkaTemplate<String, String> kafka;
   private final JdbcTemplate db;
   private final TransactionTemplate tx;
 
   KafkaWorkflow(
-      JdbcJobRepository jobs,
+      JdbcJobDao jobs,
       ProcessingEvents events,
       KafkaTemplate<String, String> kafka,
       JdbcTemplate db,

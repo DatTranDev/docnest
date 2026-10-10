@@ -2,7 +2,7 @@ package vn.editor.identity.auth.application.command;
 
 import java.time.Clock;
 import java.util.UUID;
-import vn.editor.identity.auth.application.port.AccountCommands;
+import vn.editor.identity.auth.application.port.AccountCommandRepository;
 import vn.editor.identity.auth.application.port.PasswordHashes;
 import vn.editor.identity.auth.application.port.Transactions;
 import vn.editor.identity.auth.domain.Account;
@@ -11,8 +11,8 @@ import vn.editor.identity.auth.domain.AuthenticationFailure;
 import vn.editor.identity.auth.domain.RefreshSession;
 import vn.editor.identity.auth.domain.RegistrationPolicy;
 
-public final class LoginHandler {
-  private final AccountCommands accounts;
+public final class LoginHandler implements LoginService {
+  private final AccountCommandRepository accounts;
   private final PasswordHashes passwords;
   private final Transactions transactions;
   private final SessionIssuer issuer;
@@ -20,7 +20,7 @@ public final class LoginHandler {
   private final String dummyHash;
 
   public LoginHandler(
-      AccountCommands accounts,
+      AccountCommandRepository accounts,
       PasswordHashes passwords,
       Transactions transactions,
       SessionIssuer issuer,

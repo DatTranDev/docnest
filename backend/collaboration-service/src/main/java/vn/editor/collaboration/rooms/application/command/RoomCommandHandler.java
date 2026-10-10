@@ -2,20 +2,20 @@ package vn.editor.collaboration.rooms.application.command;
 
 import java.util.UUID;
 import vn.editor.collaboration.rooms.application.port.DocumentAccess;
-import vn.editor.collaboration.rooms.application.port.RoomStore;
+import vn.editor.collaboration.rooms.application.port.RoomRepository;
 import vn.editor.collaboration.rooms.domain.RoomFailure;
 import vn.editor.collaboration.rooms.domain.RoomPolicy;
 
-public final class RoomCommandHandler {
-  private final RoomStore rooms;
+public final class RoomCommandHandler implements RoomCommandService {
+  private final RoomRepository rooms;
   private final DocumentAccess documents;
 
-  public RoomCommandHandler(RoomStore rooms, DocumentAccess documents) {
+  public RoomCommandHandler(RoomRepository rooms, DocumentAccess documents) {
     this.rooms = rooms;
     this.documents = documents;
   }
 
-  public RoomStore.Page join(UUID id, long revision, byte[] seed, String bearer) {
+  public RoomRepository.Page join(UUID id, long revision, byte[] seed, String bearer) {
     RoomPolicy.update(seed);
     var access = documents.check(id, bearer);
     if (!access.writable()) throw new RoomFailure("COLLABORATION_READ_ONLY");

@@ -6,6 +6,9 @@ import { I18nProvider } from '@/lib/i18n';
 import { translate } from '@/lib/i18n/translate';
 import { MESSAGE } from '@/lib/i18n/messages';
 import './globals.css';
+import './workspace.css';
+import './preferences.css';
+import './local-tools.css';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   return {

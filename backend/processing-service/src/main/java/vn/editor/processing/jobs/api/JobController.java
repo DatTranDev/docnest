@@ -16,36 +16,35 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import vn.editor.processing.jobs.api.dto.CreateJobRequestDto;
 import vn.editor.processing.jobs.application.command.CancelExportJobCommand;
-import vn.editor.processing.jobs.application.command.CancelExportJobCommandHandler;
+import vn.editor.processing.jobs.application.command.CancelExportJobCommandService;
 import vn.editor.processing.jobs.application.command.CreateExportJobCommand;
-import vn.editor.processing.jobs.application.command.CreateExportJobCommandHandler;
-import vn.editor.processing.jobs.application.query.GetJobDownloadQueryHandler;
+import vn.editor.processing.jobs.application.command.CreateExportJobCommandService;
+import vn.editor.processing.jobs.application.query.GetJobDownloadQueryService;
 import vn.editor.processing.jobs.application.query.GetJobQuery;
-import vn.editor.processing.jobs.application.query.GetJobQueryHandler;
+import vn.editor.processing.jobs.application.query.GetJobQueryService;
 import vn.editor.processing.jobs.application.query.JobPage;
 import vn.editor.processing.jobs.application.query.JobView;
 import vn.editor.processing.jobs.application.query.ListJobsQuery;
-import vn.editor.processing.jobs.application.query.ListJobsQueryHandler;
+import vn.editor.processing.jobs.application.query.ListJobsQueryService;
 import vn.editor.processing.jobs.domain.ExportFormat;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
 public final class JobController {
-  private final CreateExportJobCommandHandler create;
-  private final CancelExportJobCommandHandler cancel;
-  private final GetJobQueryHandler get;
-  private final ListJobsQueryHandler list;
-  private final GetJobDownloadQueryHandler download;
-
-  public record CreateRequest(String documentId, long revision, String type) {}
+  private final CreateExportJobCommandService create;
+  private final CancelExportJobCommandService cancel;
+  private final GetJobQueryService get;
+  private final ListJobsQueryService list;
+  private final GetJobDownloadQueryService download;
 
   public JobController(
-      CreateExportJobCommandHandler create,
-      CancelExportJobCommandHandler cancel,
-      GetJobQueryHandler get,
-      ListJobsQueryHandler list,
-      GetJobDownloadQueryHandler download) {
+      CreateExportJobCommandService create,
+      CancelExportJobCommandService cancel,
+      GetJobQueryService get,
+      ListJobsQueryService list,
+      GetJobDownloadQueryService download) {
     this.create = create;
     this.cancel = cancel;
     this.get = get;
@@ -58,7 +57,7 @@ public final class JobController {
       @AuthenticationPrincipal Jwt jwt,
       @RequestHeader("Authorization") String token,
       @RequestHeader("Idempotency-Key") String key,
-      @RequestBody CreateRequest request) {
+      @RequestBody CreateJobRequestDto request) {
     return ResponseEntity.accepted()
         .body(
             create.handle(

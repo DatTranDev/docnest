@@ -22,10 +22,9 @@ final class ProcessingRepositoryContext {
     context.registerBean(TransactionTemplate.class, () -> tx);
     context.registerBean(ProcessingEvents.class, () -> events);
     context.registerBean(ObjectMapper.class, () -> json);
-    context.registerBean(
-        JdbcJobRepository.class, () -> new JdbcJobRepository(db, tx, events, json, 5));
-    context.registerBean(JdbcJobExecutionRepository.class);
-    context.registerBean(JdbcJobOutputCleanupRepository.class);
+    context.registerBean(JdbcJobDao.class, () -> new JdbcJobDao(db, tx, events, json, 5));
+    context.registerBean(JdbcJobExecutionDao.class);
+    context.registerBean(JdbcJobOutputCleanupDao.class);
     context.refresh();
     return context;
   }

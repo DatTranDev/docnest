@@ -51,7 +51,7 @@ class KafkaSqlFlowTest {
       new KafkaContainer("apache/kafka:4.1.1").withEnv("KAFKA_HEAP_OPTS", "-Xms128m -Xmx384m");
 
   JdbcTemplate db;
-  JdbcJobRepository jobs;
+  JdbcJobDao jobs;
   ProcessingEvents events;
   KafkaWorkflow flow;
   KafkaTemplate<String, String> producer;
@@ -77,7 +77,7 @@ class KafkaSqlFlowTest {
     events = new ProcessingEvents(json);
     tx = new TransactionTemplate(new DataSourceTransactionManager(data));
     context = ProcessingRepositoryContext.create(db, tx, events, json);
-    jobs = context.getBean(JdbcJobRepository.class);
+    jobs = context.getBean(JdbcJobDao.class);
     assertTrue(AopUtils.isCglibProxy(jobs));
     Map<String, Object> config = new HashMap<>();
     config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, broker.getBootstrapServers());

@@ -5,7 +5,7 @@ import vn.editor.processing.jobs.application.port.JobCommandRepository;
 import vn.editor.processing.jobs.application.port.JobReadRepository;
 import vn.editor.processing.jobs.application.query.JobView;
 
-public final class CancelExportJobCommandHandler {
+public final class CancelExportJobCommandHandler implements CancelExportJobCommandService {
   private final JobCommandRepository commands;
   private final JobReadRepository reads;
   private final DocumentAccessPort documents;

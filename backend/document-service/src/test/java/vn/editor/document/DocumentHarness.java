@@ -23,10 +23,10 @@ import vn.editor.document.documents.application.query.DocumentQueryHandler;
 import vn.editor.document.documents.application.query.GetDocumentQuery;
 import vn.editor.document.documents.application.query.GetVersionQuery;
 import vn.editor.document.documents.application.query.ListVersionsQuery;
-import vn.editor.document.documents.infrastructure.JdbcDocuments;
-import vn.editor.document.documents.infrastructure.JdbcPreviewProjection;
-import vn.editor.document.documents.infrastructure.JdbcRetention;
-import vn.editor.document.documents.infrastructure.JdbcSaves;
+import vn.editor.document.documents.infrastructure.JdbcDocumentDao;
+import vn.editor.document.documents.infrastructure.JdbcPreviewDao;
+import vn.editor.document.documents.infrastructure.JdbcRetentionDao;
+import vn.editor.document.documents.infrastructure.JdbcSaveDao;
 import vn.editor.document.documents.infrastructure.NativeSnapshotValidator;
 import vn.editor.document.documents.infrastructure.SnapshotStorageAdapter;
 import vn.editor.document.folders.application.command.CreateFolderCommand;
@@ -35,7 +35,7 @@ import vn.editor.document.folders.application.command.FolderCommandHandler;
 import vn.editor.document.folders.application.command.MoveFolderCommand;
 import vn.editor.document.folders.application.query.FolderQueryHandler;
 import vn.editor.document.folders.application.query.GetFolderQuery;
-import vn.editor.document.folders.infrastructure.JdbcFolders;
+import vn.editor.document.folders.infrastructure.JdbcFolderDao;
 import vn.editor.document.shared.domain.Values;
 import vn.editor.document.sharing.application.command.CreatePublicLinkCommand;
 import vn.editor.document.sharing.application.command.GrantDocumentAccessCommand;
@@ -46,12 +46,12 @@ import vn.editor.document.sharing.application.port.AccountDirectory;
 import vn.editor.document.sharing.application.port.PublicTrafficLimit;
 import vn.editor.document.sharing.application.query.PublicShareQueryHandler;
 import vn.editor.document.sharing.application.query.SharingQueryHandler;
-import vn.editor.document.sharing.infrastructure.JdbcSharing;
+import vn.editor.document.sharing.infrastructure.JdbcSharingDao;
 
 final class DocumentHarness {
   final ObjectMapper json = new ObjectMapper();
   final StorageProvider storage;
-  final JdbcFolders folderStore;
+  final JdbcFolderDao folderStore;
   final FolderCommandHandler folderCommands;
   final FolderQueryHandler folderQueries;
   final DocumentCommandHandler documentCommands;
@@ -72,10 +72,10 @@ final class DocumentHarness {
       int docs,
       int folders) {
     this.storage = storage;
-    folderStore = new JdbcFolders(db, manager, folders);
-    JdbcDocuments documents = new JdbcDocuments(db, manager, folderStore, docs);
-    JdbcSaves saveStore = new JdbcSaves(db, manager, documents);
-    JdbcSharing sharing = new JdbcSharing(db, manager, documents);
+    folderStore = new JdbcFolderDao(db, manager, folders);
+    JdbcDocumentDao documents = new JdbcDocumentDao(db, manager, folderStore, docs);
+    JdbcSaveDao saveStore = new JdbcSaveDao(db, manager, documents);
+    JdbcSharingDao sharing = new JdbcSharingDao(db, manager, documents);
     SnapshotStorageAdapter objects = new SnapshotStorageAdapter(storage);
     folderCommands = new FolderCommandHandler(folderStore);
     folderQueries = new FolderQueryHandler(folderStore);
@@ -107,8 +107,8 @@ final class DocumentHarness {
                 return () -> {};
               }
             });
-    retention = new RetentionCommandHandler(new JdbcRetention(db, manager), objects);
-    projection = new ApplyPreviewCompletionHandler(new JdbcPreviewProjection(db, manager));
+    retention = new RetentionCommandHandler(new JdbcRetentionDao(db, manager), objects);
+    projection = new ApplyPreviewCompletionHandler(new JdbcPreviewDao(db, manager));
   }
 
   static String uuid() {

@@ -1,16 +1,16 @@
 package vn.editor.document.folders.application.command;
 
 import java.util.UUID;
-import vn.editor.document.folders.application.port.FolderWritePort;
+import vn.editor.document.folders.application.port.FolderWriteRepository;
 import vn.editor.document.folders.application.query.FolderView;
 import vn.editor.document.folders.domain.Folder;
 import vn.editor.document.folders.domain.FolderTreePolicy;
 import vn.editor.document.shared.domain.Values;
 
-public final class FolderCommandHandler {
-  private final FolderWritePort folders;
+public final class FolderCommandHandler implements FolderCommandService {
+  private final FolderWriteRepository folders;
 
-  public FolderCommandHandler(FolderWritePort folders) {
+  public FolderCommandHandler(FolderWriteRepository folders) {
     this.folders = folders;
   }
 

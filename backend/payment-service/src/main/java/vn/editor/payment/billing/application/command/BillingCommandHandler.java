@@ -3,18 +3,18 @@ package vn.editor.payment.billing.application.command;
 import java.util.Map;
 import java.util.UUID;
 import vn.editor.payment.billing.application.port.PaymentGateway;
-import vn.editor.payment.billing.application.port.PaymentStore;
+import vn.editor.payment.billing.application.port.PaymentRepository;
 import vn.editor.payment.billing.application.port.StripeSignatures;
 import vn.editor.payment.billing.domain.BillingFailure;
 import vn.editor.payment.billing.domain.BillingPolicy;
 
-public final class BillingCommandHandler {
-  private final PaymentStore store;
+public final class BillingCommandHandler implements BillingCommandService {
+  private final PaymentRepository store;
   private final PaymentGateway gateway;
   private final StripeSignatures signatures;
 
   public BillingCommandHandler(
-      PaymentStore store, PaymentGateway gateway, StripeSignatures signatures) {
+      PaymentRepository store, PaymentGateway gateway, StripeSignatures signatures) {
     this.store = store;
     this.gateway = gateway;
     this.signatures = signatures;

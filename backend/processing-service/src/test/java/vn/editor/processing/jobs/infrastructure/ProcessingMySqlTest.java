@@ -42,7 +42,7 @@ import vn.editor.processing.jobs.application.JobFailure;
 class ProcessingMySqlTest {
   @Container static MySQLContainer mysql = new MySQLContainer("mysql:8.4.7");
   @TempDir Path dir;
-  JdbcJobRepository jobs;
+  JdbcJobDao jobs;
   JobWorker worker;
   ProcessingEvents events;
   JdbcTemplate db;
@@ -67,7 +67,7 @@ class ProcessingMySqlTest {
     context =
         ProcessingRepositoryContext.create(
             db, new TransactionTemplate(new DataSourceTransactionManager(source)), events, json);
-    jobs = context.getBean(JdbcJobRepository.class);
+    jobs = context.getBean(JdbcJobDao.class);
     StorageProvider storage = new LocalStorage(dir, "http://localhost");
     context.registerBean(StorageProvider.class, () -> storage);
     context.registerBean(JobWorker.class);
@@ -83,8 +83,8 @@ class ProcessingMySqlTest {
   @Test
   void springPersistenceProxiesRunRealPreviewAndAllFourExports() throws Exception {
     assertTrue(AopUtils.isCglibProxy(jobs));
-    assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobExecutionRepository.class)));
-    assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobOutputCleanupRepository.class)));
+    assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobExecutionDao.class)));
+    assertTrue(AopUtils.isCglibProxy(context.getBean(JdbcJobOutputCleanupDao.class)));
     Path fixture = dir.resolve("mixed-runs.tedoc");
     int generated =
         new ProcessBuilder(
@@ -261,8 +261,8 @@ class ProcessingMySqlTest {
     worker.shutdown();
     worker =
         new JobWorker(
-            context.getBean(JdbcJobExecutionRepository.class),
-            context.getBean(JdbcJobOutputCleanupRepository.class),
+            context.getBean(JdbcJobExecutionDao.class),
+            context.getBean(JdbcJobOutputCleanupDao.class),
             new LocalStorage(dir, "http://localhost"));
     var claim = worker.claim();
     assertTrue(

@@ -41,7 +41,7 @@ async function login(browser, email) {
     console.error(`Unexpected login HTTP status: ${authenticated.status()}`);
   assert.equal(authenticated.status(), 200, 'Login status');
   const session = await authenticated.json();
-  await page.getByRole('button', { name: '+ New document', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'New', exact: true }).waitFor();
   return { context, page, token: session.accessToken, user: session.user };
 }
 async function api(user, path, method = 'GET', data, expected = 200) {

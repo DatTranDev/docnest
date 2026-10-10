@@ -1,6 +1,6 @@
 # Product specification and MVP acceptance criteria
 
-Users can create folders and documents, enter and format text, save to the cloud, reopen documents and share them. The learning goal is to build complete product flows and exercise distributed failures on Google Cloud. Initial users form a small test group; production availability is not a requirement.
+The product name is **docsnest** in both languages. Users can create folders and documents, enter and format text, save to the cloud, reopen documents and share them. The learning goal is to build complete product flows and exercise distributed failures on Google Cloud. Initial users form a small test group; production availability is not a requirement.
 
 ## Scope
 
@@ -19,7 +19,7 @@ Outside the MVP: folder sharing, email invitations, OTP/email verification, emai
 ## Screens
 
 1. Login and Register. Show input validation errors. Keep the access token in memory and the refresh token in an HttpOnly cookie.
-2. Workspace. The sidebar contains My files, Shared with me and Trash. Show folder breadcrumbs and lists paginated at 50 items. Folders and documents are separate item types. Provide New folder, New document, Rename, Move and Delete.
+2. Workspace. The sidebar contains My documents, Shared with me and Trash, with a New menu for folders/documents. A wide library surface shows folder breadcrumbs, compact folder tiles and document cards with actual text previews, or a compact list. Remember the grid/list preference. Search document titles and folder names in the current scope/folder, filter by item type and sort visible items by name. Document pages contain 50 items with Load more. Item menus provide Open, Rename, Move, Delete/Trash or Restore according to ownership; support keyboard navigation and keep menus inside the viewport. Account actions and subscription plans remain accessible on mobile.
 3. Editor. Show the document title, owner-only breadcrumb, permission label, B/I/U, font, size, color and paragraph alignment controls, undo/redo, search, Save, Export and Share. Statuses are Saved, Unsaved, Saving, Offline and Conflict.
 4. Share dialog. The owner enters a registered account's email, selects VIEWER or EDITOR, changes or revokes a grant, and creates, copies or revokes a public link. Do not send email automatically.
 5. Version history. List up to 20 recent retained versions. Open older versions read-only. Save as new document forks a version. Restoring over an existing version is outside the MVP.
@@ -78,3 +78,17 @@ Account owners/editors may opt into **Cùng chỉnh sửa** for a document. All 
 ## Subscription extension (ADR028)
 
 The Payment service adds Free, Pro monthly and Pro yearly catalog entries with server-configured Stripe recurring Prices, hosted Checkout/Portal and period-end cancellation. Current features/quotas remain available on Free until plan-specific benefits are agreed. A return redirect cannot activate paid access; verified current subscription/invoice state and completed entitlement orchestration drive the account plan. Only sandbox credentials/events are enabled at this checkpoint. Real Stripe acceptance remains pending configuration; see `docs/STRIPE_SETUP.md`.
+
+## Account preferences and DOCX import — 10 October 2026
+
+Settings is available in the account menu on desktop/mobile. Save English/Vietnamese and light/dark/system appearance separately for each account in local browser storage, with session fallback when storage is unavailable. System appearance follows live browser colour-scheme changes. Settings must not remount the editor or change document bytes/history. These preferences do not sync across devices. The legacy language cookie still localizes anonymous/server HTML; an authenticated account's saved language takes precedence.
+
+Use consistent native select styling, including the actual popup where the browser supports customizable selects, with accessible native fallback. The subscription dialog has a Free feature list, a prominent Pro panel, selectable monthly/yearly billing and a clear hosted checkout action. Do not invent prices, savings or paid-exclusive capabilities; prices are displayed by Stripe before payment and existing editing/export capabilities remain on Free under ADR028.
+
+Accept DOCX from New → Import and the editor File menu. Convert bounded inert OOXML directly into the canonical model, preserving supported text, rich character styles, headings, simple list/paragraph/table/image structure, header/footer and page number fields. Confirm before replacing existing contents. Reject unsupported document structures instead of silently losing their content. ZIP/XML/media/native limits apply before a model switch; save/reopen and actual DOCX/PDF exports must preserve the imported supported content. DOCX import is a bounded extension to the original MVP; arbitrary Word-layout equivalence is not promised.
+
+## Introduction and local editing extension — 10 October 2026
+
+The owner's Markdown/code/JSON/local-site request adds `/intro` and `/local` alongside the authenticated workspace. Local editing requires no account and never uploads file content. Ship the same introduction/editor as an independently buildable static HTTP site. Local files persist only through explicit downloads; warn before leaving modified work. Preserve each mode's content/history when changing modes, language or theme. Local theme preferences are separate from account settings.
+
+Document mode reuses the canonical editor and its actual Worker, native codec and bounded DOCX importer. Browser-side DOCX export preserves supported rich text/list/table/image/page metadata; HTML downloads and browser Print / Save PDF run locally. The workspace's authenticated save/share/export behavior stays intact. Markdown supports source/split/preview, toolbar formatting, GFM tables/checklists and highlighted code fences. Preview raw HTML stays inert, unsafe link protocols are removed and remote media is not fetched. Code mode has syntax colors, line numbers, indentation, plain fallback and local files. JSON validation/pretty/minified output preserves raw numeric tokens, strings, duplicate keys and order, with localized line/column errors and unchanged source on failure. Source/JSON output, depth/token and Markdown preview bounds prevent uncontrolled rendering.

@@ -3,6 +3,7 @@ package vn.editor.collaboration;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,14 @@ class CollaborationArchitectureTest {
         .should()
         .dependOnClassesThat()
         .resideInAnyPackage("..infrastructure..", "..bootstrap..")
+        .check(production);
+    noClasses()
+        .that()
+        .resideInAPackage("..api..")
+        .should()
+        .dependOnClassesThat(
+            JavaClass.Predicates.resideInAPackage("..application..")
+                .and(JavaClass.Predicates.simpleNameEndingWith("Handler")))
         .check(production);
     noClasses()
         .that()

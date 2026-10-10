@@ -1,25 +1,25 @@
 package vn.editor.identity.auth.application.command;
 
 import java.time.Clock;
-import vn.editor.identity.auth.application.port.AccountCommands;
-import vn.editor.identity.auth.application.port.RefreshSessions;
+import vn.editor.identity.auth.application.port.AccountCommandRepository;
+import vn.editor.identity.auth.application.port.RefreshSessionRepository;
 import vn.editor.identity.auth.application.port.RefreshTokens;
 import vn.editor.identity.auth.application.port.Transactions;
 import vn.editor.identity.auth.domain.Account;
 import vn.editor.identity.auth.domain.AuthenticationFailure;
 import vn.editor.identity.auth.domain.RefreshSession;
 
-public final class RefreshSessionHandler {
-  private final AccountCommands accounts;
-  private final RefreshSessions sessions;
+public final class RefreshSessionHandler implements RefreshSessionService {
+  private final AccountCommandRepository accounts;
+  private final RefreshSessionRepository sessions;
   private final RefreshTokens tokens;
   private final Transactions transactions;
   private final SessionIssuer issuer;
   private final Clock clock;
 
   public RefreshSessionHandler(
-      AccountCommands accounts,
-      RefreshSessions sessions,
+      AccountCommandRepository accounts,
+      RefreshSessionRepository sessions,
       RefreshTokens tokens,
       Transactions transactions,
       SessionIssuer issuer,

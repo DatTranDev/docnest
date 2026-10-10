@@ -1,6 +1,7 @@
 import { MESSAGE } from '@/lib/i18n/messages';
 import { configureAuthentication, request, resetCsrf } from '@/lib/http';
 import type { Session } from '../model/types';
+import { publishAccountInitial } from '../model/accountPresentation';
 let session: Session | null = null;
 let refreshing: Promise<Session | null> | null = null;
 let sessionGeneration = 0;
@@ -28,9 +29,13 @@ export async function refresh(): Promise<Session | null> {
       const result = await request<Session>('/api/v1/auth/refresh', 'POST');
       if (generation !== sessionGeneration) return null;
       session = result;
+      publishAccountInitial(result.user.displayName);
       return session;
     } catch {
-      if (generation === sessionGeneration) session = null;
+      if (generation === sessionGeneration) {
+        session = null;
+        publishAccountInitial(null);
+      }
       return null;
     }
   });
@@ -54,6 +59,7 @@ export async function login(email: string, password: string): Promise<Session> {
     if (generation !== sessionGeneration)
       throw new Error(MESSAGE.yourSessionHasChangedPleaseSignInAgain);
     session = result;
+    publishAccountInitial(result.user.displayName);
     return session;
   });
 }
@@ -76,6 +82,7 @@ export async function logout(): Promise<void> {
       if (generation === sessionGeneration) {
         sessionGeneration++;
         session = null;
+        publishAccountInitial(null);
         resetCsrf();
       }
     }

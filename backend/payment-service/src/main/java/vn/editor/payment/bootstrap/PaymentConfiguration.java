@@ -17,7 +17,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import vn.editor.payment.billing.application.command.BillingCommandHandler;
 import vn.editor.payment.billing.application.command.RunBillingWorkHandler;
 import vn.editor.payment.billing.application.port.PaymentGateway;
-import vn.editor.payment.billing.application.port.PaymentStore;
+import vn.editor.payment.billing.application.port.PaymentRepository;
 import vn.editor.payment.billing.application.port.StripeSignatures;
 import vn.editor.payment.billing.application.query.BillingQueryHandler;
 
@@ -25,17 +25,17 @@ import vn.editor.payment.billing.application.query.BillingQueryHandler;
 public class PaymentConfiguration {
   @Bean
   BillingCommandHandler billingCommands(
-      PaymentStore store, PaymentGateway gateway, StripeSignatures signatures) {
+      PaymentRepository store, PaymentGateway gateway, StripeSignatures signatures) {
     return new BillingCommandHandler(store, gateway, signatures);
   }
 
   @Bean
-  BillingQueryHandler billingQueries(PaymentStore store) {
+  BillingQueryHandler billingQueries(PaymentRepository store) {
     return new BillingQueryHandler(store);
   }
 
   @Bean
-  RunBillingWorkHandler billingWork(PaymentStore store, PaymentGateway gateway) {
+  RunBillingWorkHandler billingWork(PaymentRepository store, PaymentGateway gateway) {
     return new RunBillingWorkHandler(store, gateway);
   }
 

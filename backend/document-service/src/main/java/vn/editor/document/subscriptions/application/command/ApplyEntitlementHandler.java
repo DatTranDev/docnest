@@ -1,13 +1,13 @@
 package vn.editor.document.subscriptions.application.command;
 
 import java.util.UUID;
-import vn.editor.document.subscriptions.application.port.EntitlementStore;
+import vn.editor.document.subscriptions.application.port.EntitlementRepository;
 import vn.editor.document.subscriptions.domain.PlanGrant;
 
 public final class ApplyEntitlementHandler {
-  private final EntitlementStore store;
+  private final EntitlementRepository store;
 
-  public ApplyEntitlementHandler(EntitlementStore store) {
+  public ApplyEntitlementHandler(EntitlementRepository store) {
     this.store = store;
   }
 

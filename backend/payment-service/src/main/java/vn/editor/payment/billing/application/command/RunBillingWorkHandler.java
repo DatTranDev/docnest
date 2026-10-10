@@ -1,14 +1,14 @@
 package vn.editor.payment.billing.application.command;
 
 import vn.editor.payment.billing.application.port.PaymentGateway;
-import vn.editor.payment.billing.application.port.PaymentStore;
+import vn.editor.payment.billing.application.port.PaymentRepository;
 import vn.editor.payment.billing.domain.BillingFailure;
 
 public final class RunBillingWorkHandler {
-  private final PaymentStore store;
+  private final PaymentRepository store;
   private final PaymentGateway gateway;
 
-  public RunBillingWorkHandler(PaymentStore store, PaymentGateway gateway) {
+  public RunBillingWorkHandler(PaymentRepository store, PaymentGateway gateway) {
     this.store = store;
     this.gateway = gateway;
   }

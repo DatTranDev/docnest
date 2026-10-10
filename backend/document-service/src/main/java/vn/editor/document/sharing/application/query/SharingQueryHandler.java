@@ -5,13 +5,13 @@ import java.util.List;
 import vn.editor.document.shared.application.Page;
 import vn.editor.document.shared.domain.DomainException;
 import vn.editor.document.sharing.application.port.AccountDirectory;
-import vn.editor.document.sharing.application.port.SharingReadPort;
+import vn.editor.document.sharing.application.port.SharingReadRepository;
 
-public final class SharingQueryHandler {
-  private final SharingReadPort sharing;
+public final class SharingQueryHandler implements SharingQueryService {
+  private final SharingReadRepository sharing;
   private final AccountDirectory accounts;
 
-  public SharingQueryHandler(SharingReadPort sharing, AccountDirectory accounts) {
+  public SharingQueryHandler(SharingReadRepository sharing, AccountDirectory accounts) {
     this.sharing = sharing;
     this.accounts = accounts;
   }

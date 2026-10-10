@@ -16,6 +16,16 @@ export type IconName =
   | 'upload'
   | 'copy'
   | 'more'
+  | 'more-vertical'
+  | 'plus'
+  | 'grid'
+  | 'list'
+  | 'edit'
+  | 'move'
+  | 'restore'
+  | 'arrow-up'
+  | 'chevron-down'
+  | 'sign-out'
   | 'close'
   | 'align-left'
   | 'align-center'
@@ -100,6 +110,34 @@ const shapes: Record<IconName, ReactNode> = {
     </>
   ),
   close: <path d="M5 5 19 19M19 5 5 19" />,
+  'more-vertical': (
+    <>
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+  grid: (
+    <>
+      <rect x="4" y="4" width="6" height="6" rx="1" />
+      <rect x="14" y="4" width="6" height="6" rx="1" />
+      <rect x="4" y="14" width="6" height="6" rx="1" />
+      <rect x="14" y="14" width="6" height="6" rx="1" />
+    </>
+  ),
+  list: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+  edit: <path d="m16 3 5 5-12 12-6 1 1-6L16 3ZM13 6l5 5" />,
+  move: (
+    <>
+      <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3V7Z" />
+      <path d="M8 13h8m-3-3 3 3-3 3" />
+    </>
+  ),
+  restore: <path d="M4 10a8 8 0 1 1 1 8M4 4v6h6M12 8v4l3 2" />,
+  'arrow-up': <path d="M12 20V4m-6 6 6-6 6 6" />,
+  'chevron-down': <path d="m6 9 6 6 6-6" />,
+  'sign-out': <path d="M9 4H4v16h5M9 12h12m-5-5 5 5-5 5" />,
   'align-left': <path d="M4 6h16M4 10h10M4 14h16M4 18h10" />,
   'align-center': <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />,
   'align-right': <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />,

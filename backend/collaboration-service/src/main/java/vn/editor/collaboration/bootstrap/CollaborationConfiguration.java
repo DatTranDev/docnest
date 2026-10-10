@@ -16,18 +16,18 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 import vn.editor.collaboration.rooms.application.command.RoomCommandHandler;
 import vn.editor.collaboration.rooms.application.port.DocumentAccess;
-import vn.editor.collaboration.rooms.application.port.RoomStore;
+import vn.editor.collaboration.rooms.application.port.RoomRepository;
 import vn.editor.collaboration.rooms.application.query.RoomQueryHandler;
 
 @Configuration
 public class CollaborationConfiguration {
   @Bean
-  RoomCommandHandler commands(RoomStore rooms, DocumentAccess access) {
+  RoomCommandHandler commands(RoomRepository rooms, DocumentAccess access) {
     return new RoomCommandHandler(rooms, access);
   }
 
   @Bean
-  RoomQueryHandler queries(RoomStore rooms, DocumentAccess access) {
+  RoomQueryHandler queries(RoomRepository rooms, DocumentAccess access) {
     return new RoomQueryHandler(rooms, access);
   }
 

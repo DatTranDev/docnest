@@ -2,7 +2,7 @@ package vn.editor.identity.auth.application.command;
 
 import vn.editor.identity.auth.application.port.LoginAttempts;
 
-public final class CheckLoginAttemptHandler {
+public final class CheckLoginAttemptHandler implements CheckLoginAttemptService {
   private final LoginAttempts attempts;
 
   public CheckLoginAttemptHandler(LoginAttempts attempts) {

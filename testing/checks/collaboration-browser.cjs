@@ -28,7 +28,7 @@ async function login(browser, email) {
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
   const session = await (await response).json();
   assert.ok(session.accessToken);
-  await page.getByRole('button', { name: '+ Tài liệu mới' }).waitFor();
+  await page.getByRole('button', { name: 'Mới', exact: true }).waitFor();
   return { context, page, token: session.accessToken, user: session.user };
 }
 async function api(user, path, method = 'GET', data, expected = 200) {

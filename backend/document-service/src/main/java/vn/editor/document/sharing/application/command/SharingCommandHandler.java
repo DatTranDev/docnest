@@ -3,17 +3,17 @@ package vn.editor.document.sharing.application.command;
 import vn.editor.document.documents.application.port.DocumentAuthorization;
 import vn.editor.document.documents.domain.Document;
 import vn.editor.document.sharing.application.port.AccountDirectory;
-import vn.editor.document.sharing.application.port.SharingWritePort;
+import vn.editor.document.sharing.application.port.SharingWriteRepository;
 import vn.editor.document.sharing.application.query.PermissionView;
 import vn.editor.document.sharing.domain.SharingPolicy;
 
-public final class SharingCommandHandler {
+public final class SharingCommandHandler implements SharingCommandService {
   private final DocumentAuthorization documents;
-  private final SharingWritePort sharing;
+  private final SharingWriteRepository sharing;
   private final AccountDirectory accounts;
 
   public SharingCommandHandler(
-      DocumentAuthorization documents, SharingWritePort sharing, AccountDirectory accounts) {
+      DocumentAuthorization documents, SharingWriteRepository sharing, AccountDirectory accounts) {
     this.documents = documents;
     this.sharing = sharing;
     this.accounts = accounts;
@@ -65,7 +65,7 @@ public final class SharingCommandHandler {
   }
 
   public CreatedLink handle(CreatePublicLinkCommand command) {
-    SharingWritePort.LinkSecret secret = sharing.newLinkSecret();
+    SharingWriteRepository.LinkSecret secret = sharing.newLinkSecret();
     return sharing.execute(
         () -> {
           documents.requireOwner(command.actor(), command.documentId(), true, false);

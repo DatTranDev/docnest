@@ -66,8 +66,8 @@ import vn.editor.document.documents.application.command.ApplyPreviewCompletionCo
 import vn.editor.document.documents.application.command.ApplyPreviewCompletionHandler;
 import vn.editor.document.documents.application.command.RetentionCommandHandler;
 import vn.editor.document.documents.application.command.SaveResult;
-import vn.editor.document.documents.infrastructure.JdbcOutbox;
-import vn.editor.document.documents.infrastructure.JdbcRetention;
+import vn.editor.document.documents.infrastructure.JdbcOutboxDao;
+import vn.editor.document.documents.infrastructure.JdbcRetentionDao;
 import vn.editor.document.shared.domain.DomainException;
 
 class DocumentIntegrationTest {
@@ -791,7 +791,7 @@ class DocumentIntegrationTest {
         upload = upload(owner, document, "mixed-runs.tedoc", 0),
         key = DocumentHarness.uuid();
     commit(owner, document, upload, 0, key);
-    JdbcOutbox outbox = new JdbcOutbox(db, new DataSourceTransactionManager(source));
+    JdbcOutboxDao outbox = new JdbcOutboxDao(db, new DataSourceTransactionManager(source));
     var first = outbox.claim("owner-a");
     assertNotNull(first);
     assertTrue(EventSchemas.valid(first.topic(), first.payload()));
@@ -831,7 +831,7 @@ class DocumentIntegrationTest {
         Timestamp.from(Instant.now().minusSeconds(1)),
         owner,
         key);
-    new JdbcRetention(db, new DataSourceTransactionManager(source)).expireReceipts();
+    new JdbcRetentionDao(db, new DataSourceTransactionManager(source)).expireReceipts();
     assertEquals(
         0,
         db.queryForObject(

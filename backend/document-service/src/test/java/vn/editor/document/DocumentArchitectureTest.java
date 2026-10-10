@@ -3,6 +3,7 @@ package vn.editor.document;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -46,6 +47,16 @@ class DocumentArchitectureTest {
               "vn.editor.common.codec..",
               "vn.editor.common.storage..",
               "vn.editor.common.messaging..");
+
+  @ArchTest
+  static final ArchRule controllersUseServiceInterfaces =
+      noClasses()
+          .that()
+          .resideInAPackage("..api..")
+          .should()
+          .dependOnClassesThat(
+              JavaClass.Predicates.resideInAPackage("..application..")
+                  .and(JavaClass.Predicates.simpleNameEndingWith("Handler")));
 
   @ArchTest
   static final ArchRule infrastructureCannotCallApi =

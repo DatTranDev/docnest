@@ -6,7 +6,7 @@ import vn.editor.processing.jobs.application.port.DocumentAccessPort;
 import vn.editor.processing.jobs.application.port.JobCommandRepository;
 import vn.editor.processing.jobs.domain.ExportRequest;
 
-public final class CreateExportJobCommandHandler {
+public final class CreateExportJobCommandHandler implements CreateExportJobCommandService {
   private final JobCommandRepository commands;
   private final DocumentAccessPort documents;
 

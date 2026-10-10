@@ -1,20 +1,20 @@
 package vn.editor.identity.auth.application.command;
 
-import vn.editor.identity.auth.application.port.AccountCommands;
-import vn.editor.identity.auth.application.port.RefreshSessions;
+import vn.editor.identity.auth.application.port.AccountCommandRepository;
+import vn.editor.identity.auth.application.port.RefreshSessionRepository;
 import vn.editor.identity.auth.application.port.RefreshTokens;
 import vn.editor.identity.auth.application.port.Transactions;
 import vn.editor.identity.auth.domain.RefreshSession;
 
-public final class LogoutHandler {
-  private final AccountCommands accounts;
-  private final RefreshSessions sessions;
+public final class LogoutHandler implements LogoutService {
+  private final AccountCommandRepository accounts;
+  private final RefreshSessionRepository sessions;
   private final RefreshTokens tokens;
   private final Transactions transactions;
 
   public LogoutHandler(
-      AccountCommands accounts,
-      RefreshSessions sessions,
+      AccountCommandRepository accounts,
+      RefreshSessionRepository sessions,
       RefreshTokens tokens,
       Transactions transactions) {
     this.accounts = accounts;

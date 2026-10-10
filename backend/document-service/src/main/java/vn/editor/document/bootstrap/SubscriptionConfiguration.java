@@ -15,7 +15,7 @@ import org.springframework.util.backoff.FixedBackOff;
 import vn.editor.common.messaging.JdbcMessageLog;
 import vn.editor.common.messaging.KafkaMessageRelay;
 import vn.editor.document.subscriptions.application.command.ApplyEntitlementHandler;
-import vn.editor.document.subscriptions.application.port.EntitlementStore;
+import vn.editor.document.subscriptions.application.port.EntitlementRepository;
 
 @Configuration
 @EnableScheduling
@@ -31,7 +31,7 @@ public class SubscriptionConfiguration {
   }
 
   @Bean
-  ApplyEntitlementHandler entitlementHandler(EntitlementStore store) {
+  ApplyEntitlementHandler entitlementHandler(EntitlementRepository store) {
     return new ApplyEntitlementHandler(store);
   }
 

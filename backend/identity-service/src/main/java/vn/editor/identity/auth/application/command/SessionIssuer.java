@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import vn.editor.identity.auth.application.port.AccessTokens;
-import vn.editor.identity.auth.application.port.RefreshSessions;
+import vn.editor.identity.auth.application.port.RefreshSessionRepository;
 import vn.editor.identity.auth.application.port.RefreshTokens;
 import vn.editor.identity.auth.application.query.UserView;
 import vn.editor.identity.auth.domain.Account;
@@ -15,12 +15,12 @@ import vn.editor.identity.auth.domain.RefreshSession;
  * atomic.
  */
 public final class SessionIssuer {
-  private final RefreshSessions sessions;
+  private final RefreshSessionRepository sessions;
   private final RefreshTokens refreshTokens;
   private final AccessTokens accessTokens;
 
   public SessionIssuer(
-      RefreshSessions sessions, RefreshTokens refreshTokens, AccessTokens accessTokens) {
+      RefreshSessionRepository sessions, RefreshTokens refreshTokens, AccessTokens accessTokens) {
     this.sessions = sessions;
     this.refreshTokens = refreshTokens;
     this.accessTokens = accessTokens;

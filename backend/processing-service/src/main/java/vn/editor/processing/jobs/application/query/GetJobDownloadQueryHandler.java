@@ -10,7 +10,7 @@ import vn.editor.processing.jobs.domain.ExportFormat;
 import vn.editor.processing.jobs.domain.JobLifecyclePolicy;
 import vn.editor.processing.jobs.domain.JobPolicyViolation;
 
-public final class GetJobDownloadQueryHandler {
+public final class GetJobDownloadQueryHandler implements GetJobDownloadQueryService {
   private final GetJobQueryHandler jobs;
   private final ResultStoragePort storage;
   private final String publicBase;

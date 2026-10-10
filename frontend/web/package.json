@@ -6,29 +6,43 @@
   "scripts": {
     "dev": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build --webpack",
+    "build:local": "vite build --config vite.local.config.ts",
+    "preview:local": "vite preview --config vite.local.config.ts --host 127.0.0.1 --port 8081 --strictPort",
     "start": "next start --hostname 0.0.0.0",
     "test": "vitest run",
     "benchmark": "node ../../testing/benchmark/run.mjs",
     "worker-check": "node ../../testing/benchmark/worker-check.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src next.config.ts vitest.config.ts"
+    "lint": "eslint src next.config.ts vitest.config.ts vite.local.config.ts"
   },
   "dependencies": {
-    "@ted/editor-core": "*",
+    "@codemirror/commands": "6.11.1",
+    "@codemirror/lang-css": "6.3.1",
+    "@codemirror/lang-html": "6.4.12",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/language": "6.13.1",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
-    "@codemirror/commands": "6.11.1",
+    "@lezer/highlight": "1.2.5",
+    "@ted/editor-core": "*",
+    "docx": "9.9.0",
+    "fflate": "0.8.3",
     "next": "16.3.8",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.10.1",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
-    "@types/node": "24.10.1",
     "typescript": "5.9.3",
     "vite": "8.3.2",
-    "vitest": "5.0.3",
-    "@playwright/test": "1.63.0"
+    "vitest": "5.0.3"
   }
 }

@@ -1,0 +1,495 @@
+:root {
+  --ui-bg: #f6f8fc;
+  --ui-surface: #fff;
+  --ui-tile: #edf2f8;
+  --ui-ink: #202124;
+  --ui-muted: #5f6368;
+  --ui-border: #d9e0e9;
+  --ui-selected: #c2e7ff;
+  --ui-accent: #0b57d0;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  --ui-bg: #171a20;
+  --ui-surface: #22262e;
+  --ui-tile: #2c323d;
+  --ui-ink: #e5e9f0;
+  --ui-muted: #a7b0bf;
+  --ui-border: #434c5a;
+  --ui-selected: #234969;
+  --ui-accent: #a3c8ff;
+  color-scheme: dark;
+}
+.app {
+  --library-bg: var(--ui-bg);
+  --library-surface: var(--ui-surface);
+  --library-tile: var(--ui-tile);
+  --library-ink: var(--ui-ink);
+  --library-muted: var(--ui-muted);
+  --library-selected: var(--ui-selected);
+  --library-blue: var(--ui-accent);
+}
+/* Native customizable selects preserve form semantics and keyboard/typeahead behaviour. */
+select {
+  min-height: 34px;
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+.type-filter {
+  gap: 8px;
+  border: 0;
+  padding: 0;
+}
+.type-filter select {
+  min-width: 140px;
+  max-width: 180px;
+  padding: 7px 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 9px;
+  background: var(--ui-surface);
+}
+@supports (appearance: base-select) {
+  select,
+  ::picker(select) {
+    appearance: base-select;
+  }
+  select {
+    align-items: center;
+    gap: 16px;
+  }
+  select::picker-icon {
+    content: '⌄';
+    font-size: 18px;
+    color: var(--ui-muted);
+    transition: rotate 120ms;
+  }
+  select:open::picker-icon {
+    rotate: 180deg;
+  }
+  ::picker(select) {
+    padding: 6px;
+    margin-top: 6px;
+    max-height: min(320px, 60vh);
+    overflow-y: auto;
+    color: var(--ui-ink);
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: 12px;
+    box-shadow: 0 8px 28px #00000024;
+  }
+  select option {
+    display: flex;
+    gap: 12px;
+    padding: 10px 12px;
+    min-height: 38px;
+    border-radius: 7px;
+    white-space: normal;
+  }
+  select option:hover,
+  select option:focus {
+    background: var(--ui-tile);
+  }
+  select option:checked {
+    background: var(--ui-selected);
+    font-weight: 600;
+  }
+  select option:disabled {
+    opacity: 0.5;
+  }
+  select option::checkmark {
+    color: var(--ui-accent);
+    margin-left: auto;
+    order: 1;
+  }
+}
+.settings-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 28px;
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: 20px;
+  box-shadow: 0 24px 80px #00000030;
+}
+.tool-menu-panel {
+  z-index: 110;
+  overflow-y: auto;
+  max-width: calc(100vw - 16px);
+}
+.tool-menu summary svg:last-child {
+  transform: none;
+}
+.settings-dialog::backdrop {
+  background: #131b2a80;
+}
+.settings-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.settings-dialog h2 {
+  margin-bottom: 12px;
+}
+.settings-dialog .muted {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.settings-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 28px 0;
+}
+.theme-options {
+  border: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.theme-options legend {
+  margin-bottom: 12px;
+}
+.theme-option {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.theme-option:has(:checked) {
+  border-color: var(--ui-accent);
+  box-shadow: 0 0 0 1px var(--ui-accent);
+}
+.theme-option input {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  accent-color: #0b57d0;
+}
+.theme-sample {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  grid-template-rows: 12px 32px;
+  gap: 5px;
+  padding: 9px;
+  height: 70px;
+  border-radius: 7px;
+  background: #edf2f8;
+}
+.theme-sample > span {
+  background: #fff;
+  border-radius: 3px;
+}
+.theme-sample > span:first-child {
+  grid-column: 1/-1;
+}
+.theme-dark .theme-sample {
+  background: #171a20;
+}
+.theme-dark .theme-sample > span {
+  background: #434c5a;
+}
+.theme-system .theme-sample {
+  background: linear-gradient(90deg, #edf2f8 50%, #171a20 50%);
+}
+.theme-system .theme-sample > span {
+  background: linear-gradient(90deg, #fff 50%, #434c5a 50%);
+}
+.settings-saved {
+  color: var(--ui-muted);
+  margin: 24px 0 0;
+  font-size: 12px;
+}
+.billing-panel {
+  width: min(840px, 100%);
+  padding: 30px;
+}
+.billing-brand {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.6px;
+}
+.billing-hero {
+  margin: 22px 0;
+  max-width: 610px;
+}
+.billing-hero h2 {
+  font-size: clamp(28px, 4vw, 38px);
+  line-height: 1.15;
+  letter-spacing: -1px;
+  margin-bottom: 12px;
+}
+.billing-hero p {
+  color: var(--ui-muted);
+  line-height: 1.6;
+}
+.billing-options {
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 0;
+  border: 1px solid var(--ui-border);
+  border-radius: 18px;
+  overflow: hidden;
+}
+.billing-free,
+.billing-pro {
+  padding: 26px;
+}
+.billing-free {
+  background: var(--ui-surface);
+}
+.billing-free h3,
+.billing-pro h3 {
+  font-size: 23px;
+  letter-spacing: -0.5px;
+  margin-bottom: 10px;
+}
+.billing-free > p,
+.billing-pro > p {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.billing-features {
+  padding: 0;
+  list-style: none;
+  margin: 22px 0;
+  display: grid;
+  gap: 15px;
+}
+.billing-features li {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.billing-features li > span {
+  color: var(--ui-accent);
+}
+.billing-pro {
+  color: #143766;
+  background: #eaf2ff;
+  border-left: 1px solid #cadcf8;
+}
+.billing-pro h3 {
+  color: #143766;
+}
+.billing-cycle {
+  display: flex;
+  background: #d4e3fa;
+  padding: 4px;
+  border-radius: 10px;
+  margin: 22px 0 12px;
+  gap: 4px;
+}
+.billing-cycle button {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 9px 8px;
+  border-radius: 7px;
+  color: #143766;
+}
+.billing-cycle button[aria-pressed='true'] {
+  background: #fff;
+  box-shadow: 0 1px 4px #14376618;
+  font-weight: 600;
+}
+.billing-price {
+  display: block;
+  font-size: 17px;
+  margin: 18px 0;
+}
+.billing-checkout {
+  width: 100%;
+  padding: 12px;
+}
+.billing-pro .billing-checkout-note {
+  font-size: 11px;
+  margin: 12px 0 0;
+}
+.current-plan-badge {
+  display: inline-flex;
+  padding: 6px 10px;
+  background: var(--ui-tile);
+  border-radius: 7px;
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.billing-free-note {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.billing-actions {
+  border-top: 1px solid var(--ui-border);
+  padding-top: 18px;
+}
+.billing-actions button {
+  font-size: 12px;
+}
+/* Keep the editable and print pages white: stored document colours stay faithful. */
+:root[data-theme='dark'] body {
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+:root[data-theme='dark'] .workspace,
+:root[data-theme='dark'] .auth {
+  background: var(--ui-surface);
+}
+:root[data-theme='dark'] .header-account .language-selector {
+  color: var(--ui-muted);
+}
+:root[data-theme='dark'] .name-sort,
+:root[data-theme='dark'] .workspace-breadcrumb button,
+:root[data-theme='dark'] .back-to-files {
+  background: transparent;
+  color: var(--ui-ink);
+}
+:root[data-theme='dark'] .sidebar-bottom,
+:root[data-theme='dark'] .view-switch,
+:root[data-theme='dark'] .library-list .file {
+  border-color: var(--ui-border);
+}
+:root[data-theme='dark'] .folder-type {
+  color: var(--ui-muted);
+}
+:root[data-theme='dark'] h1,
+:root[data-theme='dark'] h2,
+:root[data-theme='dark'] h3 {
+  color: var(--ui-ink);
+}
+:root[data-theme='dark'] button,
+:root[data-theme='dark'] input,
+:root[data-theme='dark'] .panel,
+:root[data-theme='dark'] .action-menu-popover,
+:root[data-theme='dark'] .tool-menu-panel {
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+}
+:root[data-theme='dark'] .primary {
+  background: #3977d5;
+  color: #fff;
+  border-color: #3977d5;
+}
+:root[data-theme='dark'] button:hover {
+  background: var(--ui-tile);
+}
+:root[data-theme='dark'] .sidebar > button,
+:root[data-theme='dark'] .sidebar-bottom button {
+  background: transparent;
+  color: var(--ui-muted);
+}
+:root[data-theme='dark'] .sidebar > button.selected {
+  background: var(--ui-selected);
+  color: var(--ui-ink);
+}
+:root[data-theme='dark'] .workspace-search,
+:root[data-theme='dark'] .editor-toolbar,
+:root[data-theme='dark'] .search {
+  background: var(--ui-tile);
+  color: var(--ui-ink);
+  border-color: var(--ui-border);
+}
+:root[data-theme='dark'] .workspace-search input {
+  background: transparent;
+}
+:root[data-theme='dark'] .new-menu .action-menu-trigger,
+:root[data-theme='dark'] .editor-section {
+  background: var(--ui-surface);
+  border-color: var(--ui-border);
+}
+:root[data-theme='dark'] .editor-heading,
+:root[data-theme='dark'] .editor-footer,
+:root[data-theme='dark'] .tool-group {
+  border-color: var(--ui-border);
+}
+:root[data-theme='dark'] .editor-canvas {
+  background: var(--ui-bg);
+}
+:root[data-theme='dark'] .editor-page {
+  color: #202124;
+  color-scheme: light;
+}
+:root[data-theme='dark'] .file-name,
+:root[data-theme='dark'] .action-menu-trigger,
+:root[data-theme='dark'] .view-switch button {
+  background: transparent;
+  color: var(--ui-ink);
+}
+:root[data-theme='dark'] .file:hover,
+:root[data-theme='dark'] .action-menu-popover button:hover {
+  background: var(--ui-tile);
+}
+:root[data-theme='dark'] .document-cover,
+:root[data-theme='dark'] .document-cover:hover {
+  background: #fff;
+}
+:root[data-theme='dark'] .library-count,
+:root[data-theme='dark'] .file-access,
+:root[data-theme='dark'] .file-kind,
+:root[data-theme='dark'] .file-preview,
+:root[data-theme='dark'] .sidebar-label,
+:root[data-theme='dark'] .muted,
+:root[data-theme='dark'] .document-card-footer,
+:root[data-theme='dark'] .editor-meta,
+:root[data-theme='dark'] .tool-label {
+  color: var(--ui-muted);
+}
+:root[data-theme='dark'] .billing-pro {
+  background: #233b5b;
+  color: #dce9ff;
+  border-color: var(--ui-border);
+}
+:root[data-theme='dark'] .billing-pro h3 {
+  color: #dce9ff;
+}
+:root[data-theme='dark'] .billing-cycle {
+  background: #172b46;
+}
+:root[data-theme='dark'] .billing-cycle button {
+  background: transparent;
+}
+:root[data-theme='dark'] .billing-cycle button[aria-pressed='true'] {
+  background: #355a86;
+}
+:root[data-theme='dark'] .view-switch button[aria-pressed='true'] {
+  background: var(--ui-selected);
+}
+@media (max-width: 600px) {
+  .billing-panel {
+    padding: 22px;
+  }
+  .billing-options {
+    grid-template-columns: 1fr;
+  }
+  .billing-pro {
+    order: -1;
+    border-left: 0;
+    border-top: 0;
+    border-bottom: 1px solid var(--ui-border);
+  }
+  .billing-free,
+  .billing-pro {
+    padding: 20px;
+  }
+  .settings-dialog {
+    padding: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  select::picker-icon {
+    transition: none;
+  }
+}

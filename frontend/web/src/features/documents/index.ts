@@ -6,3 +6,6 @@ export type { DocumentInfo, Version, ActiveDocument, DocumentScope } from './mod
 export { DocumentRows } from './components/DocumentRows';
 export { RecoveryPanel } from './components/RecoveryPanel';
 export { VersionDialog } from './components/VersionDialog';
+
+export { readImportedFile } from './model/importFile';
+export { sourceFileType, sourceExtensions } from './model/sourceFiles';

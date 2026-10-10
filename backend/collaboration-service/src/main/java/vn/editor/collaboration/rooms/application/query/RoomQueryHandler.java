@@ -2,19 +2,19 @@ package vn.editor.collaboration.rooms.application.query;
 
 import java.util.UUID;
 import vn.editor.collaboration.rooms.application.port.DocumentAccess;
-import vn.editor.collaboration.rooms.application.port.RoomStore;
+import vn.editor.collaboration.rooms.application.port.RoomRepository;
 import vn.editor.collaboration.rooms.domain.RoomFailure;
 
-public final class RoomQueryHandler {
-  private final RoomStore rooms;
+public final class RoomQueryHandler implements RoomQueryService {
+  private final RoomRepository rooms;
   private final DocumentAccess documents;
 
-  public RoomQueryHandler(RoomStore rooms, DocumentAccess documents) {
+  public RoomQueryHandler(RoomRepository rooms, DocumentAccess documents) {
     this.rooms = rooms;
     this.documents = documents;
   }
 
-  public RoomStore.Page read(UUID id, long after, String bearer) {
+  public RoomRepository.Page read(UUID id, long after, String bearer) {
     if (after < 0) throw new RoomFailure("COLLABORATION_INVALID_CURSOR");
     documents.check(id, bearer);
     // Reads may overlap the short interval between native commit and room completion.

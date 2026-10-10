@@ -14,7 +14,7 @@ import vn.editor.document.documents.domain.UploadTicket;
  * The validator performs storage I/O only after the repository has committed its short lease
  * transaction.
  */
-public final class SaveDocumentCommandHandler {
+public final class SaveDocumentCommandHandler implements SaveDocumentCommandService {
   private final SaveRepository saves;
   private final SnapshotValidator validator;
 

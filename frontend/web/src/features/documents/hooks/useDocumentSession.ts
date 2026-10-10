@@ -3,14 +3,7 @@ import { DOCUMENT_TIMING } from '../model/constants';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import {
-  decodeNative,
-  EditorModel,
-  encodeNative,
-  importTxt,
-  sha256,
-  type Snapshot,
-} from '@ted/editor-core';
+import { decodeNative, EditorModel, encodeNative, sha256, type Snapshot } from '@ted/editor-core';
 import type { User } from '@/features/auth';
 import {
   checkpoint,
@@ -25,7 +18,9 @@ import { ApiError, errorMessage } from '@/lib/http';
 import { useOnlineStatus } from '@/lib/react/useOnlineStatus';
 import { useLatest } from '@/lib/react/useLatest';
 import { createDocument, getDocument, versionContent } from '../api/documents';
+import { readImportedFile } from '../model/importFile';
 import { saveNativeVersion } from '../api/saveDocument';
+import { sourceFileType } from '../model/sourceFiles';
 import type { ActiveDocument, DocumentInfo } from '../model/types';
 export function useDocumentSession(
   user: User | null,
@@ -227,19 +222,25 @@ export function useDocumentSession(
     }
   }, [activeRef, checkAccess, controller, preserve, reload, setError, statusRef, userRef]);
   const newDoc = useCallback(
-    async (snapshot?: Snapshot): Promise<void> => {
+    async (snapshot?: Snapshot, suggestedTitle?: string): Promise<void> => {
       const active = activeRef.current;
       const title = window.prompt(
         translation.current(MESSAGE.documentName),
-        snapshot
-          ? translation.current(MESSAGE.valueCopy, {
-              p0: active?.document.title ?? translation.current(MESSAGE.draft),
-            })
-          : translation.current(MESSAGE.newDocumentLabel),
+        suggestedTitle ??
+          (snapshot
+            ? translation.current(MESSAGE.valueCopy, {
+                p0: active?.document.title ?? translation.current(MESSAGE.draft),
+              })
+            : translation.current(MESSAGE.newDocumentLabel)),
       );
       if (!title) return;
       try {
-        const d = await createDocument(title, parentFolder.current);
+        if (active) await preserve(active);
+        const fileTitle =
+          suggestedTitle && sourceFileType(suggestedTitle) && !sourceFileType(title)
+            ? title + '.' + suggestedTitle.split('.').at(-1)
+            : title;
+        const d = await createDocument(fileTitle, parentFolder.current);
         if (snapshot) {
           const m = EditorModel.loaded(snapshot);
           m.savedContentToken = 'unsaved-copy';
@@ -253,7 +254,7 @@ export function useDocumentSession(
         setError(errorMessage(e));
       }
     },
-    [activeRef, open, parentFolder, reload, setError, translation],
+    [activeRef, open, parentFolder, preserve, reload, setError, translation],
   );
 
   useLayoutEffect(() => {
@@ -387,8 +388,12 @@ export function useDocumentSession(
         return;
       }
       try {
-        const bytes = new Uint8Array(await file.arrayBuffer()),
-          snapshot = file.name.endsWith('.tedoc') ? await decodeNative(bytes) : importTxt(bytes);
+        const snapshot = await readImportedFile(file);
+        if (
+          file.name.toLowerCase().endsWith('.docx') &&
+          !window.confirm(translation.current(MESSAGE.importDocxNotice))
+        )
+          return;
         await preserve(document);
         if (activeRef.current?.model !== document.model) return;
         const model = EditorModel.loaded(snapshot);
@@ -401,7 +406,7 @@ export function useDocumentSession(
         setError(errorMessage(error));
       }
     },
-    [activeRef, preserve, setError],
+    [activeRef, preserve, setError, translation],
   );
   const recoverLocal = useCallback(async () => {
     const document = activeRef.current;

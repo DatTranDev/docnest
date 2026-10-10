@@ -1,12 +1,12 @@
 package vn.editor.identity.auth.application.query;
 
-import vn.editor.identity.auth.application.port.AccountReads;
+import vn.editor.identity.auth.application.port.AccountReadRepository;
 import vn.editor.identity.auth.domain.AuthenticationFailure;
 
-public final class GetProfileHandler {
-  private final AccountReads accounts;
+public final class GetProfileHandler implements GetProfileService {
+  private final AccountReadRepository accounts;
 
-  public GetProfileHandler(AccountReads accounts) {
+  public GetProfileHandler(AccountReadRepository accounts) {
     this.accounts = accounts;
   }
 

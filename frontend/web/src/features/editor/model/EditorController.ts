@@ -5,9 +5,11 @@ import {
   EditorSelection,
   EditorState,
   StateEffect,
+  Prec,
+  type Extension,
 } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { defaultKeymap } from '@codemirror/commands';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import {
   decodeStyles,
   EditorModel,
@@ -100,9 +102,11 @@ export class EditorController {
   private collaborationBlocked = false;
   private readonly editability = new Compartment();
   private readonly language = new Compartment();
+  private readonly sourceSyntax = new Compartment();
   imageAlt = translate(DEFAULT_LOCALE, MESSAGE.imageInDocument);
   private locale: Locale | null = null;
   private destroyed = false;
+  private sourceMode = false;
   constructor(
     readonly model: EditorModel,
     parent: HTMLElement,
@@ -123,6 +127,7 @@ export class EditorController {
           styles,
           tableWidgetField(this, refresh),
           this.language.of([]),
+          this.sourceSyntax.of([]),
           this.editability.of([
             EditorView.editable.of(!readOnly),
             EditorState.readOnly.of(readOnly),
@@ -191,9 +196,9 @@ export class EditorController {
               }
               return false;
             },
-            copy: (event) => this.copy(event),
-            cut: (event) => this.copy(event, true),
-            paste: (event, view) => this.paste(event, view),
+            copy: (event) => (this.sourceMode ? false : this.copy(event)),
+            cut: (event) => (this.sourceMode ? false : this.copy(event, true)),
+            paste: (event, view) => (this.sourceMode ? false : this.paste(event, view)),
           }),
         ],
       }),
@@ -279,6 +284,20 @@ export class EditorController {
         ]),
         refresh.of(),
       ],
+    });
+  }
+  setSourceSyntax(extension: Extension): void {
+    this.sourceMode = true;
+    this.view.dispatch({
+      effects: this.sourceSyntax.reconfigure([
+        extension,
+        Prec.highest(
+          keymap.of([
+            indentWithTab,
+            ...['Mod-b', 'Mod-i', 'Mod-u', 'Mod-\\'].map((key) => ({ key, run: () => true })),
+          ]),
+        ),
+      ]),
     });
   }
   private copy(event: ClipboardEvent, cut = false): boolean {

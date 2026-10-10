@@ -3,7 +3,6 @@ package vn.editor.document.documents.api;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -18,16 +17,16 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-import vn.editor.document.documents.application.command.ChangeDocumentMetadataCommand;
-import vn.editor.document.documents.application.command.CreateDocumentCommand;
-import vn.editor.document.documents.application.command.CreateUploadCommand;
-import vn.editor.document.documents.application.command.DocumentCommandHandler;
-import vn.editor.document.documents.application.command.SaveDocumentCommand;
-import vn.editor.document.documents.application.command.SaveDocumentCommandHandler;
+import vn.editor.document.documents.api.dto.ChangeDocumentMetadataRequestDto;
+import vn.editor.document.documents.api.dto.CreateDocumentRequestDto;
+import vn.editor.document.documents.api.dto.CreateUploadRequestDto;
+import vn.editor.document.documents.api.dto.MetadataRevisionRequestDto;
+import vn.editor.document.documents.api.dto.SaveVersionRequestDto;
+import vn.editor.document.documents.application.command.DocumentCommandService;
+import vn.editor.document.documents.application.command.SaveDocumentCommandService;
 import vn.editor.document.documents.application.command.SaveResult;
-import vn.editor.document.documents.application.command.TrashDocumentCommand;
-import vn.editor.document.documents.application.command.UploadCommandHandler;
-import vn.editor.document.documents.application.query.DocumentQueryHandler;
+import vn.editor.document.documents.application.command.UploadCommandService;
+import vn.editor.document.documents.application.query.DocumentQueryService;
 import vn.editor.document.documents.application.query.GetDocumentQuery;
 import vn.editor.document.documents.application.query.GetVersionQuery;
 import vn.editor.document.documents.application.query.ListDocumentsQuery;
@@ -37,16 +36,16 @@ import vn.editor.document.shared.domain.Values;
 
 @RestController
 public class DocumentController {
-  private final DocumentCommandHandler commands;
-  private final DocumentQueryHandler queries;
-  private final UploadCommandHandler uploads;
-  private final SaveDocumentCommandHandler saves;
+  private final DocumentCommandService commands;
+  private final DocumentQueryService queries;
+  private final UploadCommandService uploads;
+  private final SaveDocumentCommandService saves;
 
   public DocumentController(
-      DocumentCommandHandler commands,
-      DocumentQueryHandler queries,
-      UploadCommandHandler uploads,
-      SaveDocumentCommandHandler saves) {
+      DocumentCommandService commands,
+      DocumentQueryService queries,
+      UploadCommandService uploads,
+      SaveDocumentCommandService saves) {
     this.commands = commands;
     this.queries = queries;
     this.uploads = uploads;
@@ -71,9 +70,8 @@ public class DocumentController {
 
   @PostMapping("/api/v1/documents")
   ResponseEntity<?> createDocument(
-      @AuthenticationPrincipal Jwt jwt, @RequestBody Map<String, Object> b) {
-    return ResponseEntity.status(201)
-        .body(commands.handle(CreateDocumentCommand.from(actor(jwt), b)));
+      @AuthenticationPrincipal Jwt jwt, @RequestBody CreateDocumentRequestDto request) {
+    return ResponseEntity.status(201).body(commands.handle(request.command(actor(jwt))));
   }
 
   @GetMapping("/api/v1/documents/{id}")
@@ -85,16 +83,16 @@ public class DocumentController {
   Object patchDocument(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
-      @RequestBody Map<String, Object> b) {
-    return commands.handle(ChangeDocumentMetadataCommand.from(actor(jwt), id, b));
+      @RequestBody ChangeDocumentMetadataRequestDto request) {
+    return commands.handle(request.command(actor(jwt), id));
   }
 
   @DeleteMapping("/api/v1/documents/{id}")
   ResponseEntity<?> trash(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
-      @RequestBody Map<String, Object> b) {
-    commands.handle(TrashDocumentCommand.from(actor(jwt), id, b, false));
+      @RequestBody MetadataRevisionRequestDto request) {
+    commands.handle(request.command(actor(jwt), id, false));
     return ResponseEntity.noContent().build();
   }
 
@@ -102,8 +100,8 @@ public class DocumentController {
   Object restore(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
-      @RequestBody Map<String, Object> b) {
-    return commands.handle(TrashDocumentCommand.from(actor(jwt), id, b, true));
+      @RequestBody MetadataRevisionRequestDto request) {
+    return commands.handle(request.command(actor(jwt), id, true));
   }
 
   @GetMapping("/api/v1/documents/{id}/versions")
@@ -117,10 +115,11 @@ public class DocumentController {
 
   @PostMapping("/api/v1/documents/{id}/uploads")
   ResponseEntity<?> uploadTicket(
-      @AuthenticationPrincipal Jwt jwt, @PathVariable String id, @RequestBody Map<String, Object> b)
+      @AuthenticationPrincipal Jwt jwt,
+      @PathVariable String id,
+      @RequestBody CreateUploadRequestDto request)
       throws IOException {
-    return ResponseEntity.status(201)
-        .body(uploads.handle(CreateUploadCommand.from(actor(jwt), id, b)));
+    return ResponseEntity.status(201).body(uploads.handle(request.command(actor(jwt), id)));
   }
 
   @PutMapping("/api/v1/uploads/{id}/content")
@@ -136,9 +135,9 @@ public class DocumentController {
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
       @RequestHeader("Idempotency-Key") String key,
-      @RequestBody Map<String, Object> b)
+      @RequestBody SaveVersionRequestDto request)
       throws IOException {
-    SaveResult c = saves.handle(SaveDocumentCommand.from(actor(jwt), id, key, b));
+    SaveResult c = saves.handle(request.command(actor(jwt), id, key));
     return ResponseEntity.status(c.status()).body(c.body());
   }
 

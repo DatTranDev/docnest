@@ -5,7 +5,7 @@ import vn.editor.processing.jobs.application.JobFailure;
 import vn.editor.processing.jobs.application.port.DocumentAccessPort;
 import vn.editor.processing.jobs.application.port.JobReadRepository;
 
-public final class ListJobsQueryHandler {
+public final class ListJobsQueryHandler implements ListJobsQueryService {
   private final JobReadRepository reads;
   private final DocumentAccessPort documents;
 

@@ -1,6 +1,7 @@
 'use client';
 import { useState, type RefObject } from 'react';
 import type { ParagraphFormat, PageSettings } from '@ted/editor-core';
+import { ToolMenu } from '@/components/ui/ToolMenu';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { EditorController } from '../model/EditorController';
 export function ParagraphTools({
@@ -118,58 +119,49 @@ export function ParagraphTools({
           ))}
         </select>
       </div>
-      <details className="tool-menu">
-        <summary>{t(MESSAGE.insertContent)}</summary>
-        <div
-          className="tool-menu-panel"
-          onClick={(event) => {
-            if ((event.target as HTMLElement).closest('button'))
-              event.currentTarget.parentElement?.removeAttribute('open');
+      <ToolMenu label={t(MESSAGE.insertContent)}>
+        <button
+          disabled={readOnly}
+          onClick={() => {
+            setLink(String(controller.current?.model.pendingFormat.link ?? ''));
+            setDialog('link');
           }}
         >
-          <button
-            disabled={readOnly}
-            onClick={() => {
-              setLink(String(controller.current?.model.pendingFormat.link ?? ''));
-              setDialog('link');
-            }}
-          >
-            {t(MESSAGE.hyperlink)}
-          </button>
-          <button disabled={readOnly} onClick={() => setDialog('table')}>
-            {t(MESSAGE.insertTable)}
-          </button>
-          <button
-            disabled={readOnly}
-            onClick={() => run(() => controller.current?.insertPageBreak())}
-          >
-            {t(MESSAGE.pageBreak)}
-          </button>
-          <button
-            disabled={readOnly || !paragraph.pageBreak}
-            onClick={() => controller.current?.formatParagraph({ pageBreak: false })}
-          >
-            {t(MESSAGE.removePageBreak)}
-          </button>
-          <button
-            disabled={readOnly}
-            onClick={() => {
-              setHeader(page.header ?? '');
-              setFooter(page.footer ?? '');
-              setNumbers(page.pageNumbers ?? false);
-              setDialog('page');
-            }}
-          >
-            {t(MESSAGE.headerFooter)}
-          </button>
-          <button
-            disabled={readOnly || !paragraph.table}
-            onClick={() => controller.current?.formatParagraph({ table: null })}
-          >
-            {t(MESSAGE.removeTableCell)}
-          </button>
-        </div>
-      </details>
+          {t(MESSAGE.hyperlink)}
+        </button>
+        <button disabled={readOnly} onClick={() => setDialog('table')}>
+          {t(MESSAGE.insertTable)}
+        </button>
+        <button
+          disabled={readOnly}
+          onClick={() => run(() => controller.current?.insertPageBreak())}
+        >
+          {t(MESSAGE.pageBreak)}
+        </button>
+        <button
+          disabled={readOnly || !paragraph.pageBreak}
+          onClick={() => controller.current?.formatParagraph({ pageBreak: false })}
+        >
+          {t(MESSAGE.removePageBreak)}
+        </button>
+        <button
+          disabled={readOnly}
+          onClick={() => {
+            setHeader(page.header ?? '');
+            setFooter(page.footer ?? '');
+            setNumbers(page.pageNumbers ?? false);
+            setDialog('page');
+          }}
+        >
+          {t(MESSAGE.headerFooter)}
+        </button>
+        <button
+          disabled={readOnly || !paragraph.table}
+          onClick={() => controller.current?.formatParagraph({ table: null })}
+        >
+          {t(MESSAGE.removeTableCell)}
+        </button>
+      </ToolMenu>
       {dialog && (
         <div className="modal">
           <form

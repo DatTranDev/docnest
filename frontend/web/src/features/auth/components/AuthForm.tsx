@@ -87,6 +87,10 @@ export function AuthForm({
         >
           {register ? t(MESSAGE.alreadyHaveAnAccount) : t(MESSAGE.createANewAccount)}
         </button>
+        <nav className="auth-local-links">
+          <a href="/intro">{t(MESSAGE.introduction)}</a>
+          <a href="/local">{t(MESSAGE.localTools)}</a>
+        </nav>
       </div>
     </div>
   );

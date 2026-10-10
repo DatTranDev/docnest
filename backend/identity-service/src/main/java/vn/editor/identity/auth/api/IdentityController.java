@@ -17,48 +17,51 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import vn.editor.identity.auth.api.dto.LoginRequestDto;
+import vn.editor.identity.auth.api.dto.RegisterRequestDto;
+import vn.editor.identity.auth.api.dto.ResolveAccountRequestDto;
 import vn.editor.identity.auth.application.command.AuthenticationSession;
 import vn.editor.identity.auth.application.command.CheckLoginAttemptCommand;
-import vn.editor.identity.auth.application.command.CheckLoginAttemptHandler;
+import vn.editor.identity.auth.application.command.CheckLoginAttemptService;
 import vn.editor.identity.auth.application.command.LoginCommand;
-import vn.editor.identity.auth.application.command.LoginHandler;
+import vn.editor.identity.auth.application.command.LoginService;
 import vn.editor.identity.auth.application.command.LogoutCommand;
-import vn.editor.identity.auth.application.command.LogoutHandler;
+import vn.editor.identity.auth.application.command.LogoutService;
 import vn.editor.identity.auth.application.command.RefreshSessionCommand;
-import vn.editor.identity.auth.application.command.RefreshSessionHandler;
+import vn.editor.identity.auth.application.command.RefreshSessionService;
 import vn.editor.identity.auth.application.command.RegisterAccountCommand;
-import vn.editor.identity.auth.application.command.RegisterAccountHandler;
-import vn.editor.identity.auth.application.query.GetProfileHandler;
+import vn.editor.identity.auth.application.command.RegisterAccountService;
 import vn.editor.identity.auth.application.query.GetProfileQuery;
-import vn.editor.identity.auth.application.query.GetSigningKeysHandler;
-import vn.editor.identity.auth.application.query.IssueCsrfHandler;
-import vn.editor.identity.auth.application.query.ResolveAccountHandler;
+import vn.editor.identity.auth.application.query.GetProfileService;
+import vn.editor.identity.auth.application.query.GetSigningKeysService;
+import vn.editor.identity.auth.application.query.IssueCsrfService;
 import vn.editor.identity.auth.application.query.ResolveAccountQuery;
+import vn.editor.identity.auth.application.query.ResolveAccountService;
 import vn.editor.identity.auth.application.query.UserView;
 
 @RestController
 public final class IdentityController {
-  private final RegisterAccountHandler register;
-  private final LoginHandler login;
-  private final RefreshSessionHandler refresh;
-  private final LogoutHandler logout;
-  private final GetProfileHandler profiles;
-  private final ResolveAccountHandler accounts;
-  private final GetSigningKeysHandler signingKeys;
-  private final IssueCsrfHandler csrf;
-  private final CheckLoginAttemptHandler rates;
+  private final RegisterAccountService register;
+  private final LoginService login;
+  private final RefreshSessionService refresh;
+  private final LogoutService logout;
+  private final GetProfileService profiles;
+  private final ResolveAccountService accounts;
+  private final GetSigningKeysService signingKeys;
+  private final IssueCsrfService csrf;
+  private final CheckLoginAttemptService rates;
   private final boolean secure;
 
   public IdentityController(
-      RegisterAccountHandler register,
-      LoginHandler login,
-      RefreshSessionHandler refresh,
-      LogoutHandler logout,
-      GetProfileHandler profiles,
-      ResolveAccountHandler accounts,
-      GetSigningKeysHandler signingKeys,
-      IssueCsrfHandler csrf,
-      CheckLoginAttemptHandler rates,
+      RegisterAccountService register,
+      LoginService login,
+      RefreshSessionService refresh,
+      LogoutService logout,
+      GetProfileService profiles,
+      ResolveAccountService accounts,
+      GetSigningKeysService signingKeys,
+      IssueCsrfService csrf,
+      CheckLoginAttemptService rates,
       @Value("${editor.auth.secure-cookies}") boolean secure) {
     this.register = register;
     this.login = login;
@@ -72,12 +75,6 @@ public final class IdentityController {
     this.secure = secure;
   }
 
-  public record Register(String email, String password, String displayName) {}
-
-  public record Login(String email, String password) {}
-
-  public record Resolve(String email) {}
-
   @GetMapping("/api/v1/auth/csrf")
   public ResponseEntity<?> csrf() {
     String value = csrf.handle();
@@ -88,7 +85,7 @@ public final class IdentityController {
   }
 
   @PostMapping("/api/v1/auth/register")
-  public ResponseEntity<?> register(@RequestBody Register request) {
+  public ResponseEntity<?> register(@RequestBody RegisterRequestDto request) {
     return ResponseEntity.status(201)
         .body(
             register.handle(
@@ -97,7 +94,7 @@ public final class IdentityController {
   }
 
   @PostMapping("/api/v1/auth/login")
-  public ResponseEntity<?> login(@RequestBody Login request, HttpServletRequest http) {
+  public ResponseEntity<?> login(@RequestBody LoginRequestDto request, HttpServletRequest http) {
     rates.handle(new CheckLoginAttemptCommand(http.getRemoteAddr()));
     return session(login.handle(new LoginCommand(request.email(), request.password())));
   }
@@ -131,7 +128,7 @@ public final class IdentityController {
 
   @PostMapping("/internal/v1/users/resolve")
   public UserView resolve(
-      @RequestHeader("X-Internal-Key") String key, @RequestBody Resolve request) {
+      @RequestHeader("X-Internal-Key") String key, @RequestBody ResolveAccountRequestDto request) {
     return accounts.handle(new ResolveAccountQuery(request.email(), key, true));
   }
 

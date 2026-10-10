@@ -3,7 +3,6 @@ package vn.editor.document.sharing.api;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -19,30 +18,30 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 import vn.editor.document.shared.api.Streams;
 import vn.editor.document.shared.application.Page;
-import vn.editor.document.shared.domain.DomainException;
 import vn.editor.document.shared.domain.Values;
-import vn.editor.document.sharing.application.command.CreatePublicLinkCommand;
-import vn.editor.document.sharing.application.command.GrantDocumentAccessByEmailCommand;
-import vn.editor.document.sharing.application.command.GrantDocumentAccessCommand;
+import vn.editor.document.sharing.api.dto.CreatePublicLinkRequestDto;
+import vn.editor.document.sharing.api.dto.GrantEmailRequestDto;
+import vn.editor.document.sharing.api.dto.GrantPermissionRequestDto;
 import vn.editor.document.sharing.application.command.RevokeDocumentAccessCommand;
 import vn.editor.document.sharing.application.command.RevokePublicLinkCommand;
-import vn.editor.document.sharing.application.command.SharingCommandHandler;
+import vn.editor.document.sharing.application.command.SharingCommandService;
 import vn.editor.document.sharing.application.query.ListPermissionsQuery;
 import vn.editor.document.sharing.application.query.ListPublicLinksQuery;
 import vn.editor.document.sharing.application.query.PermissionView;
-import vn.editor.document.sharing.application.query.PublicShareQueryHandler;
-import vn.editor.document.sharing.application.query.SharingQueryHandler;
+import vn.editor.document.sharing.application.query.PublicShareContent;
+import vn.editor.document.sharing.application.query.PublicShareQueryService;
+import vn.editor.document.sharing.application.query.SharingQueryService;
 
 @RestController
 public class SharingController {
-  private final SharingCommandHandler commands;
-  private final SharingQueryHandler queries;
-  private final PublicShareQueryHandler publicShares;
+  private final SharingCommandService commands;
+  private final SharingQueryService queries;
+  private final PublicShareQueryService publicShares;
 
   public SharingController(
-      SharingCommandHandler commands,
-      SharingQueryHandler queries,
-      PublicShareQueryHandler publicShares) {
+      SharingCommandService commands,
+      SharingQueryService queries,
+      PublicShareQueryService publicShares) {
     this.commands = commands;
     this.queries = queries;
     this.publicShares = publicShares;
@@ -70,14 +69,8 @@ public class SharingController {
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
       @RequestHeader("Authorization") String authorization,
-      @RequestBody Map<String, Object> body) {
-    Values.fields(body, "email,role", "");
-    if (!(body.get("email") instanceof String email))
-      throw new DomainException(400, "INVALID_REQUEST");
-    return permission(
-        commands.handle(
-            new GrantDocumentAccessByEmailCommand(
-                actor(jwt), id, email, Objects.toString(body.get("role"), ""), authorization)));
+      @RequestBody GrantEmailRequestDto request) {
+    return permission(commands.handle(request.command(actor(jwt), id, authorization)));
   }
 
   @PutMapping("/api/v1/documents/{id}/permissions/{grantee}")
@@ -86,12 +79,8 @@ public class SharingController {
       @PathVariable String id,
       @PathVariable String grantee,
       @RequestHeader("Authorization") String authorization,
-      @RequestBody Map<String, Object> body) {
-    Values.fields(body, "role", "");
-    return permission(
-        commands.handle(
-            new GrantDocumentAccessCommand(
-                actor(jwt), id, grantee, Objects.toString(body.get("role"), ""), authorization)));
+      @RequestBody GrantPermissionRequestDto request) {
+    return permission(commands.handle(request.command(actor(jwt), id, grantee, authorization)));
   }
 
   @DeleteMapping("/api/v1/documents/{id}/permissions/{grantee}")
@@ -114,17 +103,8 @@ public class SharingController {
   ResponseEntity<?> createLink(
       @AuthenticationPrincipal Jwt jwt,
       @PathVariable String id,
-      @RequestBody Map<String, Object> body) {
-    Values.fields(body, "", "expiresInSeconds");
-    return ResponseEntity.status(201)
-        .body(
-            commands.handle(
-                new CreatePublicLinkCommand(
-                    actor(jwt),
-                    id,
-                    body.containsKey("expiresInSeconds")
-                        ? Values.integer(body.get("expiresInSeconds"), 3600, 2592000)
-                        : 604800)));
+      @RequestBody CreatePublicLinkRequestDto request) {
+    return ResponseEntity.status(201).body(commands.handle(request.command(actor(jwt), id)));
   }
 
   @DeleteMapping("/api/v1/documents/{id}/share-links/{link}")
@@ -145,7 +125,7 @@ public class SharingController {
   @GetMapping("/api/v1/public/shares/{token}/content")
   ResponseEntity<StreamingResponseBody> publicContent(
       @PathVariable String token, HttpServletRequest request) throws IOException {
-    PublicShareQueryHandler.Content content = publicShares.content(token, request.getRemoteAddr());
+    PublicShareContent content = publicShares.content(token, request.getRemoteAddr());
     return Streams.nativeDocument(content.input(), content.lease()::close);
   }
 

@@ -2,12 +2,12 @@ package vn.editor.payment.billing.application.query;
 
 import java.util.Map;
 import java.util.UUID;
-import vn.editor.payment.billing.application.port.PaymentStore;
+import vn.editor.payment.billing.application.port.PaymentRepository;
 
-public final class BillingQueryHandler {
-  private final PaymentStore store;
+public final class BillingQueryHandler implements BillingQueryService {
+  private final PaymentRepository store;
 
-  public BillingQueryHandler(PaymentStore store) {
+  public BillingQueryHandler(PaymentRepository store) {
     this.store = store;
   }
 

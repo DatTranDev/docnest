@@ -21,7 +21,7 @@ describe('native upload and commit protocol', () => {
         return json({
           uploadId: 'upload',
           kind: 'LOCAL',
-          uploadUrl: '/local-upload',
+          uploadUrl: 'http://localhost:8080/local-upload',
           requiredHeaders: {
             'Content-Type': 'application/octet-stream',
             'X-Upload-Proof': 'proof',

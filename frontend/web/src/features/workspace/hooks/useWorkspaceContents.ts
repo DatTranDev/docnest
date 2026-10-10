@@ -12,19 +12,20 @@ export function useWorkspaceContents(
   parent: string | null,
   online: boolean,
   onError: (message: string) => void,
+  titleQuery = '',
 ) {
   const [documents, setDocuments] = useState<DocumentInfo[]>([]),
     [folders, setFolders] = useState<Folder[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
     [loadedContext, setLoadedContext] = useState('');
-  const context = `${userId}/${scope}/${parent ?? 'root'}`,
+  const context = JSON.stringify([userId, scope, parent, titleQuery]),
     currentContext = useLatest(context),
     sequence = useRef(0);
   const reload = useCallback(
     (next?: string): Promise<void> => {
       if (!userId || context !== currentContext.current) return Promise.resolve();
       const requestSequence = ++sequence.current;
-      return workspaceContents(scope, parent, next)
+      return workspaceContents(scope, parent, next, titleQuery)
         .then(({ listing, folders: entries }) => {
           if (requestSequence !== sequence.current || context !== currentContext.current) return;
           setDocuments(next ? (previous) => [...previous, ...listing.items] : listing.items);
@@ -33,11 +34,18 @@ export function useWorkspaceContents(
           setLoadedContext(context);
         })
         .catch((error) => {
-          if (requestSequence === sequence.current && context === currentContext.current)
+          if (requestSequence === sequence.current && context === currentContext.current) {
+            if (!next) {
+              setDocuments([]);
+              setFolders([]);
+              setCursor(null);
+              setLoadedContext(context);
+            }
             onError(errorMessage(error));
+          }
         });
     },
-    [context, currentContext, onError, parent, scope, userId],
+    [context, currentContext, onError, parent, scope, userId, titleQuery],
   );
   useEffect(() => {
     void reload();
@@ -59,6 +67,7 @@ export function useWorkspaceContents(
     documents: loadedContext === context ? documents : [],
     folders: loadedContext === context ? folders : [],
     cursor: loadedContext === context ? cursor : null,
+    loading: loadedContext !== context,
     reload,
   };
 }

@@ -14,25 +14,25 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import vn.editor.collaboration.rooms.application.command.RoomCommandHandler;
-import vn.editor.collaboration.rooms.application.port.RoomStore;
-import vn.editor.collaboration.rooms.application.query.RoomQueryHandler;
+import vn.editor.collaboration.rooms.application.command.RoomCommandService;
+import vn.editor.collaboration.rooms.application.port.RoomRepository;
+import vn.editor.collaboration.rooms.application.query.RoomQueryService;
 import vn.editor.collaboration.rooms.domain.RoomFailure;
 import vn.editor.collaboration.rooms.domain.RoomPolicy;
 
 @RestController
 @RequestMapping("/api/v1/collaboration/{id}")
 public class RoomController {
-  private final RoomCommandHandler commands;
-  private final RoomQueryHandler queries;
+  private final RoomCommandService commands;
+  private final RoomQueryService queries;
 
-  public RoomController(RoomCommandHandler commands, RoomQueryHandler queries) {
+  public RoomController(RoomCommandService commands, RoomQueryService queries) {
     this.commands = commands;
     this.queries = queries;
   }
 
   @PostMapping(value = "/join", consumes = "application/octet-stream")
-  public RoomStore.Page join(
+  public RoomRepository.Page join(
       @PathVariable UUID id,
       @RequestParam long headRevision,
       @AuthenticationPrincipal Jwt jwt,
@@ -42,7 +42,7 @@ public class RoomController {
   }
 
   @GetMapping("/updates")
-  public RoomStore.Page read(
+  public RoomRepository.Page read(
       @PathVariable UUID id,
       @RequestParam(defaultValue = "0") long after,
       @AuthenticationPrincipal Jwt jwt) {

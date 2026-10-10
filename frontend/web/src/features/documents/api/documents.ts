@@ -1,13 +1,16 @@
 import { bytes, request, type Page } from '@/lib/http';
 import type { DocumentInfo, DocumentScope, Version } from '../model/types';
+import { sourceFileType } from '../model/sourceFiles';
 export function listDocuments(
   scope: DocumentScope,
   parent: string | null,
   cursor?: string,
+  titleQuery?: string,
 ): Promise<Page<DocumentInfo>> {
   const query = new URLSearchParams({ scope, limit: '50' });
   if (parent) query.set('parent', parent);
   if (cursor) query.set('cursor', cursor);
+  if (titleQuery) query.set('titleQuery', titleQuery);
   return request(`/api/v1/documents?${query}`);
 }
 export function getDocument(id: string): Promise<DocumentInfo> {
@@ -17,6 +20,8 @@ export function createDocument(title: string, folderId: string | null): Promise<
   return request('/api/v1/documents', 'POST', { title, folderId });
 }
 export function renameDocument(document: DocumentInfo, title: string): Promise<DocumentInfo> {
+  if (sourceFileType(document.title) && !sourceFileType(title))
+    title += '.' + document.title.split('.').at(-1);
   return request(`/api/v1/documents/${document.id}`, 'PATCH', {
     title,
     expectedMetadataRevision: document.metadataRevision,

@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { encodeNative, exportTxt, type EditorModel, type Snapshot } from '@ted/editor-core';
 import { Icon } from '@/components/ui/Icon';
+import { ToolMenu } from '@/components/ui/ToolMenu';
 import { roleLabel } from '@/components/ui/roleLabel';
 import { download, errorMessage } from '@/lib/http';
 import type { EditorController } from '../model/EditorController';
@@ -26,6 +27,7 @@ interface EditorSurface {
   document: { title: string; effectiveRole: string; headRevision: number };
 }
 interface EditorPaneProps {
+  localOnly?: boolean;
   active: EditorSurface;
   tick: number;
   status: string;
@@ -50,6 +52,7 @@ function keepSelection(event: MouseEvent<HTMLButtonElement>) {
 }
 
 export function EditorPane({
+  localOnly = false,
   active,
   tick,
   status,
@@ -99,7 +102,7 @@ export function EditorPane({
       aria-label={t(MESSAGE.textEditor)}
     >
       <div className="editor-heading">
-        {!active.readOnly && (
+        {!active.readOnly && !localOnly && (
           <button
             type="button"
             disabled={!!controller.current?.collaboration || !online || saving}
@@ -120,11 +123,13 @@ export function EditorPane({
                   {t(MESSAGE.version)} {active.revision} ·{' '}
                 </span>
               )}
-              <span>{localize(roleLabel(active.document.effectiveRole))}</span>
+              {!localOnly && <span>{localize(roleLabel(active.document.effectiveRole))}</span>}
               {active.readOnly && <span> {t(MESSAGE.readOnlyLabel)}</span>}
-              <span className="meta-dot" aria-hidden="true">
-                ·
-              </span>
+              {!localOnly && (
+                <span className="meta-dot" aria-hidden="true">
+                  ·
+                </span>
+              )}
               <span className="save-status" role="status" aria-live="polite">
                 {localize(!online ? MESSAGE.offline : status)}
               </span>
@@ -139,9 +144,10 @@ export function EditorPane({
               void onSave();
             }}
           >
-            <Icon name="save" size={17} /> {t(MESSAGE.save)}{' '}
+            <Icon name="save" size={17} />{' '}
+            {t(localOnly ? MESSAGE.downloadNativeFile : MESSAGE.save)}{' '}
           </button>
-          {active.document.effectiveRole === 'OWNER' && (
+          {!localOnly && active.document.effectiveRole === 'OWNER' && (
             <button className="primary share-action" onClick={onShare}>
               <Icon name="share" size={17} /> {t(MESSAGE.share)}{' '}
             </button>
@@ -288,89 +294,92 @@ export function EditorPane({
         >
           {pagePreview ? t(MESSAGE.closePagePreview) : t(MESSAGE.pagePreview)}
         </button>
-        <button className="tool-text" onClick={onHistory}>
-          <Icon name="history" /> {t(MESSAGE.version)}{' '}
-        </button>
-        <details className="tool-menu">
-          <summary>
-            <Icon name="download" /> {t(MESSAGE.file)} <Icon name="chevron" size={13} />
-          </summary>
-          <div className="tool-menu-panel">
-            <button disabled={active.readOnly} onClick={() => importInput.current?.click()}>
-              <Icon name="upload" /> {t(MESSAGE.importTxtNative)}{' '}
-            </button>
-            <input
-              ref={importInput}
-              className="menu-file-input"
-              aria-label={t(MESSAGE.importFile)}
-              type="file"
-              accept=".txt,.tedoc"
-              disabled={active.readOnly}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void onImport(file);
-                event.target.value = '';
-              }}
-            />
+        {!localOnly && (
+          <button className="tool-text" onClick={onHistory}>
+            <Icon name="history" /> {t(MESSAGE.version)}{' '}
+          </button>
+        )}
+        <ToolMenu label={t(MESSAGE.file)} icon="download">
+          <button disabled={active.readOnly} onClick={() => importInput.current?.click()}>
+            <Icon name="upload" /> {t(MESSAGE.importTxtNative)}{' '}
+          </button>
+          <input
+            ref={importInput}
+            className="menu-file-input"
+            aria-label={t(MESSAGE.importFile)}
+            type="file"
+            accept=".txt,.tedoc,.docx"
+            disabled={active.readOnly}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void onImport(file);
+              event.target.value = '';
+            }}
+          />
+          <button
+            onClick={() => {
+              void encodeNative(active.model.snapshot())
+                .then((bytes) => download(bytes, `${active.document.title}.tedoc`))
+                .catch((error) => onError(errorMessage(error)));
+            }}
+          >
+            <Icon name="download" /> {t(MESSAGE.downloadNativeFile)}{' '}
+          </button>
+          <button
+            onClick={() =>
+              download(
+                exportTxt(active.model.snapshot()),
+                `${active.document.title}.txt`,
+                'text/plain;charset=utf-8',
+              )
+            }
+          >
+            <Icon name="download" /> {t(MESSAGE.downloadTxt)}{' '}
+          </button>
+          <div className="menu-divider" />
+          <button
+            disabled={!localOnly && !active.document.headRevision}
+            onClick={() => {
+              void onExport('EXPORT_TXT');
+            }}
+          >
+            {t(localOnly ? MESSAGE.downloadTxt : MESSAGE.exportTxtOnServer)}{' '}
+          </button>
+          <button
+            disabled={!localOnly && !active.document.headRevision}
+            onClick={() => {
+              void onExport('EXPORT_HTML');
+            }}
+          >
+            {t(localOnly ? MESSAGE.downloadHtml : MESSAGE.exportHtmlOnServer)}{' '}
+          </button>
+          {(['EXPORT_DOCX', 'EXPORT_PDF'] as const).map((type) => (
             <button
-              onClick={() => {
-                void encodeNative(active.model.snapshot())
-                  .then((bytes) => download(bytes, `${active.document.title}.tedoc`))
-                  .catch((error) => onError(errorMessage(error)));
-              }}
+              key={type}
+              disabled={!localOnly && !active.document.headRevision}
+              onClick={() => void onExport(type)}
             >
-              <Icon name="download" /> {t(MESSAGE.downloadNativeFile)}{' '}
+              {t(
+                type === 'EXPORT_DOCX'
+                  ? MESSAGE.exportDocx
+                  : localOnly
+                    ? MESSAGE.printPdf
+                    : MESSAGE.exportPdf,
+              )}
             </button>
-            <button
-              onClick={() =>
-                download(
-                  exportTxt(active.model.snapshot()),
-                  `${active.document.title}.txt`,
-                  'text/plain;charset=utf-8',
-                )
-              }
-            >
-              <Icon name="download" /> {t(MESSAGE.downloadTxt)}{' '}
-            </button>
-            <div className="menu-divider" />
-            <button
-              disabled={!active.document.headRevision}
-              onClick={() => {
-                void onExport('EXPORT_TXT');
-              }}
-            >
-              {t(MESSAGE.exportTxtOnServer)}{' '}
-            </button>
-            <button
-              disabled={!active.document.headRevision}
-              onClick={() => {
-                void onExport('EXPORT_HTML');
-              }}
-            >
-              {t(MESSAGE.exportHtmlOnServer)}{' '}
-            </button>
-            {(['EXPORT_DOCX', 'EXPORT_PDF'] as const).map((type) => (
-              <button
-                key={type}
-                disabled={!active.document.headRevision}
-                onClick={() => void onExport(type)}
-              >
-                {t(type === 'EXPORT_DOCX' ? MESSAGE.exportDocx : MESSAGE.exportPdf)}
-              </button>
-            ))}
-            <div className="menu-divider" />
-            <button
-              onClick={() => {
-                void onCopy(active.model.snapshot());
-              }}
-            >
-              <Icon name="copy" /> {t(MESSAGE.saveACopy)}{' '}
-            </button>
-            <button disabled={active.readOnly} onClick={onClearHistory}>
-              {t(MESSAGE.clearUndoHistory)}{' '}
-            </button>
-          </div>
-        </details>
+          ))}
+          <div className="menu-divider" />
+          <button
+            onClick={() => {
+              void onCopy(active.model.snapshot());
+            }}
+          >
+            <Icon name="copy" /> {t(MESSAGE.saveACopy)}{' '}
+          </button>
+          <button disabled={active.readOnly} onClick={onClearHistory}>
+            {t(MESSAGE.clearUndoHistory)}{' '}
+          </button>
+        </ToolMenu>
       </div>
 
       {searchOpen && (

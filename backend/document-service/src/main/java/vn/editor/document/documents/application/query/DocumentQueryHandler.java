@@ -3,19 +3,19 @@ package vn.editor.document.documents.application.query;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
-import vn.editor.document.documents.application.port.DocumentReadPort;
+import vn.editor.document.documents.application.port.DocumentReadRepository;
 import vn.editor.document.documents.application.port.MetadataProjection;
 import vn.editor.document.documents.application.port.SnapshotStore;
 import vn.editor.document.shared.application.Page;
 
-public final class DocumentQueryHandler {
-  private final DocumentReadPort documents;
+public final class DocumentQueryHandler implements DocumentQueryService {
+  private final DocumentReadRepository documents;
   private final MetadataProjection cache;
   private final SnapshotStore storage;
   private final String publicBaseUrl;
 
   public DocumentQueryHandler(
-      DocumentReadPort documents,
+      DocumentReadRepository documents,
       MetadataProjection cache,
       SnapshotStore storage,
       String publicBaseUrl) {

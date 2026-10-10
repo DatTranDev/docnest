@@ -3,6 +3,7 @@ package vn.editor.payment;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,14 @@ class BillingArchitectureTest {
         .should()
         .dependOnClassesThat()
         .resideInAnyPackage("..billing.infrastructure..", "..bootstrap..")
+        .check(source);
+    noClasses()
+        .that()
+        .resideInAPackage("..billing.api..")
+        .should()
+        .dependOnClassesThat(
+            JavaClass.Predicates.resideInAPackage("..billing.application..")
+                .and(JavaClass.Predicates.simpleNameEndingWith("Handler")))
         .check(source);
     noClasses()
         .that()

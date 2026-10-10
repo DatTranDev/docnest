@@ -33,6 +33,7 @@
     ".next/dev/types/**/*.ts",
     "next.config.ts",
     "vitest.config.ts",
+    "vite.local.config.ts",
     "playwright.config.ts"
   ],
   "exclude": ["node_modules"]

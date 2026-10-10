@@ -1,16 +1,16 @@
 package vn.editor.identity.auth.application.query;
 
 import java.util.UUID;
-import vn.editor.identity.auth.application.port.AccountReads;
+import vn.editor.identity.auth.application.port.AccountReadRepository;
 import vn.editor.identity.auth.application.port.ServiceCaller;
 import vn.editor.identity.auth.domain.AccountEmail;
 import vn.editor.identity.auth.domain.AuthenticationFailure;
 
-public final class ResolveAccountHandler {
-  private final AccountReads accounts;
+public final class ResolveAccountHandler implements ResolveAccountService {
+  private final AccountReadRepository accounts;
   private final ServiceCaller callers;
 
-  public ResolveAccountHandler(AccountReads accounts, ServiceCaller callers) {
+  public ResolveAccountHandler(AccountReadRepository accounts, ServiceCaller callers) {
     this.accounts = accounts;
     this.callers = callers;
   }

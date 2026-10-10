@@ -40,7 +40,7 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
         }
       };
     });
-    const email = 'smoke-owner@editor.test';
+    const email = process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test';
     const password = createHash('sha256')
       .update(root + email)
       .digest('hex')
@@ -63,7 +63,7 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     await page.getByRole('combobox', { name: 'Ngôn ngữ' }).selectOption('en');
     await page.reload();
     assert.equal(await page.locator('html').getAttribute('lang'), 'en');
-    assert.match(await page.title(), /Writing Room/);
+    assert.match(await page.title(), /docsnest/);
     const html = await (await context.request.get(base)).text();
     assert.match(html, /<html lang="en"/);
     await page.getByRole('textbox', { name: 'Password' }).fill(password);
@@ -71,7 +71,7 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     const login = page.waitForResponse((r) => r.url().endsWith('/api/v1/auth/login'));
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     token = (await (await login).json()).accessToken;
-    await page.getByRole('button', { name: '+ New document', exact: true }).waitFor();
+    await page.getByRole('button', { name: 'New', exact: true }).waitFor();
     stage = 'localized document prompt';
     const title = `i18n check ${Date.now()}`;
     page.once('dialog', async (dialog) => {
@@ -82,7 +82,8 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     const created = page.waitForResponse(
       (r) => r.url().endsWith('/api/v1/documents') && r.request().method() === 'POST',
     );
-    await page.getByRole('button', { name: '+ New document', exact: true }).click();
+    await page.getByRole('button', { name: 'New', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'New document', exact: true }).click();
     documentId = (await (await created).json()).id;
     await page.locator('.cm-content').waitFor();
     const text = 'Hello Việt Nam 😀';
@@ -203,7 +204,6 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     assert.equal(readFileSync(await output.path(), 'utf8'), text + '[Image]');
     await page.getByRole('combobox', { name: 'Ngôn ngữ' }).selectOption('en');
     await page.locator('.tool-menu:last-of-type > summary').click();
-    await page.locator('.tool-menu:last-of-type > summary').click();
     await page.getByRole('button', { name: 'Export HTML on server', exact: true }).click();
     const htmlButtons = page.getByRole('button', { name: 'Download result', exact: true });
     await page.waitForFunction(
@@ -220,7 +220,6 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     assert.match(exportedHtml, /text-decoration-line:line-through/);
     assert.match(exportedHtml, /vertical-align:super/);
     assert.match(exportedHtml, /Hello Việt Nam/);
-    await page.locator('.tool-menu:last-of-type > summary').click();
     stage = 'history and page preview';
     await page.getByRole('button', { name: 'Version', exact: true }).click();
     const history = page.getByRole('dialog', { name: 'Version history' });
@@ -281,7 +280,8 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     await publicPage.getByRole('button', { name: 'Download TXT' }).waitFor();
     await publicContext.close();
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole('button', { name: 'Subscription plans', exact: true }).click();
+    await page.getByRole('button', { name: /^Account for / }).click();
+    await page.getByRole('menuitem', { name: 'Subscription plans', exact: true }).click();
     await page
       .getByRole('dialog', { name: 'Subscription plans' })
       .getByText('Free', { exact: true })

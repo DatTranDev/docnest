@@ -52,3 +52,11 @@ ADR018 established runtime security updates for the previous Nginx image. ADR019
 Subscription extension: Stripe HTTP/API and supported snapshot webhook envelopes are pinned to **2026-09-30.endive** (ADR028). No Stripe SDK is bundled; Java HttpClient uses the fixed Stripe endpoint. Test-mode credentials only. The Codex Stripe MCP OAuth is a local tool configuration, not a service dependency.
 
 Office export pins: Apache POI poi-ooxml **5.5.1** (Apache-2.0); io.github.openhtmltopdf openhtmltopdf-pdfbox **1.1.37** (LGPL-2.1-or-later); PDFBox/XMPBox **3.0.7** (Apache-2.0). Noto Sans/Serif/Sans Mono static TTFs are bundled unchanged with upstream OFL-1.1 license and SHA-256 inventory in `backend/processing-service/src/main/resources/fonts/SHA256SUMS`. Keep these libraries dynamically linked as separate dependency jars in the executable Spring archive and preserve third-party license entries. Source/build information: https://github.com/openhtmltopdf/openhtmltopdf (tagged release sources available from Maven), https://poi.apache.org/, https://pdfbox.apache.org/.
+
+## DOCX import dependency — 10 October 2026
+
+The Web uses fflate **0.8.3** (MIT) for bounded ZIP/DEFLATE decoding during DOCX import. The exact pin and integrity are in package-lock.json; no conversion service or runtime font download is added. OOXML parsing uses the browser's inert XML DOMParser and the existing canonical validators.
+
+## Local tools dependency pins — 10 October 2026
+
+Web runtime: `@codemirror/language` **6.13.1**, `@codemirror/lang-markdown` **6.5.2**, `@codemirror/lang-javascript` **6.2.5**, `@codemirror/lang-json` **6.0.2**, `@codemirror/lang-html` **6.4.12**, `@codemirror/lang-css` **6.3.1**, `@codemirror/lang-python` **6.2.1**, `@lezer/highlight` **1.2.5** (MIT); `react-markdown` **10.1.0** / `remark-gfm` **4.0.1** (MIT); `docx` **9.9.0** (MIT). The installed/locked CodeMirror language instance is deduplicated for all supports. Vite **8.3.2** is the already-pinned build dependency used for the standalone site; no new dev server framework is added. The existing unchanged OFL-1.1 Noto Serif regular font is copied with its license under `features/local-tools/assets/` and bundled locally. Exact dependency integrity and transitive inventory are in package-lock.json.

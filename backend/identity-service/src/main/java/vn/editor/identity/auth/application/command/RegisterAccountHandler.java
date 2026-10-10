@@ -2,7 +2,7 @@ package vn.editor.identity.auth.application.command;
 
 import java.time.Clock;
 import java.util.UUID;
-import vn.editor.identity.auth.application.port.AccountCommands;
+import vn.editor.identity.auth.application.port.AccountCommandRepository;
 import vn.editor.identity.auth.application.port.PasswordHashes;
 import vn.editor.identity.auth.application.port.Transactions;
 import vn.editor.identity.auth.application.query.UserView;
@@ -10,15 +10,15 @@ import vn.editor.identity.auth.domain.Account;
 import vn.editor.identity.auth.domain.AccountEmail;
 import vn.editor.identity.auth.domain.RegistrationPolicy;
 
-public final class RegisterAccountHandler {
-  private final AccountCommands accounts;
+public final class RegisterAccountHandler implements RegisterAccountService {
+  private final AccountCommandRepository accounts;
   private final PasswordHashes passwords;
   private final Transactions transactions;
   private final Clock clock;
   private final int maximumAccounts;
 
   public RegisterAccountHandler(
-      AccountCommands accounts,
+      AccountCommandRepository accounts,
       PasswordHashes passwords,
       Transactions transactions,
       Clock clock,

@@ -1,4 +1,4 @@
-# Text Editor
+# docsnest — Text Editor
 
 A web editor for large text documents with formatting, folders, sharing, version history and exports. The local stack uses Next.js/CodeMirror, five Spring Boot services, MySQL, Kafka and Redis. The Collaboration service adds opt-in concurrent editing with Yjs CRDT.
 
@@ -47,6 +47,8 @@ With the local app running, `node testing/checks/collaboration-browser.cjs` chec
 
 `node testing/checks/i18n-browser.cjs` checks both languages against the running application, including offline edits, save/reopen, image labels, public viewing and mobile layout.
 
+The workspace offers grid/list views, text previews, title search in the current library, item-type filters and keyboard-accessible action menus. `node testing/checks/workspace-browser.cjs` checks these against real services, including rename/move/trash/restore, viewer permissions, editor preservation and desktop/mobile layout. It uses the existing disposable smoke accounts and cleans up its own fixture folder/documents. Set `SMOKE_OWNER_EMAIL` when running the i18n browser check with a different smoke account.
+
 ## Where things live
 
 | Folder           | Contents                                                                                                |
@@ -62,6 +64,49 @@ With the local app running, `node testing/checks/collaboration-browser.cjs` chec
 
 Unit tests live beside the code they exercise. Root Maven/npm files coordinate builds across workspaces. Generated files such as `node_modules/`, `target/`, `.terraform/` and benchmark output are local build artifacts and are ignored by Git.
 
+### Backend layer map
+
+Each service keeps its own database and organizes code by feature. HTTP request DTOs live in `api/dto`; application command and query records model use-case input/output. Controllers depend on `*Service` interfaces, implemented by the corresponding handlers. Persistence interfaces live in `application/port` and use `*Repository` names. JDBC implementations use `Jdbc*Dao` names under `infrastructure`; they retain the existing SQL transactions, locks, and outbox/inbox writes. `bootstrap` wires the layers. Domain types stay plain Java.
+
 ## Cloud
 
 Cloud templates use placeholders. Configure them by following [docs/CLOUD_SETUP_HANDOFF.md](docs/CLOUD_SETUP_HANDOFF.md), review the cost estimate against the USD 300 learning budget, and only then run its deployment steps. Local validation commands do not deploy or create paid resources.
+
+## docsnest preferences and Word interchange
+
+The account menu opens Settings (Cài đặt): English/Vietnamese and Light/Dark/Use browser setting. Language and appearance persist under a separate account key in this browser; they are not synced between devices. If browser storage is blocked, changes remain in memory for the session. Document pages remain white in dark mode so stored text colours and print output retain their meaning. Customizable native selects style the dropdown popup on supporting browsers; other browsers retain their accessible native picker.
+
+The New menu imports TXT/native/DOCX into a new document. The editor File menu imports into the current editable document, with confirmation before replacing DOCX contents. Existing unsaved contents are checkpointed. Save the imported document before sharing/exporting it. File → Export DOCX or Export PDF starts the existing authenticated background job, and Download result retrieves the real output.
+
+DOCX import preserves supported Unicode text, headings, B/I/U, common character colours/fonts/sizes, highlight/strike/script, safe links, basic lists/paragraph spacing, rectangular tables with one paragraph per cell, inline PNG/JPEG, simple header/footer and PAGE fields. Files are bounded to 16 MiB compressed/32 MiB expanded, 512 ZIP entries, 200,000 UTF-16 units and 2,000 paragraphs. ZIP integrity, real expansion, XML, image and native-model limits are checked before replacing content. Complex sections, merged/nested/multiparagraph cells, tracked changes, content controls, embedded objects, floating drawings, references and unsupported fields are rejected without changing the editor. Exact Word page/font layout is not guaranteed. PDF import and legacy .doc import are outside this change.
+
+`node testing/checks/docsnest-browser.cjs` exercises native dropdown keyboard use, account-isolated settings and system appearance, responsive subscriptions, actual DOCX import/save/reopen/roundtrip and authenticated Kafka DOCX/PDF downloads against the running local services. It uses the existing disposable smoke accounts and cleans up only its own document ID. It does not execute a payment.
+
+## Introduction and local tools
+
+The app provides `/intro` (product introduction) and `/local` (no-login local editor), linked from login and workspace. Four independent, mounted editors retain contents/history across mode switches:
+
+- Document: the canonical rich editor, TXT/native/DOCX import, local native/TXT/HTML/DOCX downloads and browser Print / Save PDF.
+- Markdown: MD/Markdown files, formatting toolbar, source/split/preview, fixed pane labels and bidirectional scrolling by corresponding content in split view, GFM tables/checklists, highlighted fenced code, HTML download and browser Print / Save PDF. Raw HTML is inert; remote images are labels and are never automatically fetched.
+- Code: line numbers, syntax highlighting and indentation for JavaScript, TypeScript, Python, HTML, CSS and JSON; plain text fallback. Code is never executed.
+- JSON: two editable panes for source and result. Validate, format with 2/4 spaces or minify into the right pane, then edit/copy/download the result or explicitly use it as the source. Errors report line/column. Raw number/string tokens, duplicate keys and property order are preserved, including integers beyond JavaScript's safe numeric range. Invalid transformations retain both panes.
+
+Local files remain in the current session; download to retain work. Editing needs no login and does not upload content. The header links to sign-in/file management and shows an initial avatar from the last successful session on the same host, without background authentication calls. The avatar hint contains no token/email/ID and does not authorize access; the workspace verifies the session. UTF-8 source import is bounded to 1 MiB; editing and JSON output to 1,048,576 UTF-16 units, JSON to 100 nested levels/200,000 tokens. Markdown preview/HTML export is bounded to 200,000 units. Canonical document/Office import/export bounds remain. English/Vietnamese and light/dark/browser appearance are available; local theme storage is separate from account preferences.
+
+Authenticated file management supports `.md`, `.markdown`, `.json`, `.js`, `.ts`, `.jsx`, `.tsx`, `.py`, `.html` and `.css`: create/import, edit with source highlighting, save versions, download the original text format, share/view, recover offline drafts and detect conflicting revisions. Markdown opens with synchronized preview; JSON opens with both panes. File types are inferred from title extensions; renaming without a supported extension retains the previous suffix. Source bytes use the existing canonical snapshot/upload protocol internally, with BOM/CRLF export preferences, ACL and optimistic revision checks. Existing titles without these suffixes use the rich editor. No schema/API/native-format migration was added.
+
+Build/serve the independent site without Java, MySQL, Kafka, Redis or a Next.js server:
+
+```powershell
+npm ci
+npm run build:local
+npm run preview:local
+```
+
+Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. The bundled OFL Noto Serif font supports Vietnamese headings. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
+
+For a separate hosted application, set `NEXT_PUBLIC_APP_URL` to its URL before `npm run build:local`; this configures navigation links only. The local loopback default points to the application on port 8080. Local Compose accepts both `localhost:8080` and `127.0.0.1:8080` for auth CSRF. LOCAL uploads use the current gateway origin; signed cloud uploads retain their original URL and credential rules.
+
+`node testing/checks/local-tools-browser.cjs` serves the actual compiled output on an ephemeral port and checks real downloads/DOCX roundtrip, offline edits, safe Markdown, syntax colors, lossless JSON, retained editor DOM, both languages/themes and mobile; it asserts zero API/external requests. Run `npm run build:local` first and install the pinned Playwright Chromium. Backend services are unnecessary.
+
+`node testing/checks/source-files-browser.cjs` checks real managed MD/JSON/code saves/reopens/downloads, source edits, JSON results, filtering, offline recovery, conflicting revisions, viewer ACL, sign-in/avatar/logout and mobile against Compose. It serves the compiled standalone site on its own ephemeral port, uses the existing disposable smoke accounts and trashes only its own document IDs. It never logs credentials or document contents.

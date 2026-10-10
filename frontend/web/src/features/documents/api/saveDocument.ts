@@ -24,7 +24,10 @@ export async function saveNativeVersion(
     session = currentSession();
   if (ticket.kind === 'LOCAL' && session)
     headers.set('Authorization', `Bearer ${session.accessToken}`);
-  const uploaded = await fetch(ticket.uploadUrl, {
+  // LOCAL uploads use this app's gateway, including when opened through a loopback alias.
+  // Keep signed GCS URLs intact and never attach application credentials to them.
+  const localUrl = ticket.kind === 'LOCAL' ? new URL(ticket.uploadUrl, 'http://localhost/') : null;
+  const uploaded = await fetch(localUrl ? localUrl.pathname + localUrl.search : ticket.uploadUrl, {
     method: 'PUT',
     headers,
     cache: 'no-store',

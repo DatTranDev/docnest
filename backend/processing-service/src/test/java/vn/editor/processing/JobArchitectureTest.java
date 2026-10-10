@@ -3,6 +3,7 @@ package vn.editor.processing;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,14 @@ class JobArchitectureTest {
 
   @Test
   void apiDelegatesThroughApplicationBoundaries() {
+    noClasses()
+        .that()
+        .resideInAPackage("..jobs.api..")
+        .should()
+        .dependOnClassesThat(
+            JavaClass.Predicates.resideInAPackage("..jobs.application..")
+                .and(JavaClass.Predicates.simpleNameEndingWith("Handler")))
+        .check(production);
     noClasses()
         .that()
         .resideInAPackage("..jobs.api..")

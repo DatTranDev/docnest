@@ -14,12 +14,12 @@ import vn.editor.identity.auth.application.command.RefreshSessionHandler;
 import vn.editor.identity.auth.application.command.RegisterAccountHandler;
 import vn.editor.identity.auth.application.command.SessionIssuer;
 import vn.editor.identity.auth.application.port.AccessTokens;
-import vn.editor.identity.auth.application.port.AccountCommands;
-import vn.editor.identity.auth.application.port.AccountReads;
+import vn.editor.identity.auth.application.port.AccountCommandRepository;
+import vn.editor.identity.auth.application.port.AccountReadRepository;
 import vn.editor.identity.auth.application.port.CsrfTokens;
 import vn.editor.identity.auth.application.port.LoginAttempts;
 import vn.editor.identity.auth.application.port.PasswordHashes;
-import vn.editor.identity.auth.application.port.RefreshSessions;
+import vn.editor.identity.auth.application.port.RefreshSessionRepository;
 import vn.editor.identity.auth.application.port.RefreshTokens;
 import vn.editor.identity.auth.application.port.ServiceCaller;
 import vn.editor.identity.auth.application.port.Transactions;
@@ -61,13 +61,13 @@ public class AuthenticationWiring {
 
   @Bean
   public SessionIssuer sessionIssuer(
-      RefreshSessions sessions, RefreshTokens refreshTokens, AccessTokens accessTokens) {
+      RefreshSessionRepository sessions, RefreshTokens refreshTokens, AccessTokens accessTokens) {
     return new SessionIssuer(sessions, refreshTokens, accessTokens);
   }
 
   @Bean
   public RegisterAccountHandler registerAccountHandler(
-      AccountCommands accounts,
+      AccountCommandRepository accounts,
       PasswordHashes passwords,
       Transactions transactions,
       Clock clock,
@@ -77,7 +77,7 @@ public class AuthenticationWiring {
 
   @Bean
   public LoginHandler loginHandler(
-      AccountCommands accounts,
+      AccountCommandRepository accounts,
       PasswordHashes passwords,
       Transactions transactions,
       SessionIssuer issuer,
@@ -87,8 +87,8 @@ public class AuthenticationWiring {
 
   @Bean
   public RefreshSessionHandler refreshSessionHandler(
-      AccountCommands accounts,
-      RefreshSessions sessions,
+      AccountCommandRepository accounts,
+      RefreshSessionRepository sessions,
       RefreshTokens tokens,
       Transactions transactions,
       SessionIssuer issuer,
@@ -98,8 +98,8 @@ public class AuthenticationWiring {
 
   @Bean
   public LogoutHandler logoutHandler(
-      AccountCommands accounts,
-      RefreshSessions sessions,
+      AccountCommandRepository accounts,
+      RefreshSessionRepository sessions,
       RefreshTokens tokens,
       Transactions transactions) {
     return new LogoutHandler(accounts, sessions, tokens, transactions);
@@ -111,12 +111,13 @@ public class AuthenticationWiring {
   }
 
   @Bean
-  public GetProfileHandler getProfileHandler(AccountReads accounts) {
+  public GetProfileHandler getProfileHandler(AccountReadRepository accounts) {
     return new GetProfileHandler(accounts);
   }
 
   @Bean
-  public ResolveAccountHandler resolveAccountHandler(AccountReads accounts, ServiceCaller callers) {
+  public ResolveAccountHandler resolveAccountHandler(
+      AccountReadRepository accounts, ServiceCaller callers) {
     return new ResolveAccountHandler(accounts, callers);
   }
 

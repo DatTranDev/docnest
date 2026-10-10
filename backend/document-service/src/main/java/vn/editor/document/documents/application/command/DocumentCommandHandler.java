@@ -2,17 +2,17 @@ package vn.editor.document.documents.application.command;
 
 import java.time.Instant;
 import java.util.UUID;
-import vn.editor.document.documents.application.port.DocumentWritePort;
+import vn.editor.document.documents.application.port.DocumentWriteRepository;
 import vn.editor.document.documents.application.query.DocumentView;
 import vn.editor.document.documents.domain.Document;
 import vn.editor.document.folders.application.port.WorkspaceDirectory;
 import vn.editor.document.shared.domain.Values;
 
-public final class DocumentCommandHandler {
-  private final DocumentWritePort documents;
+public final class DocumentCommandHandler implements DocumentCommandService {
+  private final DocumentWriteRepository documents;
   private final WorkspaceDirectory folders;
 
-  public DocumentCommandHandler(DocumentWritePort documents, WorkspaceDirectory folders) {
+  public DocumentCommandHandler(DocumentWriteRepository documents, WorkspaceDirectory folders) {
     this.documents = documents;
     this.folders = folders;
   }

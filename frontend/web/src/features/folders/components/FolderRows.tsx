@@ -2,6 +2,7 @@
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { Folder } from '../model/types';
 import { Icon } from '@/components/ui/Icon';
+import { ActionMenu } from '@/components/ui/ActionMenu';
 export function FolderRows({
   folders,
   onOpen,
@@ -20,17 +21,32 @@ export function FolderRows({
   return (
     <>
       {folders.map((folder) => (
-        <div className="file" key={folder.id}>
+        <article className="file folder-file" key={folder.id} aria-label={folder.name}>
           <button className="file-name" onClick={() => onOpen(folder)}>
             <span className="file-type-icon folder-type">
               <Icon name="folder" size={18} />
             </span>
-            <span>{folder.name}</span>
+            <span className="file-label" title={folder.name}>
+              {folder.name}
+            </span>
           </button>
-          <button onClick={() => onRename(folder)}>{t(MESSAGE.rename)}</button>
-          <button onClick={() => onMove(folder)}>{t(MESSAGE.move)}</button>
-          <button onClick={() => onDelete(folder)}>{t(MESSAGE.delete)}</button>
-        </div>
+          <span className="file-kind">{t(MESSAGE.folderType)}</span>
+          <span className="file-access">{t(MESSAGE.owner)}</span>
+          <ActionMenu
+            label={t(MESSAGE.actionsForValue, { p0: folder.name })}
+            actions={[
+              { label: t(MESSAGE.openFolder), icon: 'folder', onSelect: () => onOpen(folder) },
+              { label: t(MESSAGE.rename), icon: 'edit', onSelect: () => onRename(folder) },
+              { label: t(MESSAGE.move), icon: 'move', onSelect: () => onMove(folder) },
+              {
+                label: t(MESSAGE.delete),
+                icon: 'trash',
+                danger: true,
+                onSelect: () => onDelete(folder),
+              },
+            ]}
+          />
+        </article>
       ))}
     </>
   );

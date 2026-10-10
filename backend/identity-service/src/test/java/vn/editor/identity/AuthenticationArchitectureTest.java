@@ -3,6 +3,7 @@ package vn.editor.identity;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
@@ -39,6 +40,14 @@ class AuthenticationArchitectureTest {
 
   @Test
   void apiAndInfrastructureDoNotReachThroughLayersOrOtherServices() {
+    noClasses()
+        .that()
+        .resideInAPackage("..auth.api..")
+        .should()
+        .dependOnClassesThat(
+            JavaClass.Predicates.resideInAPackage("..auth.application..")
+                .and(JavaClass.Predicates.simpleNameEndingWith("Handler")))
+        .check(production);
     noClasses()
         .that()
         .resideInAPackage("..auth.api..")

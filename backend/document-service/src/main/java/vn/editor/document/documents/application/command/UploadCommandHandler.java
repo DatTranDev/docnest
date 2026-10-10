@@ -11,7 +11,7 @@ import vn.editor.document.documents.domain.UploadPolicy;
 import vn.editor.document.documents.domain.UploadTicket;
 import vn.editor.document.shared.domain.DomainException;
 
-public final class UploadCommandHandler {
+public final class UploadCommandHandler implements UploadCommandService {
   private final SaveRepository saves;
   private final SnapshotStore storage;
 

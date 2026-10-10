@@ -1,7 +1,7 @@
 'use client';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 
-import { BILLING_TIMING, PAID_PLANS } from '../model/constants';
+import { BILLING_TIMING } from '../model/constants';
 import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '@/lib/http';
 import { ErrorNotice } from '@/components/ui/ErrorNotice';
@@ -19,7 +19,7 @@ import {
 } from '../api/billing';
 
 const labels: Record<Plan, string> = {
-  FREE: 'Free',
+  FREE: MESSAGE.freePlan,
   PRO_MONTHLY: MESSAGE.proMonthly,
   PRO_YEARLY: MESSAGE.proYearly,
 };
@@ -27,8 +27,9 @@ const labels: Record<Plan, string> = {
 export function BillingPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { t, localize, localeTag } = useI18n();
 
+  const [chosenPlan, setChosenPlan] = useState<Plan>('PRO_YEARLY');
   const [account, setAccount] = useState<Subscription | null>(null);
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [pending, setPending] = useState<string | null>(null);
@@ -143,10 +144,14 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
     >
       <div className="panel billing-panel">
         <div className="billing-heading">
-          <h2>{t(MESSAGE.subscriptionPlans)}</h2>
+          <span className="billing-brand">docsnest</span>
           <button ref={close} onClick={onClose} aria-label={t(MESSAGE.closeSubscriptionPlans)}>
             {t(MESSAGE.close)}{' '}
           </button>
+        </div>
+        <div className="billing-hero">
+          <h2>{t(MESSAGE.billingHeadline)}</h2>
+          <p>{t(MESSAGE.billingIntro)}</p>
         </div>
         <ErrorNotice message={error} />
         <p>
@@ -166,26 +171,62 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
               : t(MESSAGE.updatingSubscription)}
           </p>
         )}
-        <p>{t(MESSAGE.stripeHandlesPaymentsPricesAndBillingPeriodsAppear)} </p>
-        {!enabled && (
+
+        {enabled === false && (
           <p role="status">{t(MESSAGE.testPaymentsAreNotConfiguredExistingFeaturesRemain)} </p>
         )}
         <div className="billing-options">
-          {PAID_PLANS.map((plan) => (
-            <div className="billing-option" key={plan}>
-              <strong>{localize(labels[plan])}</strong>
-              <p>{t(MESSAGE.manageSubscriptionsAndRenewalsOnStripe)}</p>
-              <button
-                disabled={!enabled || busy || account?.plan !== 'FREE'}
-                onClick={() => {
-                  void action('checkout', plan);
-                }}
-              >
-                {t(MESSAGE.viewPricingAndSubscribe)}{' '}
-              </button>
+          <div className="billing-free">
+            <h3>{t(MESSAGE.freePlan)}</h3>
+            <p>{t(MESSAGE.freePlanCaption)}</p>
+            <ul className="billing-features">
+              {[
+                MESSAGE.featureEditor,
+                MESSAGE.featureLibrary,
+                MESSAGE.featureSharing,
+                MESSAGE.featureOffice,
+              ].map((feature) => (
+                <li key={feature}>
+                  <span aria-hidden="true">✓</span>
+                  {t(feature)}
+                </li>
+              ))}
+            </ul>
+            {account?.plan === 'FREE' && (
+              <span className="current-plan-badge">{t(MESSAGE.currentPlanBadge)}</span>
+            )}
+          </div>
+          <div className="billing-pro">
+            <h3>docsnest Pro</h3>
+            <p>{t(MESSAGE.proPlanCaption)}</p>
+            <div className="billing-cycle" role="group" aria-label={t(MESSAGE.subscriptionPlans)}>
+              {(['PRO_MONTHLY', 'PRO_YEARLY'] as const).map((plan) => (
+                <button
+                  key={plan}
+                  aria-pressed={chosenPlan === plan}
+                  onClick={() => setChosenPlan(plan)}
+                >
+                  {t(plan === 'PRO_MONTHLY' ? MESSAGE.monthlyBilling : MESSAGE.yearlyBilling)}
+                </button>
+              ))}
             </div>
-          ))}
+            <p className="billing-cycle-caption">
+              {t(
+                chosenPlan === 'PRO_MONTHLY' ? MESSAGE.proMonthlyCaption : MESSAGE.proYearlyCaption,
+              )}
+            </p>
+            <strong className="billing-price">{t(MESSAGE.pricingAtCheckout)}</strong>
+            <button
+              className="primary billing-checkout"
+              disabled={!enabled || busy || !account || account.plan !== 'FREE'}
+              onClick={() => void action('checkout', chosenPlan)}
+            >
+              {busy ? t(MESSAGE.updatingSubscription) : t(MESSAGE.continueToCheckout)}
+            </button>
+            <p className="billing-checkout-note">{t(MESSAGE.checkoutCaption)}</p>
+          </div>
         </div>
+        <p className="billing-free-note">{t(MESSAGE.featuresRemainFree)}</p>
         <div className="billing-actions">
           <button
             disabled={!enabled || busy}

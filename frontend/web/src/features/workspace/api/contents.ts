@@ -7,11 +7,13 @@ export async function workspaceContents(
   scope: Scope,
   parent: string | null,
   cursor?: string,
+  titleQuery?: string,
 ): Promise<{ listing: Page<DocumentInfo>; folders: Folder[] }> {
   const listing = await listDocuments(
     scope === 'mine' ? 'OWNED' : scope === 'shared' ? 'SHARED' : 'TRASH',
     scope === 'mine' ? parent : null,
     cursor,
+    titleQuery,
   );
   const folders: Folder[] = [];
   if (scope === 'mine') {
@@ -22,5 +24,12 @@ export async function workspaceContents(
       folders.push(...page.items);
     }
   }
-  return { listing, folders };
+  return {
+    listing,
+    folders: titleQuery
+      ? folders.filter((folder) =>
+          folder.name.toLocaleLowerCase().includes(titleQuery.toLocaleLowerCase()),
+        )
+      : folders,
+  };
 }
