@@ -6,23 +6,23 @@ These are visual proposals, not changes to the running application. Generated im
 
 ## Browse the designs
 
-| Board | Screen / states |
-| --- | --- |
-| [00](#00-cloud-document-editor) | Cloud rich editor, desktop and mobile |
-| [01](#01-introduction) | Introduction |
-| [02](#02-authentication) | Sign-in and registration |
-| [03](#03-my-files) | My files library |
-| [04](#04-shared-trash) | Shared files and Trash |
-| [05](#05-library-states) | Empty, search, loading and error states |
-| [06](#06-markdown-code) | Managed Markdown and code editors |
-| [07](#07-json) | JSON source and result |
-| [08](#08-local-document) | Local document editor |
-| [09](#09-sharing) | Sharing and collaboration |
-| [10](#10-versions-recovery) | Version history and recovery |
-| [11](#11-file-actions) | Create, rename, move and import |
-| [12](#12-downloads) | Download formats and export progress |
-| [13](#13-settings-plan) | Settings and plan management |
-| [14](#14-public-viewer) | Public document viewing |
+| Board                           | Screen / states                         |
+| ------------------------------- | --------------------------------------- |
+| [00](#00-cloud-document-editor) | Cloud rich editor, desktop and mobile   |
+| [01](#01-introduction)          | Introduction                            |
+| [02](#02-authentication)        | Sign-in and registration                |
+| [03](#03-my-files)              | My files library                        |
+| [04](#04-shared-trash)          | Shared files and Trash                  |
+| [05](#05-library-states)        | Empty, search, loading and error states |
+| [06](#06-markdown-code)         | Managed Markdown and code editors       |
+| [07](#07-json)                  | JSON source and result                  |
+| [08](#08-local-document)        | Local document editor                   |
+| [09](#09-sharing)               | Sharing and collaboration               |
+| [10](#10-versions-recovery)     | Version history and recovery            |
+| [11](#11-file-actions)          | Create, rename, move and import         |
+| [12](#12-downloads)             | Download formats and export progress    |
+| [13](#13-settings-plan)         | Settings and plan management            |
+| [14](#14-public-viewer)         | Public document viewing                 |
 
 ## Design system
 
@@ -180,22 +180,22 @@ The original proposal remains the anchor: compact identity/save status, one ever
 
 ## Screen and state coverage
 
-| Existing area | Boards | Important variations |
-| --- | --- | --- |
-| Introduction | 01 | Desktop/mobile, no-account/account paths |
-| Authentication | 02 | Sign-in, registration, field error, mobile |
-| Workspace/library/folders | 03–05, 11 | Grid/list, scoped search, filters, empty/loading/failure, create/rename/move |
-| Shared with me / Trash | 04 | Permission labels, no shared items, restore consequence |
-| Cloud rich editor | 00 | Desktop/mobile, save state and compact tools |
-| Local editors | 06–08 | Local rich shown in 08; source tool layout in 06/07 with local persistence variant described below |
-| Markdown / Code | 06 | Split preview, single-pane mobile, syntax editing |
-| JSON | 07 | Source/result, scratch output, empty-result guard |
-| Sharing / collaboration | 09 | Owner, recipient, public link, copied state, explicit room join |
-| History / recovery | 10 | Older read-only version, new copy, conflict, draft recovery, offline |
-| Import / file actions | 11 | New import, replace existing, rejection, hierarchical destination |
-| Exports | 12 | Formats, running, ready, failed, mobile tray, local print distinction |
-| Preferences / subscriptions | 13 | Appearance/language, storage fallback, Free and unavailable subscription state |
-| Public viewer | 14 | Rich reading, proposed Markdown view, unavailable link |
+| Existing area               | Boards    | Important variations                                                                               |
+| --------------------------- | --------- | -------------------------------------------------------------------------------------------------- |
+| Introduction                | 01        | Desktop/mobile, no-account/account paths                                                           |
+| Authentication              | 02        | Sign-in, registration, field error, mobile                                                         |
+| Workspace/library/folders   | 03–05, 11 | Grid/list, scoped search, filters, empty/loading/failure, create/rename/move                       |
+| Shared with me / Trash      | 04        | Permission labels, no shared items, restore consequence                                            |
+| Cloud rich editor           | 00        | Desktop/mobile, save state and compact tools                                                       |
+| Local editors               | 06–08     | Local rich shown in 08; source tool layout in 06/07 with local persistence variant described below |
+| Markdown / Code             | 06        | Split preview, single-pane mobile, syntax editing                                                  |
+| JSON                        | 07        | Source/result, scratch output, empty-result guard                                                  |
+| Sharing / collaboration     | 09        | Owner, recipient, public link, copied state, explicit room join                                    |
+| History / recovery          | 10        | Older read-only version, new copy, conflict, draft recovery, offline                               |
+| Import / file actions       | 11        | New import, replace existing, rejection, hierarchical destination                                  |
+| Exports                     | 12        | Formats, running, ready, failed, mobile tray, local print distinction                              |
+| Preferences / subscriptions | 13        | Appearance/language, storage fallback, Free and unavailable subscription state                     |
+| Public viewer               | 14        | Rich reading, proposed Markdown view, unavailable link                                             |
 
 For **local Markdown, Code and JSON**, reuse the pane layouts in 06/07 with the local shell from 08: This tab only, Open file, Download; no cloud Save/Share/History. For **managed JSON**, Save writes the source, not the scratch result. These are context variants, not separate products.
 
@@ -216,4 +216,3 @@ For **local Markdown, Code and JSON**, reuse the pane layouts in 06/07 with the 
 4. Commercial subscription design only after the plan benefits, prices and acceptance gates are resolved.
 
 The audit remains the detailed behavior/copy specification. [All new image prompts](ALL_SCREENS_IMAGE_PROMPTS.md) record the built-in imagegen inputs; [original editor prompt](UX_AUDIT_IMAGE_PROMPT.md) records board 00. Full-resolution PNGs are under `docs/design/assets/` and `docs/design/assets/screens/`. Execution results belong only in [PROJECT_STATUS.md](../PROJECT_STATUS.md).
-

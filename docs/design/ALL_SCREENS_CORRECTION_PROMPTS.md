@@ -1,5 +1,5 @@
 # docsnest: image refinement prompts
-+
+
 ## Targeted correction prompts
 
 Each correction uses the corresponding first-pass board as its sole edit target. Selected corrections are saved as `-v2.png`; originals remain preserved.
@@ -27,4 +27,3 @@ Use case: ui-mockup. Edit supplied history/recovery board with strict correctnes
 ### 13-settings-plan
 
 Use case: text-localization. Edit the supplied settings/plan concept image. Preserve all layout, visual design, labels and controls. In BOTH desktop and mobile plan panels change the Version history helper from "See and restore earlier versions." to exactly "View earlier versions and save a copy." The product cannot restore over the current document. This is the only change; preserve every other detail.
-
