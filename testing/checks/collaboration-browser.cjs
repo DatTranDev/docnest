@@ -159,6 +159,11 @@ async function enterCollaboration(page, documentId) {
     console.log('check: extended formatting across real peers');
     await owner.context.setOffline(true);
     await guest.context.setOffline(true);
+    for (const user of [owner, guest]) {
+      await user.page.locator('.toolbar-more-format summary').click();
+      await user.page.locator('.cm-content').click();
+      await user.page.keyboard.press('ControlOrMeta+a');
+    }
     await owner.page.getByRole('button', { name: 'Tô nền chữ', exact: true }).click();
     await guest.page.getByRole('button', { name: 'Gạch ngang', exact: true }).click();
     await guest.page.getByRole('button', { name: 'Chỉ số dưới', exact: true }).click();
