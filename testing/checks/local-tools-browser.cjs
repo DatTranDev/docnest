@@ -204,10 +204,11 @@ async function main() {
     );
     assert.equal(jsonBytes.toString('utf8'), original);
     await source().fill('{"x":}');
-    await page.getByRole('button', { name: 'Căn lề', exact: true }).click();
+    await page.getByRole('button', { name: 'Kiểm tra', exact: true }).click();
     await expect(source()).toHaveText('{"x":}');
     await expect(page.getByLabel('Kết quả kiểm tra JSON')).toContainText('dòng 1');
-    await expect(output).toHaveText(original);
+    await expect(output).toContainText('900719925474099312345');
+    await expect(output).not.toContainText('{"x":}');
     // Changing modes/language/theme keeps the same mounted documents and undo stack.
     await page.getByRole('tab', { name: 'Markdown', exact: true }).click();
     await expect(source()).toContainText('# Safe');
@@ -216,7 +217,7 @@ async function main() {
     await expect(source()).toHaveText('{"x":}');
     await page.locator('.site-settings').getByRole('button', { name: 'Ngôn ngữ' }).click();
     await page.getByRole('menuitemradio', { name: 'English' }).click();
-    await expect(page.getByRole('button', { name: 'Format', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Validate', exact: true })).toBeVisible();
     await expect(source()).toHaveText('{"x":}');
     await page
       .locator('.site-settings')

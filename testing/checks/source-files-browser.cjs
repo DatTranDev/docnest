@@ -146,7 +146,6 @@ async function main() {
       await file.saveAs(`${reports}/managed-${name}`);
       assert.equal(readFileSync(`${reports}/managed-${name}`).toString('utf8'), text);
       if (name.endsWith('.json')) {
-        await pane.getByRole('button', { name: 'Căn lề', exact: true }).click();
         const result = pane.locator('.json-output .cm-content');
         await expect(result).toContainText('900719925474099312345');
         await result.fill('{"id":900719925474099312345,"edited":true}');
@@ -257,7 +256,6 @@ async function main() {
       await expect(
         viewerPage.getByRole('button', { name: 'Dùng kết quả', exact: true }),
       ).toBeDisabled();
-      await viewerPage.getByRole('button', { name: 'Căn lề', exact: true }).click();
       await expect(viewerPage.locator('.json-output .cm-content')).toContainText(
         '900719925474099312345',
       );
