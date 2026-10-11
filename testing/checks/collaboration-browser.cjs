@@ -160,7 +160,7 @@ async function enterCollaboration(page, documentId) {
     await owner.context.setOffline(true);
     await guest.context.setOffline(true);
     for (const user of [owner, guest]) {
-      await user.page.locator('.toolbar-more-format summary').click();
+      await user.page.getByText('Định dạng ▾', { exact: true }).click();
       await user.page.locator('.cm-content').click();
       await user.page.keyboard.press('ControlOrMeta+a');
     }
