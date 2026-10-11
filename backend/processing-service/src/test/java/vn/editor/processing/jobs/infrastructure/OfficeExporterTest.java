@@ -230,6 +230,43 @@ class OfficeExporterTest {
   }
 
   @Test
+  void firstPageHeaderIsExportedSeparatelyToDocxAndPdf() throws Exception {
+    var source = sample();
+    var formatting = source.formatting();
+    var variant =
+        new NativeCodec.Decoded(
+            source.manifest(),
+            source.text(),
+            source.masks(),
+            source.nativeBytes(),
+            source.nativeSha256(),
+            new NativeCodec.Formatting(
+                formatting.runs(),
+                formatting.paragraphs(),
+                new NativeCodec.PageSettings(
+                    "Later pages", "First page only", "Footer", true, true)),
+            source.images());
+
+    var docx = new ByteArrayOutputStream();
+    OfficeExporter.docx(variant, docx, () -> {});
+    try (var document = new XWPFDocument(new ByteArrayInputStream(docx.toByteArray()))) {
+      assertTrue(
+          document.getHeaderList().stream().anyMatch(h -> h.getText().contains("First page only")));
+      assertTrue(
+          document.getHeaderList().stream().anyMatch(h -> h.getText().contains("Later pages")));
+      assertTrue(document.getDocument().getBody().getSectPr().getTitlePg() != null);
+    }
+
+    var pdf = new ByteArrayOutputStream();
+    OfficeExporter.pdf(variant, pdf, () -> {});
+    try (var document = Loader.loadPDF(pdf.toByteArray())) {
+      var text = new PDFTextStripper().getText(document);
+      assertEquals(1, text.split("First page only", -1).length - 1);
+      assertEquals(1, text.split("Later pages", -1).length - 1);
+    }
+  }
+
+  @Test
   void xhtmlEscapesPrivateTextAndUriAndRepresentsRealTablesAndListNumbers() throws Exception {
     var out = new ByteArrayOutputStream();
     StructuredHtml.write(sample(), out, () -> {});

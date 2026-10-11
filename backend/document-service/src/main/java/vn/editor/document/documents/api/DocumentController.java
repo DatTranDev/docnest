@@ -62,10 +62,13 @@ public class DocumentController {
       @RequestParam(defaultValue = "OWNED") String scope,
       @RequestParam(defaultValue = "root") String parent,
       @RequestParam(required = false) String titleQuery,
+      @RequestParam(defaultValue = "createdAt") String sortBy,
+      @RequestParam(defaultValue = "desc") String sortDirection,
       @RequestParam(required = false) String cursor,
       @RequestParam(defaultValue = "50") int limit) {
     return queries.handle(
-        new ListDocumentsQuery(actor(jwt), scope, parent, titleQuery, cursor, limit));
+        new ListDocumentsQuery(
+            actor(jwt), scope, parent, titleQuery, sortBy, sortDirection, cursor, limit));
   }
 
   @PostMapping("/api/v1/documents")

@@ -15,8 +15,10 @@ export interface ParagraphStyle {
 }
 export interface PageSettings {
   header?: string;
+  firstPageHeader?: string;
   footer?: string;
   pageNumbers?: boolean;
+  differentFirstPage?: boolean;
 }
 export const TABLE_LIMITS = Object.freeze({ cells: 1000, textUnits: 20000 });
 export function validateTables(
@@ -58,7 +60,13 @@ export const PARAGRAPH_KEYS = [
   'pageBreak',
   'table',
 ] as const;
-export const PAGE_KEYS = ['header', 'footer', 'pageNumbers'] as const;
+export const PAGE_KEYS = [
+  'header',
+  'firstPageHeader',
+  'footer',
+  'pageNumbers',
+  'differentFirstPage',
+] as const;
 export function safeLink(value: string): boolean {
   if (value.length > 2048 || /[\s\u0000-\u001f\u007f<>"\\]/.test(value)) return false;
   try {
@@ -108,13 +116,17 @@ export function cleanParagraph(value: ParagraphStyle): ParagraphStyle {
     ...(value.table ? { table: { ...value.table } } : {}),
   };
 }
-export function parsePage(value: unknown): PageSettings {
+export function parsePage(value: unknown, variants = true): PageSettings {
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new Error('INVALID_FORMATTING');
   const page = value as PageSettings;
   if (
-    Object.keys(page).some((key) => !PAGE_KEYS.includes(key as (typeof PAGE_KEYS)[number])) ||
-    ['header', 'footer'].some((key) => {
+    Object.keys(page).some(
+      (key) =>
+        !PAGE_KEYS.includes(key as (typeof PAGE_KEYS)[number]) ||
+        (!variants && ['firstPageHeader', 'differentFirstPage'].includes(key)),
+    ) ||
+    ['header', 'firstPageHeader', 'footer'].some((key) => {
       const text = page[key as 'header'];
       return (
         text !== undefined &&
@@ -124,13 +136,16 @@ export function parsePage(value: unknown): PageSettings {
           /[\ud800-\udfff]/.test(text.replace(/[\ud800-\udbff][\udc00-\udfff]/g, '')))
       );
     }) ||
-    (page.pageNumbers !== undefined && typeof page.pageNumbers !== 'boolean')
+    (page.pageNumbers !== undefined && typeof page.pageNumbers !== 'boolean') ||
+    (page.differentFirstPage !== undefined && typeof page.differentFirstPage !== 'boolean')
   )
     throw new Error('INVALID_FORMATTING');
   return {
     ...(page.header ? { header: page.header } : {}),
+    ...(page.firstPageHeader ? { firstPageHeader: page.firstPageHeader } : {}),
     ...(page.footer ? { footer: page.footer } : {}),
     ...(page.pageNumbers ? { pageNumbers: true } : {}),
+    ...(page.differentFirstPage ? { differentFirstPage: true } : {}),
   };
 }
 /** Sparse paragraph context, scanned only over formatted records, never the document text. */

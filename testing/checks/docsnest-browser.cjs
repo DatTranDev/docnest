@@ -71,6 +71,12 @@ async function settings(page, vi = false) {
   await page.getByRole('menuitem', { name: vi ? 'Cài đặt' : 'Settings', exact: true }).click();
   return page.getByRole('dialog', { name: vi ? 'Cài đặt' : 'Settings', exact: true });
 }
+async function selectLanguage(scope, label, choice) {
+  await scope.getByRole('button', { name: label, exact: true }).click();
+  await scope
+    .getByRole('menuitemradio', { name: choice === 'vi' ? 'Tiếng Việt' : 'English', exact: true })
+    .click();
+}
 async function api(context, token, path, method = 'GET', data, expected = 200) {
   const response = await context.request.fetch(base + path, {
     method,
@@ -298,7 +304,7 @@ async function theme(page, value) {
       await page.locator('.workspace').evaluate((node) => getComputedStyle(node).backgroundColor),
       'rgb(34, 38, 46)',
     );
-    await dialog.getByRole('combobox', { name: 'Language', exact: true }).selectOption('vi');
+    await selectLanguage(dialog, 'Language', 'vi');
     await page.getByRole('dialog', { name: 'Cài đặt', exact: true }).waitFor();
     assert.equal(
       await preferencesEditor.evaluate((node) => node === document.querySelector('.cm-content')),
@@ -361,13 +367,13 @@ async function theme(page, value) {
     await accountMenu(page, true);
     await page.getByRole('menuitem', { name: 'Đăng xuất', exact: true }).click();
     await page.getByRole('textbox', { name: 'Mật khẩu', exact: true }).waitFor();
-    await page.getByRole('combobox', { name: 'Ngôn ngữ', exact: true }).selectOption('en');
+    await selectLanguage(page, 'Ngôn ngữ', 'en');
     const second = await login(page, 'smoke-owner@editor.test');
     await page.getByRole('button', { name: 'New', exact: true }).waitFor();
     await theme(page, 'light');
     dialog = await settings(page);
     await dialog.getByRole('radio', { name: 'Light', exact: true }).check();
-    await dialog.getByRole('combobox', { name: 'Language', exact: true }).selectOption('en');
+    await selectLanguage(dialog, 'Language', 'en');
     await page.keyboard.press('Escape');
     const stored = await page.evaluate(
       ([first, second]) => [

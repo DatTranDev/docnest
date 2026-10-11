@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useI18n } from '@/lib/i18n';
 import type { Locale } from '@/config/locale';
 
@@ -39,6 +39,17 @@ function read(key: string) {
 }
 export function usePreferences(userId?: string) {
   const { locale, setLocale } = useI18n();
+  const [sessionOnly, setSessionOnly] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const probe = 'docsnest:storage-probe';
+      localStorage.setItem(probe, '1');
+      localStorage.removeItem(probe);
+      return false;
+    } catch {
+      return true;
+    }
+  });
   const initialLocale = useRef(locale);
   const key = userId ? preferenceKey(userId) : '';
   const raw = useSyncExternalStore(
@@ -70,9 +81,9 @@ export function usePreferences(userId?: string) {
     try {
       localStorage.setItem(key, next);
     } catch {
-      /* Session fallback retains account isolation. */
+      setSessionOnly(true);
     }
     window.dispatchEvent(new Event(changed));
   };
-  return { ...preferences, locale: preferences.locale ?? locale, update };
+  return { ...preferences, locale: preferences.locale ?? locale, sessionOnly, update };
 }

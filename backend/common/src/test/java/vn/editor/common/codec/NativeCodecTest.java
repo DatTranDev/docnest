@@ -1,6 +1,7 @@
 package vn.editor.common.codec;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -205,6 +206,21 @@ class NativeCodecTest {
   }
 
   @Test
+  void v6FirstPageHeaderIsBoundedAndV5RejectsItsFields() throws Exception {
+    String formatting =
+        "{\"runs\":[],\"paragraphs\":[],\"page\":{\"header\":\"Later pages\",\"firstPageHeader\":\"First page\",\"differentFirstPage\":true}}";
+    var decoded =
+        NativeCodec.decode(nativeFile("First\nsecond", false, formatting, "{\"images\":[]}", 6));
+    assertTrue(decoded.formatting().page().differentFirstPage());
+    assertEquals("First page", decoded.formatting().page().firstPageHeader());
+    assertThrows(
+        NativeCodec.InvalidNative.class,
+        () ->
+            NativeCodec.decode(
+                nativeFile("First\nsecond", false, formatting, "{\"images\":[]}", 5)));
+  }
+
+  @Test
   void nativeTablesCannotBypassTheBoundedEditorProjection() throws Exception {
     String format =
         "{\"runs\":[],\"paragraphs\":[{\"from\":0,\"align\":\"left\",\"table\":{\"id\":\"table\",\"columns\":2}}]}";
@@ -255,7 +271,9 @@ class NativeCodecTest {
     if (formatting != null) {
       m.put(
           "formattingEncoding",
-          version == 5 ? "sparse-v3" : version == 4 ? "sparse-v2" : "sparse-v1");
+          version == 6
+              ? "sparse-v4"
+              : version == 5 ? "sparse-v3" : version == 4 ? "sparse-v2" : "sparse-v1");
       m.put("formattingSha256", NativeCodec.sha256(formatting.getBytes(StandardCharsets.UTF_8)));
     }
     if (media != null) {

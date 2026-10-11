@@ -77,6 +77,23 @@ describe('structured document transactions', () => {
     model.formatParagraph({ list: undefined, indent: 0, pageBreak: false });
     expect(model.formatting.paragraphAt(0).list).toBeUndefined();
   });
+  it('roundtrips a distinct first-page header in the V6 native format', async () => {
+    const model = new EditorModel(TextAdapter.from('First page\nSecond page'));
+    model.setPage({
+      header: 'Repeating header',
+      firstPageHeader: 'First page only',
+      differentFirstPage: true,
+      footer: 'Footer',
+    });
+    const data = await encodeNative(model.snapshot());
+    expect(new TextDecoder().decode(data)).toContain('"schemaVersion":6');
+    expect(new TextDecoder().decode(data)).toContain('"sparse-v4"');
+    expect((await decodeNative(data)).formatting?.page).toEqual(model.formatting.page);
+    model.undo();
+    expect(model.formatting.page).toEqual({});
+    model.redo();
+    expect(model.formatting.page.differentFirstPage).toBe(true);
+  });
   it('inserts editable table cells as one transaction, maps edits and restores them', async () => {
     const model = new EditorModel(TextAdapter.from('before after'));
     model.moveSelection(EditorSelection.single(7));
@@ -202,7 +219,11 @@ describe('structured document transactions', () => {
         mb = EditorModel.loaded(b.snapshot(base));
       ma.moveSelection(EditorSelection.single(0, 4));
       ma.formatParagraph({ list: 'number' });
-      ma.setPage({ header: 'Header' });
+      ma.setPage({
+        header: 'Header',
+        firstPageHeader: 'First page',
+        differentFirstPage: true,
+      });
       ma.formatCharacter({ link: 'https://example.com' });
       mb.moveSelection(EditorSelection.single(0, 4));
       mb.formatParagraph({ lineSpacing: 2 });
@@ -215,7 +236,12 @@ describe('structured document transactions', () => {
       b.apply(aa);
       const merged = a.snapshot(base);
       expect(merged.formatting?.paragraphAt(0)).toMatchObject({ list: 'number', lineSpacing: 2 });
-      expect(merged.formatting?.page).toEqual({ header: 'Header', footer: 'Footer' });
+      expect(merged.formatting?.page).toEqual({
+        header: 'Header',
+        firstPageHeader: 'First page',
+        footer: 'Footer',
+        differentFirstPage: true,
+      });
       expect(merged.formatting?.at(0).link).toBe('https://example.com/');
       expect(b.snapshot(base).formatting?.toJSON()).toEqual(merged.formatting?.toJSON());
       expect((await decodeNative(await encodeNative(merged))).formatting?.toJSON()).toEqual(

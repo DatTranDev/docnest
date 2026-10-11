@@ -76,6 +76,8 @@ public class JdbcDocumentDao extends JdbcStore
             query.scope(),
             query.parent(),
             query.titleQuery(),
+            query.sortBy(),
+            query.sortDirection(),
             query.cursor(),
             query.limit());
     return new Page<>(
@@ -122,6 +124,7 @@ public class JdbcDocumentDao extends JdbcStore
         (String) row.get("createdAt"),
         (String) row.get("updatedAt"),
         (String) row.get("deletedAt"),
+        (Long) row.get("sizeBytes"),
         (Map<String, Object>) row.get("preview"));
   }
 
@@ -200,6 +203,8 @@ public class JdbcDocumentDao extends JdbcStore
         time(r.get("updated_at")),
         "deletedAt",
         time(r.get("deleted_at")),
+        "sizeBytes",
+        r.get("size_bytes") == null ? null : ((Number) r.get("size_bytes")).longValue(),
         "preview",
         r.get("preview_json") == null ? null : parse(r.get("preview_json").toString()));
   }
@@ -210,18 +215,40 @@ public class JdbcDocumentDao extends JdbcStore
   }
 
   private Map<String, Object> documents(
-      String actor, String scope, String parent, String query, String cursor, int limit) {
+      String actor,
+      String scope,
+      String parent,
+      String query,
+      String sortBy,
+      String sortDirection,
+      String cursor,
+      int limit) {
     if (!Set.of("OWNED", "SHARED", "TRASH").contains(scope))
       throw new DomainException(400, "INVALID_REQUEST");
     limit = (int) integer(limit, 1, 100);
+    if (!Set.of("createdAt", "name", "size").contains(sortBy)
+        || !Set.of("asc", "desc").contains(sortDirection))
+      throw new DomainException(400, "INVALID_REQUEST");
+    String sortColumn =
+        switch (sortBy) {
+          case "name" -> "d.title";
+          case "size" -> "COALESCE(v.native_bytes,0)";
+          default -> "d.created_at";
+        };
+    String comparison = sortDirection.equals("asc") ? ">" : "<";
+    String order = sortDirection.equals("asc") ? "ASC" : "DESC";
     String p = scope.equals("OWNED") ? folders.resolveParent(actor, parent) : null;
     Map<String, Object> c = cursor(cursor);
     List<Object> a = new ArrayList<>();
     String sql =
         scope.equals("SHARED")
-            ? "SELECT d.*,p.role AS effective_role FROM documents d JOIN document_permissions p ON"
-                + " p.document_id=d.id WHERE p.grantee_user_id=? AND d.deleted_at IS NULL"
-            : "SELECT d.*,'OWNER' AS effective_role FROM documents d WHERE d.owner_user_id=? AND"
+            ? "SELECT d.*,COALESCE(v.native_bytes,0) AS size_bytes,p.role AS effective_role"
+                + " FROM documents d JOIN document_permissions p ON p.document_id=d.id"
+                + " LEFT JOIN document_versions v ON v.document_id=d.id AND v.id=d.head_version_id"
+                + " WHERE p.grantee_user_id=? AND d.deleted_at IS NULL"
+            : "SELECT d.*,COALESCE(v.native_bytes,0) AS size_bytes,'OWNER' AS effective_role"
+                + " FROM documents d LEFT JOIN document_versions v ON v.document_id=d.id"
+                + " AND v.id=d.head_version_id WHERE d.owner_user_id=? AND"
                 + " d.deleted_at IS "
                 + (scope.equals("TRASH") ? "NOT NULL" : "NULL AND d.folder_id <=> ?");
     a.add(actor);
@@ -233,20 +260,37 @@ public class JdbcDocumentDao extends JdbcStore
       a.add(query);
     }
     if (c != null) {
-      fields(c, "at,id", "");
+      fields(c, "sortBy,sortDirection,value,id", "");
+      if (!sortBy.equals(c.get("sortBy")) || !sortDirection.equals(c.get("sortDirection")))
+        throw new DomainException(400, "INVALID_CURSOR");
       id(c.get("id"));
-      Timestamp at;
+      Object value;
       try {
-        at = Timestamp.from(Instant.parse(c.get("at").toString()));
+        value =
+            switch (sortBy) {
+              case "createdAt" -> Timestamp.from(Instant.parse(c.get("value").toString()));
+              case "name" -> c.get("value").toString();
+              default -> ((Number) c.get("value")).longValue();
+            };
       } catch (Exception ex) {
         throw new DomainException(400, "INVALID_CURSOR");
       }
-      sql += " AND (d.created_at>? OR (d.created_at=? AND d.id>?))";
-      a.addAll(Arrays.asList(at, at, c.get("id")));
+      sql +=
+          " AND ("
+              + sortColumn
+              + comparison
+              + "? OR ("
+              + sortColumn
+              + "=? AND d.id"
+              + comparison
+              + "?))";
+      a.addAll(Arrays.asList(value, value, c.get("id")));
     }
     a.add(limit + 1);
     List<Map<String, Object>> rows =
-        db.queryForList(sql + " ORDER BY d.created_at,d.id LIMIT ?", a.toArray());
+        db.queryForList(
+            sql + " ORDER BY " + sortColumn + " " + order + ",d.id " + order + " LIMIT ?",
+            a.toArray());
     boolean more = rows.size() > limit;
     if (more) rows.removeLast();
     return map(
@@ -255,7 +299,19 @@ public class JdbcDocumentDao extends JdbcStore
         "nextCursor",
         more
             ? cursorOf(
-                map("at", time(rows.getLast().get("created_at")), "id", rows.getLast().get("id")))
+                map(
+                    "sortBy",
+                    sortBy,
+                    "sortDirection",
+                    sortDirection,
+                    "value",
+                    switch (sortBy) {
+                      case "name" -> rows.getLast().get("title");
+                      case "size" -> rows.getLast().get("size_bytes");
+                      default -> time(rows.getLast().get("created_at"));
+                    },
+                    "id",
+                    rows.getLast().get("id")))
             : null);
   }
 

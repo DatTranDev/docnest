@@ -96,14 +96,25 @@ export async function exportLocalDocx(snapshot: Snapshot, title: string): Promis
     sections: [
       {
         properties: {
+          titlePage: page?.differentFirstPage ?? false,
           page: {
             size: { width: 11906, height: 16838 },
             margin: { top: 1134, bottom: 1134, left: 1134, right: 1134 },
           },
         },
-        headers: page?.header
-          ? { default: new Header({ children: [new Paragraph(page.header)] }) }
-          : undefined,
+        headers:
+          page?.header || page?.differentFirstPage
+            ? {
+                default: new Header({ children: [new Paragraph(page.header ?? '')] }),
+                ...(page.differentFirstPage
+                  ? {
+                      first: new Header({
+                        children: [new Paragraph(page.firstPageHeader ?? '')],
+                      }),
+                    }
+                  : {}),
+              }
+            : undefined,
         footers:
           page?.footer || page?.pageNumbers
             ? {

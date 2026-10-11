@@ -78,11 +78,19 @@ final class StructureCodec {
         from, align, list, indent, spacing, before, after, pageBreak, table);
   }
 
-  static NativeCodec.PageSettings page(Object value) throws NativeCodec.InvalidNative {
+  static NativeCodec.PageSettings page(Object value, boolean variants)
+      throws NativeCodec.InvalidNative {
     if (!(value instanceof Map<?, ?> p)
-        || !Set.of("header", "footer", "pageNumbers").containsAll(p.keySet())) throw invalid();
+        || !(variants
+                ? Set.of("header", "firstPageHeader", "footer", "pageNumbers", "differentFirstPage")
+                : Set.of("header", "footer", "pageNumbers"))
+            .containsAll(p.keySet())) throw invalid();
     return new NativeCodec.PageSettings(
-        label(p, "header"), label(p, "footer"), bool(p, "pageNumbers"));
+        label(p, "header"),
+        label(p, "firstPageHeader"),
+        label(p, "footer"),
+        bool(p, "pageNumbers"),
+        bool(p, "differentFirstPage"));
   }
 
   static void tables(java.util.List<NativeCodec.ParagraphFormat> paragraphs, String text)

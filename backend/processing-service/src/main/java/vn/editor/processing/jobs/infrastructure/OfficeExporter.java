@@ -113,6 +113,13 @@ final class OfficeExporter {
           .createParagraph()
           .createRun()
           .setText(page.header());
+      if (page.differentFirstPage()) {
+        section.addNewTitlePg();
+        doc.createHeader(HeaderFooterType.FIRST)
+            .createParagraph()
+            .createRun()
+            .setText(page.firstPageHeader());
+      }
       var footer = doc.createFooter(HeaderFooterType.DEFAULT).createParagraph();
       footer.createRun().setText(page.footer());
       if (page.pageNumbers()) {

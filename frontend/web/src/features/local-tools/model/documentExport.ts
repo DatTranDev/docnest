@@ -84,7 +84,8 @@ export function richHtml(snapshot: Snapshot): string {
     blocks.push(`<table><tbody>${rows.join('')}</tbody></table>`);
   }
   const page = snapshot.formatting?.page;
-  return `${page?.header ? `<header>${escapeHtml(page.header)}</header>` : ''}${blocks.join('')}${page?.footer ? `<footer>${escapeHtml(page.footer)}</footer>` : ''}`;
+  const header = page?.differentFirstPage ? page.firstPageHeader : page?.header;
+  return `${header ? `<header>${escapeHtml(header)}</header>` : ''}${blocks.join('')}${page?.footer ? `<footer>${escapeHtml(page.footer)}</footer>` : ''}`;
 }
 export function htmlFile(body: string, title: string, language: string): string {
   return `<!doctype html><html lang="${language}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(title)}</title><style>body{max-width:800px;margin:40px auto;padding:0 24px;color:#202124;font:16px/1.65 Arial,sans-serif}p{white-space:pre-wrap}img{max-width:100%}table{border-collapse:collapse;width:100%}td,th{border:1px solid #b8c2cf;padding:8px}pre{white-space:pre-wrap;background:#edf2f8;padding:18px;border-radius:8px}code{font-family:Consolas,monospace}.tok-keyword,.tok-bool,.tok-atom{color:#6b3fc5}.tok-string,.tok-string2{color:#19703c}.tok-number{color:#af5012}.tok-typeName,.tok-propertyName{color:#075e9b}.tok-comment{color:#697782;font-style:italic}blockquote{border-left:3px solid #1a73e8;padding-left:18px}header,footer{color:#5f6368;font-size:12px}a{color:#0b57d0}@page{size:A4;margin:20mm}@media print{body{margin:0;padding:0;max-width:none}pre,table{break-inside:avoid}}</style></head><body>${body}</body></html>`;

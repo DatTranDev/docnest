@@ -322,6 +322,9 @@ export class SharedDocument {
       formatting: RichFormatting.parse(
         { runs, paragraphs, ...(Object.keys(page).length ? { page } : {}) },
         text,
+        true,
+        true,
+        true,
       ),
       images: ImageStore.parse({ images }, text),
       contentToken: crypto.randomUUID(),

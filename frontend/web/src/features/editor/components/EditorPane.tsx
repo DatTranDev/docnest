@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { encodeNative, exportTxt, type EditorModel, type Snapshot } from '@ted/editor-core';
 import { Icon } from '@/components/ui/Icon';
+import { EditableTitle } from '@/components/ui/EditableTitle';
 import { ToolMenu } from '@/components/ui/ToolMenu';
 import { roleLabel } from '@/components/ui/roleLabel';
 import { download, errorMessage } from '@/lib/http';
@@ -37,11 +38,14 @@ interface EditorPaneProps {
   host: RefObject<HTMLDivElement | null>;
   recovery: ReactNode;
   onSave: () => Promise<void>;
-  onCollaborate: () => Promise<void>;
   onCopy: (snapshot: Snapshot) => Promise<void>;
   onImport: (file: File) => Promise<void>;
   onExport: (type: 'EXPORT_TXT' | 'EXPORT_HTML' | 'EXPORT_DOCX' | 'EXPORT_PDF') => Promise<void>;
   onHistory: () => void;
+  onBackToCurrent?: () => void;
+  onTitleChange?: (title: string) => void;
+  onRename?: (title: string) => Promise<void>;
+  onOpenFile?: () => void;
   onShare: () => void;
   onClearHistory: () => void;
   onError: (message: string) => void;
@@ -62,11 +66,14 @@ export function EditorPane({
   host,
   recovery,
   onSave,
-  onCollaborate,
   onCopy,
   onImport,
   onExport,
   onHistory,
+  onBackToCurrent,
+  onTitleChange,
+  onRename,
+  onOpenFile,
   onShare,
   onClearHistory,
   onError,
@@ -79,6 +86,7 @@ export function EditorPane({
     [ignoreCase, setIgnoreCase] = useState(false),
     [searchOpen, setSearchOpen] = useState(false);
   const [pagePreview, setPagePreview] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   useEffect(() => {
     controller.current?.setLanguage(locale);
   }, [controller, locale, active.model, active.readOnly]);
@@ -97,26 +105,34 @@ export function EditorPane({
 
   return (
     <section
-      className="editor-section"
+      className={`editor-section${localOnly ? ' local-only-editor' : ''}${active.revision !== undefined ? ' historical-view' : ''}`}
       inert={status === MESSAGE.opening}
       aria-label={t(MESSAGE.textEditor)}
     >
       <div className="editor-heading">
-        {!active.readOnly && !localOnly && (
-          <button
-            type="button"
-            disabled={!!controller.current?.collaboration || !online || saving}
-            onClick={() => void onCollaborate()}
-          >
-            {localize(controller.current?.collaboration?.status ?? MESSAGE.editTogether)}
-          </button>
-        )}
         <div className="editor-heading-main">
           <span className="document-mark">
             <Icon name="document" size={23} />
           </span>
           <div className="editor-identity">
-            <h1>{active.document.title}</h1>
+            {localOnly && onTitleChange ? (
+              <input
+                className="editor-title-input"
+                aria-label={t(MESSAGE.documentName)}
+                value={active.document.title}
+                maxLength={120}
+                onChange={(event) => onTitleChange(event.target.value)}
+              />
+            ) : onRename ? (
+              <EditableTitle
+                title={active.document.title}
+                label={t(MESSAGE.rename)}
+                editable={!active.readOnly && active.revision === undefined}
+                onRename={onRename}
+              />
+            ) : (
+              <h1>{active.document.title}</h1>
+            )}
             <div className="editor-meta">
               {active.revision !== undefined && (
                 <span>
@@ -137,16 +153,50 @@ export function EditorPane({
           </div>
         </div>
         <div className="editor-heading-actions">
-          <button
-            className="editor-action"
-            disabled={active.readOnly || saving || status === MESSAGE.conflict}
-            onClick={() => {
-              void onSave();
-            }}
-          >
-            <Icon name="save" size={17} />{' '}
-            {t(localOnly ? MESSAGE.downloadNativeFile : MESSAGE.save)}{' '}
-          </button>
+          {active.revision !== undefined && onBackToCurrent && (
+            <button onClick={onBackToCurrent}>{t(MESSAGE.backToCurrent)}</button>
+          )}
+          {active.revision !== undefined && !localOnly && (
+            <button onClick={() => void onCopy(active.model.snapshot())}>
+              {t(MESSAGE.saveAsNewDocument)}
+            </button>
+          )}
+          {localOnly ? (
+            <>
+              {onOpenFile && <button onClick={onOpenFile}>{t(MESSAGE.openFile)}</button>}
+              <ToolMenu label={t(MESSAGE.downloadFormats)} icon="download">
+                <button onClick={() => void onSave()}>{t(MESSAGE.downloadNativeFile)}</button>
+                <button
+                  onClick={() =>
+                    download(
+                      exportTxt(active.model.snapshot()),
+                      `${active.document.title}.txt`,
+                      'text/plain;charset=utf-8',
+                    )
+                  }
+                >
+                  {t(MESSAGE.downloadTxt)}
+                </button>
+                <button onClick={() => void onExport('EXPORT_DOCX')}>
+                  {t(MESSAGE.exportDocx)}
+                </button>
+                <button onClick={() => void onExport('EXPORT_HTML')}>
+                  {t(MESSAGE.downloadHtml)}
+                </button>
+                <button onClick={() => void onExport('EXPORT_PDF')}>{t(MESSAGE.printPdf)}</button>
+              </ToolMenu>
+            </>
+          ) : (
+            <button
+              className="editor-action"
+              disabled={active.readOnly || saving || status === MESSAGE.conflict}
+              onClick={() => {
+                void onSave();
+              }}
+            >
+              <Icon name="save" size={17} /> {t(MESSAGE.save)}
+            </button>
+          )}
           {!localOnly && active.document.effectiveRole === 'OWNER' && (
             <button className="primary share-action" onClick={onShare}>
               <Icon name="share" size={17} /> {t(MESSAGE.share)}{' '}
@@ -155,7 +205,54 @@ export function EditorPane({
         </div>
       </div>
 
-      <div className="editor-toolbar" role="toolbar" aria-label={t(MESSAGE.editorToolbar)}>
+      <div className="mobile-editor-toolbar" role="toolbar" aria-label={t(MESSAGE.editorToolbar)}>
+        <button
+          disabled={active.readOnly}
+          aria-label={t(MESSAGE.bold)}
+          aria-pressed={Boolean(mask & STYLE_BITS.bold)}
+          onMouseDown={keepSelection}
+          onClick={() => controller.current?.format(STYLE_BITS.bold)}
+        >
+          <b>B</b>
+        </button>
+        <button
+          disabled={active.readOnly}
+          aria-label={t(MESSAGE.italic)}
+          aria-pressed={Boolean(mask & STYLE_BITS.italic)}
+          onMouseDown={keepSelection}
+          onClick={() => controller.current?.format(STYLE_BITS.italic)}
+        >
+          <i>I</i>
+        </button>
+        <button
+          disabled={active.readOnly}
+          aria-label={t(MESSAGE.bulletList)}
+          aria-pressed={active.model.formatting.paragraphAt(lineStart).list === 'bullet'}
+          onMouseDown={keepSelection}
+          onClick={() =>
+            controller.current?.formatParagraph({
+              list:
+                active.model.formatting.paragraphAt(lineStart).list === 'bullet'
+                  ? undefined
+                  : 'bullet',
+            })
+          }
+        >
+          • ≡
+        </button>
+        <button
+          className="mobile-format-toggle"
+          aria-expanded={mobileToolsOpen}
+          onClick={() => setMobileToolsOpen((open) => !open)}
+        >
+          {t(MESSAGE.format)}
+        </button>
+      </div>
+      <div
+        className={`editor-toolbar${mobileToolsOpen ? ' mobile-open' : ''}`}
+        role="toolbar"
+        aria-label={t(MESSAGE.editorToolbar)}
+      >
         <div className="tool-group" aria-label={t(MESSAGE.editHistory)}>
           <button
             className="tool-icon"
@@ -214,19 +311,24 @@ export function EditorPane({
             <u>U</u>
           </button>
         </div>
-        <CharacterFormattingTools
-          character={character}
-          mask={mask}
-          readOnly={active.readOnly}
-          controller={controller}
-        />
-        <ParagraphTools
-          controller={controller}
-          paragraph={active.model.formatting.paragraphAt(lineStart)}
-          page={active.model.formatting.page}
-          readOnly={active.readOnly}
-          onError={onError}
-        />
+        <details className="toolbar-more-format">
+          <summary>{t(MESSAGE.format)} ▾</summary>
+          <div className="toolbar-more-panel">
+            <CharacterFormattingTools
+              character={character}
+              mask={mask}
+              readOnly={active.readOnly}
+              controller={controller}
+            />
+            <ParagraphTools
+              controller={controller}
+              paragraph={active.model.formatting.paragraphAt(lineStart)}
+              page={active.model.formatting.page}
+              readOnly={active.readOnly}
+              onError={onError}
+            />
+          </div>
+        </details>
         <div className="tool-group alignment-group" aria-label={t(MESSAGE.paragraphAlignment)}>
           {(
             [
@@ -316,6 +418,14 @@ export function EditorPane({
               event.target.value = '';
             }}
           />
+          <button onClick={() => void onCopy(active.model.snapshot())}>
+            <Icon name="copy" /> {t(MESSAGE.saveACopy)}
+          </button>
+          <button disabled={active.readOnly} onClick={onClearHistory}>
+            {t(MESSAGE.clearUndoHistory)}
+          </button>
+        </ToolMenu>
+        <ToolMenu label={t(MESSAGE.downloadFormats)} icon="download">
           <button
             onClick={() => {
               void encodeNative(active.model.snapshot())
@@ -340,14 +450,6 @@ export function EditorPane({
           <button
             disabled={!localOnly && !active.document.headRevision}
             onClick={() => {
-              void onExport('EXPORT_TXT');
-            }}
-          >
-            {t(localOnly ? MESSAGE.downloadTxt : MESSAGE.exportTxtOnServer)}{' '}
-          </button>
-          <button
-            disabled={!localOnly && !active.document.headRevision}
-            onClick={() => {
               void onExport('EXPORT_HTML');
             }}
           >
@@ -368,17 +470,6 @@ export function EditorPane({
               )}
             </button>
           ))}
-          <div className="menu-divider" />
-          <button
-            onClick={() => {
-              void onCopy(active.model.snapshot());
-            }}
-          >
-            <Icon name="copy" /> {t(MESSAGE.saveACopy)}{' '}
-          </button>
-          <button disabled={active.readOnly} onClick={onClearHistory}>
-            {t(MESSAGE.clearUndoHistory)}{' '}
-          </button>
         </ToolMenu>
       </div>
 
@@ -443,6 +534,8 @@ export function EditorPane({
         <PagedPreview
           model={active.model}
           imageUrl={(image) => controller.current!.imageUrl(image)}
+          readOnly={active.readOnly}
+          onPageChange={(page) => controller.current?.setPage(page)}
           onClose={() => setPagePreview(false)}
         />
       )}

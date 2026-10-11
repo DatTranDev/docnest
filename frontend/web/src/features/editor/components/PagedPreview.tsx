@@ -4,24 +4,65 @@ import { MESSAGE, useI18n } from '@/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { PAGE_PREVIEW } from '../model/constants';
 import Image from 'next/image';
-import { listOrdinal, type EditorModel, type PlacedImage } from '@ted/editor-core';
+import {
+  listOrdinal,
+  type EditorModel,
+  type PageSettings,
+  type PlacedImage,
+} from '@ted/editor-core';
 
 const MAX_PREVIEW_UNITS = PAGE_PREVIEW.maxTextUnits;
 const PAGE_PITCH = PAGE_PREVIEW.widthPx + PAGE_PREVIEW.gapPx;
 
+function FirstPageHeaderField({
+  label,
+  value,
+  disabled,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  disabled: boolean;
+  onCommit: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  return (
+    <label className="page-preview-header-field">
+      <span>{label}</span>
+      <input
+        aria-label={label}
+        maxLength={500}
+        value={draft}
+        disabled={disabled}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={() => {
+          if (draft !== value) onCommit(draft);
+        }}
+      />
+    </label>
+  );
+}
+
 export function PagedPreview({
   model,
   imageUrl,
+  onPageChange,
+  readOnly,
   onClose,
 }: {
   model: EditorModel;
   imageUrl: (image: PlacedImage) => string;
+  onPageChange: (page: PageSettings) => void;
+  readOnly: boolean;
   onClose: () => void;
 }) {
   const { t, countLabel } = useI18n();
 
   const ref = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState(1);
+  const firstPageHeader = model.formatting.page.differentFirstPage
+    ? (model.formatting.page.firstPageHeader ?? '')
+    : (model.formatting.page.header ?? '');
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
@@ -187,7 +228,45 @@ export function PagedPreview({
         <div className="page-preview-stage" style={{ width: pages * PAGE_PITCH }}>
           {Array.from({ length: pages }, (_, index) => (
             <div className="page-preview-sheet" key={index} style={{ left: index * PAGE_PITCH }}>
-              <header>{model.formatting.page.header}</header>
+              <header
+                className={index === 0 ? 'page-preview-header first-page' : 'page-preview-header'}
+              >
+                {index === 0 && (
+                  <div className="page-preview-header-controls">
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={model.formatting.page.differentFirstPage ?? false}
+                        disabled={readOnly}
+                        onChange={(event) =>
+                          onPageChange({
+                            ...model.formatting.page,
+                            differentFirstPage: event.target.checked,
+                          })
+                        }
+                      />
+                      {t(MESSAGE.differentFirstPage)}
+                    </label>
+                  </div>
+                )}
+                {index === 0 ? (
+                  <FirstPageHeaderField
+                    key={firstPageHeader}
+                    label={t(MESSAGE.firstPageHeader)}
+                    value={firstPageHeader}
+                    disabled={readOnly}
+                    onCommit={(value) =>
+                      onPageChange({
+                        ...model.formatting.page,
+                        [model.formatting.page.differentFirstPage ? 'firstPageHeader' : 'header']:
+                          value,
+                      })
+                    }
+                  />
+                ) : (
+                  model.formatting.page.header
+                )}
+              </header>
               <footer>
                 <span>{model.formatting.page.footer}</span>
                 {model.formatting.page.pageNumbers && <span>{index + 1}</span>}

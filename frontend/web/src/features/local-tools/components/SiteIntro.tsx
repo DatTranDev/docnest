@@ -3,9 +3,14 @@ import Link from 'next/link';
 import { useToolsCopy, markdownSample } from '../model/copy';
 import { SiteHeader } from './SiteHeader';
 import { MarkdownPreview } from './MarkdownPreview';
+import { Icon } from '@/components/ui/Icon';
+import { LocalClient } from './LocalClient';
 export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
-  const copy = useToolsCopy(),
-    edit = standalone ? './editor.html' : '/local';
+  const copy = useToolsCopy();
+  const edit = (mode?: string) =>
+    standalone
+      ? `./editor.html${mode ? `?mode=${mode}` : ''}`
+      : `/intro${mode ? `?mode=${mode}` : ''}#editor`;
   return (
     <div className="local-site">
       <SiteHeader standalone={standalone} />
@@ -14,24 +19,49 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
           <div className="intro-words">
             <h1>{copy.headline}</h1>
             <p>{copy.description}</p>
-            <a className="site-primary" href={`${edit}?mode=markdown`}>
-              {copy.openEditor}
-            </a>
+            <div className="intro-actions">
+              <a className="site-primary" href={edit('document')}>
+                {copy.startWriting} →
+              </a>
+              {!standalone && (
+                <Link className="intro-account-action" href="/">
+                  {copy.signInToFiles}
+                </Link>
+              )}
+            </div>
             <small>{copy.noAccount}</small>
           </div>
           <div className="intro-demo">
             <div className="intro-demo-bar">
-              <span>Ban-thao.md</span>
-              <span>docsnest</span>
+              <span className="intro-demo-title">
+                <Icon name="document" size={18} /> {copy.demoTitle}
+              </span>
+              <span className="intro-demo-actions">
+                <span>Save</span>
+                <span>Share</span>
+              </span>
+            </div>
+            <div className="intro-demo-toolbar">
+              <span>Normal text ▾</span>
+              <b>B</b>
+              <i>I</i>
+              <u>U</u>
+              <span>☷</span>
+              <span>↗</span>
+              <span>•••</span>
             </div>
             <div className="intro-demo-content">
-              <pre className="intro-demo-source">{copy.demoMarkdown}</pre>
-              <MarkdownPreview source={copy.demoMarkdown} />
+              <div className="intro-demo-paper">
+                <h2>{copy.demoTitle}</h2>
+                <p>{copy.demoBody}</p>
+                <ul>
+                  <li>{copy.demoPoint}</li>
+                </ul>
+              </div>
             </div>
           </div>
         </section>
-        <section className="intro-features">
-          <h2>{copy.featureHeading}</h2>
+        <section className="intro-features" aria-label={copy.featureHeading}>
           <div className="intro-feature-list">
             {[
               {
@@ -44,7 +74,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
               { mode: 'code', title: 'Code', description: copy.codeDescription, mark: '</>' },
               { mode: 'json', title: 'JSON', description: copy.jsonDescription, mark: '{ }' },
             ].map((feature) => (
-              <a key={feature.mode} href={`${edit}?mode=${feature.mode}`}>
+              <a key={feature.mode} href={edit(feature.mode)}>
                 <span className="intro-feature-mark" aria-hidden="true">
                   {feature.mark}
                 </span>
@@ -60,7 +90,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
           <div>
             <h2>{copy.localHeading}</h2>
             <p>{copy.localDescription}</p>
-            <a className="site-primary" href={edit}>
+            <a className="site-primary" href={edit()}>
               {copy.local}
             </a>
           </div>
@@ -71,6 +101,11 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             <span>docsnest.tedoc</span>
           </div>
         </section>
+        {!standalone && (
+          <section id="editor" className="intro-live-editor" aria-label={copy.local}>
+            <LocalClient embedded />
+          </section>
+        )}
         {!standalone && (
           <section className="intro-workspace">
             <h2>{copy.workspaceHeading}</h2>
@@ -85,7 +120,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
       </main>
       <footer className="intro-footer">
         <span>docsnest</span>
-        <a href={edit}>{copy.openEditor}</a>
+        <a href={edit()}>{copy.openEditor}</a>
       </footer>
     </div>
   );

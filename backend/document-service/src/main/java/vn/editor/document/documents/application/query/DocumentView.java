@@ -14,4 +14,5 @@ public record DocumentView(
     String createdAt,
     String updatedAt,
     String deletedAt,
+    Long sizeBytes,
     Map<String, Object> preview) {}

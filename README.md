@@ -84,16 +84,18 @@ DOCX import preserves supported Unicode text, headings, B/I/U, common character 
 
 ## Introduction and local tools
 
-The app provides `/intro` (product introduction) and `/local` (no-login local editor), linked from login and workspace. Four independent, mounted editors retain contents/history across mode switches:
+The app provides `/intro` (product introduction), with a no-login editor further down the same page at `/intro#editor`. The former `/local` URL redirects there. Four independent, mounted editors retain contents/history across mode switches:
 
 - Document: the canonical rich editor, TXT/native/DOCX import, local native/TXT/HTML/DOCX downloads and browser Print / Save PDF.
 - Markdown: MD/Markdown files, formatting toolbar, source/split/preview, fixed pane labels and bidirectional scrolling by corresponding content in split view, GFM tables/checklists, highlighted fenced code, HTML download and browser Print / Save PDF. Raw HTML is inert; remote images are labels and are never automatically fetched.
 - Code: line numbers, syntax highlighting and indentation for JavaScript, TypeScript, Python, HTML, CSS and JSON; plain text fallback. Code is never executed.
-- JSON: two editable panes for source and result. Validate, format with 2/4 spaces or minify into the right pane, then edit/copy/download the result or explicitly use it as the source. Errors report line/column. Raw number/string tokens, duplicate keys and property order are preserved, including integers beyond JavaScript's safe numeric range. Invalid transformations retain both panes.
+- JSON: two editable panes for source and result. The formatted result updates automatically from valid source with 2/4-space indentation; each pane can be collapsed. Validate or minify, edit/copy/download the result, or explicitly use it as the source. Errors report line/column. Raw number/string tokens, duplicate keys and property order are preserved, including integers beyond JavaScript's safe numeric range. Invalid transformations retain both panes.
 
 Local files remain in the current session; download to retain work. Editing needs no login and does not upload content. The header links to sign-in/file management and shows an initial avatar from the last successful session on the same host, without background authentication calls. The avatar hint contains no token/email/ID and does not authorize access; the workspace verifies the session. UTF-8 source import is bounded to 1 MiB; editing and JSON output to 1,048,576 UTF-16 units, JSON to 100 nested levels/200,000 tokens. Markdown preview/HTML export is bounded to 200,000 units. Canonical document/Office import/export bounds remain. English/Vietnamese and light/dark/browser appearance are available; local theme storage is separate from account preferences.
 
 Authenticated file management supports `.md`, `.markdown`, `.json`, `.js`, `.ts`, `.jsx`, `.tsx`, `.py`, `.html` and `.css`: create/import, edit with source highlighting, save versions, download the original text format, share/view, recover offline drafts and detect conflicting revisions. Markdown opens with synchronized preview; JSON opens with both panes. File types are inferred from title extensions; renaming without a supported extension retains the previous suffix. Source bytes use the existing canonical snapshot/upload protocol internally, with BOM/CRLF export preferences, ACL and optimistic revision checks. Existing titles without these suffixes use the rich editor. No schema/API/native-format migration was added.
+
+Signed-in document editors offer Document, Markdown, Code, JSON and Edit together tabs. Double-click the title to rename it. The same document model and save action are used across editing modes; the collaboration tab is available for writable documents within the collaboration size limit.
 
 Build/serve the independent site without Java, MySQL, Kafka, Redis or a Next.js server:
 

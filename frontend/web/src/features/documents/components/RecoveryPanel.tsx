@@ -45,20 +45,21 @@ export function RecoveryPanel({
       )}
       {status === MESSAGE.conflict && (
         <div className="recovery">
-          {t(MESSAGE.theServerVersionHasChanged)}{' '}
+          {t(MESSAGE.conflictExplanation)}{' '}
+          <button
+            className="primary"
+            onClick={() => {
+              void onCopy(active.model.snapshot());
+            }}
+          >
+            {t(MESSAGE.saveChangesAsANewDocument)}{' '}
+          </button>
           <button
             onClick={() => {
               void onOpenLatest();
             }}
           >
             {t(MESSAGE.openLatest)}{' '}
-          </button>
-          <button
-            onClick={() => {
-              void onCopy(active.model.snapshot());
-            }}
-          >
-            {t(MESSAGE.saveChangesAsANewDocument)}{' '}
           </button>
           <button
             onClick={() => {
@@ -70,7 +71,7 @@ export function RecoveryPanel({
             {t(MESSAGE.downloadDraft)}{' '}
           </button>
           <button onClick={() => onError(MESSAGE.yourDraftIsRetainedSavingIsPausedDuring)}>
-            {t(MESSAGE.cancel)}{' '}
+            {t(MESSAGE.keepWorkingHere)}{' '}
           </button>
         </div>
       )}

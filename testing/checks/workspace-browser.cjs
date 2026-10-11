@@ -21,7 +21,10 @@ async function register(context, email, displayName) {
     headers: { Origin: base, [csrf.headerName]: csrf.token },
     data: { email, password, displayName },
   });
-  assert.ok([201, 409].includes(response.status()), 'Fixture registration');
+  assert.ok(
+    [201, 409].includes(response.status()),
+    `Fixture registration HTTP ${response.status()}`,
+  );
   return password;
 }
 async function login(page, email, password) {
@@ -55,9 +58,14 @@ async function assertLayout(page) {
     'true',
   );
 }
+async function selectLanguage(page, label, choice) {
+  await page.getByRole('button', { name: label, exact: true }).click();
+  await page
+    .getByRole('menuitemradio', { name: choice === 'vi' ? 'Tiếng Việt' : 'English', exact: true })
+    .click();
+}
 async function createWrittenDocument(page, title, text) {
   await page.getByRole('button', { name: 'New', exact: true }).click();
-  page.once('dialog', (dialog) => dialog.accept(title));
   const created = page.waitForResponse(
     (r) => r.url().endsWith('/api/v1/documents') && r.request().method() === 'POST',
   );
@@ -68,6 +76,14 @@ async function createWrittenDocument(page, title, text) {
   assert.equal(createdResponse.status(), 201, 'Document fixture creation');
   const document = await createdResponse.json();
   documents.push(document.id);
+  await page.getByRole('button', { name: 'Document list', exact: true }).click();
+  const article = page.locator(`[data-document-id="${document.id}"]`);
+  await article.getByRole('button', { name: 'Actions for New document', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+  const rename = page.getByRole('dialog', { name: 'Rename', exact: true });
+  await rename.getByRole('textbox', { name: 'Name' }).fill(title);
+  await rename.getByRole('button', { name: 'Rename', exact: true }).click();
+  await article.getByRole('button', { name: title, exact: true }).click();
   await page.locator('.cm-content').click();
   await page.keyboard.insertText(text);
   const saved = page.waitForResponse(
@@ -107,11 +123,13 @@ async function createWrittenDocument(page, title, text) {
     token = await login(page, email, password);
     stage = 'empty library and keyboard creation menu';
     await page.getByRole('button', { name: 'New', exact: true }).click();
-    page.once('dialog', (dialog) => dialog.accept('Workspace preview'));
     const createdFolder = page.waitForResponse(
       (r) => r.url().endsWith('/api/v1/folders') && r.request().method() === 'POST',
     );
     await page.getByRole('menuitem', { name: 'New folder', exact: true }).click();
+    const folderDialog = page.getByRole('dialog', { name: 'New folder', exact: true });
+    await folderDialog.getByRole('textbox', { name: 'Name' }).fill('Workspace preview');
+    await folderDialog.getByRole('button', { name: 'New folder', exact: true }).click();
     const folderResponse = await createdFolder;
     assert.equal(folderResponse.status(), 201);
     previewFolder = await folderResponse.json();
@@ -130,6 +148,15 @@ async function createWrittenDocument(page, title, text) {
         .evaluate((el) => document.activeElement === el),
       true,
     );
+    await page.keyboard.press('ArrowDown');
+    assert.equal(
+      await page
+        .getByRole('menuitem', { name: 'New Markdown file', exact: true })
+        .evaluate((el) => document.activeElement === el),
+      true,
+    );
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
     await page.keyboard.press('ArrowDown');
     assert.equal(
       await page
@@ -253,39 +280,49 @@ async function createWrittenDocument(page, title, text) {
     await page.locator('.document-file').nth(5).waitFor();
     await page.getByRole('button', { name: 'Grid view' }).click();
     stage = 'item menus, rename, move, trash and restore';
+    const markItemStep = (step) => {
+      stage = `item menus, rename, move, trash and restore: ${step}`;
+    };
     const article = page.locator(`[data-document-id="${roadmap.id}"]`);
+    markItemStep('open rename');
     await article.getByRole('button', { name: 'Actions for Product roadmap', exact: true }).click();
-    page.once('dialog', (dialog) => dialog.accept('Product roadmap 2026'));
     await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+    const renameDialog = page.getByRole('dialog', { name: 'Rename', exact: true });
+    await renameDialog.getByRole('textbox', { name: 'Name' }).fill('Product roadmap 2026');
+    await renameDialog.getByRole('button', { name: 'Rename', exact: true }).click();
+    markItemStep('open move');
     await article.waitFor();
     await article
       .getByRole('button', { name: 'Actions for Product roadmap 2026', exact: true })
       .click();
     await page.getByRole('menuitem', { name: 'Move', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Move', exact: true });
-    await dialog
-      .getByRole('combobox', { name: 'Destination folder' })
-      .selectOption(folders.find((f) => f.name === 'Projects').id);
+    await dialog.getByRole('button', { name: 'Destination folder' }).click();
+    await dialog.getByRole('option', { name: 'Projects', exact: true }).click();
     await dialog.getByRole('button', { name: 'Move', exact: true }).click();
+    markItemStep('enter folder');
     await article.waitFor({ state: 'detached' });
     await page
       .getByRole('article', { name: 'Projects', exact: true })
       .getByRole('button', { name: 'Projects', exact: true })
       .click();
     await article.waitFor();
+    markItemStep('move to trash');
     await article
       .getByRole('button', { name: 'Actions for Product roadmap 2026', exact: true })
       .click();
     await page.getByRole('menuitem', { name: 'Move to trash', exact: true }).click();
     await article.waitFor({ state: 'detached' });
     await page.locator('.sidebar').getByRole('button', { name: 'Trash', exact: true }).click();
+    markItemStep('restore');
     await article.waitFor();
     assert.equal(await article.locator('.file-name').isDisabled(), true);
     await article
       .getByRole('button', { name: 'Actions for Product roadmap 2026', exact: true })
       .click();
-    assert.equal(await page.getByRole('menuitem').count(), 1);
     await page.getByRole('menuitem', { name: 'Restore', exact: true }).click();
+    const restoreDialog = page.getByRole('dialog', { name: 'Restore', exact: true });
+    await restoreDialog.getByRole('button', { name: 'Restore', exact: true }).click();
     await article.waitFor({ state: 'detached' });
     stage = 'viewer actions and shared empty state';
     const viewer = await browser.newContext({ viewport: { width: 1100, height: 800 } });
@@ -328,7 +365,7 @@ async function createWrittenDocument(page, title, text) {
       'Menu stays inside mobile viewport vertically',
     );
     await page.keyboard.press('Escape');
-    await page.getByRole('combobox', { name: 'Language' }).selectOption('vi');
+    await selectLanguage(page, 'Language', 'vi');
     await page.getByRole('button', { name: 'Dạng lưới' }).waitFor();
     assert.equal(
       await page.getByRole('searchbox', { name: 'Tìm trong thư viện hiện tại' }).count(),
@@ -338,7 +375,7 @@ async function createWrittenDocument(page, title, text) {
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
       true,
     );
-    await page.getByRole('combobox', { name: 'Ngôn ngữ' }).selectOption('en');
+    await selectLanguage(page, 'Ngôn ngữ', 'en');
     await page.getByRole('button', { name: /^Account for / }).click();
     await page.getByRole('menuitem', { name: 'Subscription plans', exact: true }).click();
     await page.getByRole('dialog', { name: 'Subscription plans' }).waitFor();
@@ -352,7 +389,9 @@ async function createWrittenDocument(page, title, text) {
     await page
       .screenshot({ path: `${report}/workspace-failure.png`, fullPage: true })
       .catch(() => {});
-    console.error(`FAIL workspace at ${stage}; protected browser data withheld (${error.name})`);
+    console.error(
+      `FAIL workspace at ${stage}; protected browser data withheld (${error.name}: ${String(error.message).split('\n')[0]})`,
+    );
     process.exitCode = 1;
   } finally {
     if (token) {

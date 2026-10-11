@@ -4,6 +4,7 @@ import { MESSAGE, useI18n } from '@/lib/i18n';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AuthForm, useSession } from '@/features/auth';
 import { BillingPanel } from '@/features/billing';
 import {
@@ -12,17 +13,21 @@ import {
   RecoveryPanel,
   VersionDialog,
   listVersions,
+  listDocuments,
   moveDocument,
   renameDocument,
   restoreDocument,
   trashDocument,
   useDocumentSession,
   type Version,
+  type DocumentInfo,
+  type DocumentSortBy,
+  type SortDirection,
 } from '@/features/documents';
 import { EditorPane } from '@/features/editor';
 import { SourceFilePane } from '@/features/local-tools';
 import { useToolsCopy } from '@/lib/i18n/tools';
-import { importTxt } from '@ted/editor-core';
+import { COLLABORATION_TEXT_LIMIT, importTxt } from '@ted/editor-core';
 import { ExportJobsPanel, useExportJobs } from '@/features/export-jobs';
 import {
   createFolder,
@@ -37,16 +42,21 @@ import { ErrorNotice } from '@/components/ui/ErrorNotice';
 import { Icon } from '@/components/ui/Icon';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { LoadingIndicator } from '@/components/ui/LoadingIndicator';
+import { ModalDialog } from '@/components/ui/ModalDialog';
 import { errorMessage } from '@/lib/http';
 import { useOnlineStatus } from '@/lib/react/useOnlineStatus';
 import { useLatest } from '@/lib/react/useLatest';
 import { MoveDialog } from './MoveDialog';
+import { NameDialog } from './NameDialog';
+import { ImportDialog } from './ImportDialog';
 import { SettingsDialog } from './SettingsDialog';
 import { usePreferences } from '../hooks/usePreferences';
 import { WorkspaceLibrary } from './WorkspaceLibrary';
 import { useWorkspaceContents } from '../hooks/useWorkspaceContents';
 import type { MoveTarget, Scope } from '../model/types';
+type EditMode = 'document' | 'markdown' | 'code' | 'json' | 'collaborate';
 export default function WorkspaceScreen() {
+  const router = useRouter();
   const { t } = useI18n();
   const toolsCopy = useToolsCopy();
 
@@ -54,6 +64,7 @@ export default function WorkspaceScreen() {
   const importUser = useLatest(session.user?.id);
   const preferences = usePreferences(session.user?.id);
   const [settings, setSettings] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const importInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState(''),
     [scope, setScope] = useState<Scope>('mine'),
@@ -62,11 +73,24 @@ export default function WorkspaceScreen() {
     [versions, setVersions] = useState<Version[] | null>(null),
     [showFiles, setShowFiles] = useState(true),
     [destination, setDestination] = useState<MoveTarget | null>(null),
-    [allFolders, setAllFolders] = useState<Folder[]>([]);
+    [allFolders, setAllFolders] = useState<Folder[]>([]),
+    [nameAction, setNameAction] = useState<{
+      title: string;
+      initial: string;
+      submit: (name: string) => Promise<void>;
+    } | null>(null),
+    [trashUndo, setTrashUndo] = useState<{ id: string; title: string } | null>(null),
+    [undoBusy, setUndoBusy] = useState(false),
+    [restoreTarget, setRestoreTarget] = useState<DocumentInfo | null>(null),
+    [restoreBusy, setRestoreBusy] = useState(false);
   const online = useOnlineStatus();
   const importScope = useLatest(scope);
   const [billing, setBilling] = useState(false);
   const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<DocumentSortBy>('createdAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [modeChoice, setModeChoice] = useState<{ documentId: string; mode: EditMode } | null>(null);
+  const collaborationRequested = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => setSearchQuery(query.trim()), 250);
@@ -80,10 +104,38 @@ export default function WorkspaceScreen() {
     online,
     setError,
     searchQuery,
+    sortBy,
+    sortDirection,
   );
   const { reload } = contents;
-  const documentSession = useDocumentSession(session.user, parent, contents.reload, setError),
+  const documentSession = useDocumentSession(
+      session.user,
+      parent,
+      contents.reload,
+      setError,
+      modeChoice?.mode,
+    ),
     { active } = documentSession;
+  const editMode: EditMode =
+    active && modeChoice?.documentId === active.document.id
+      ? modeChoice.mode
+      : (active && sourceFileType(active.document.title)) || 'document';
+  const collaborationTooLarge =
+    !!active && active.model.text.text.length > COLLABORATION_TEXT_LIMIT;
+  const collaborate = documentSession.collaborate;
+  useEffect(() => {
+    if (editMode !== 'collaborate') {
+      collaborationRequested.current = null;
+      return;
+    }
+    if (!active || active.readOnly || showFiles || !online) return;
+    if (collaborationRequested.current === active.document.id) return;
+    const frame = requestAnimationFrame(() => {
+      collaborationRequested.current = active.document.id;
+      void collaborate();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active, collaborate, editMode, online, showFiles]);
   const exports = useExportJobs(documentSession.activeRef, documentSession.save, setError);
   const mutate = useCallback(
     async (operation: () => Promise<unknown>) => {
@@ -105,6 +157,37 @@ export default function WorkspaceScreen() {
       setError(errorMessage(failure));
     }
   }, []);
+  const createDefaultDocument = () => {
+    if (scope !== 'mine') {
+      setScope('mine');
+      setPath([]);
+    }
+    setQuery('');
+    void documentSession.newDoc().then(() => {
+      if (documentSession.activeRef.current) setShowFiles(false);
+    });
+  };
+  const handleImport = async (file: File) => {
+    const importingUser = session.user?.id;
+    const snapshot = await readImportedFile(file);
+    if (importUser.current !== importingUser) return;
+    if (importScope.current !== 'mine') setPath([]);
+    setScope('mine');
+    setQuery('');
+    await documentSession.newDoc(snapshot, file.name, {
+      skipTitlePrompt: true,
+      throwOnError: true,
+    });
+    if (documentSession.activeRef.current) setShowFiles(false);
+  };
+  const renameCurrent = async (title: string) => {
+    try {
+      await documentSession.renameActive(title);
+    } catch (failure) {
+      setError(errorMessage(failure));
+      throw failure;
+    }
+  };
   if (session.loading) return <LoadingIndicator />;
   if (!session.user)
     return <AuthForm onLogin={session.onLogin} error={error} setError={setError} />;
@@ -122,7 +205,13 @@ export default function WorkspaceScreen() {
           <input
             type="search"
             aria-label={t(MESSAGE.searchCurrentLibrary)}
-            placeholder={t(MESSAGE.searchCurrentLibrary)}
+            placeholder={t(
+              scope === 'mine'
+                ? MESSAGE.searchInMine
+                : scope === 'shared'
+                  ? MESSAGE.searchInShared
+                  : MESSAGE.searchInTrash,
+            )}
             value={query}
             maxLength={200}
             onChange={(event) => {
@@ -144,6 +233,7 @@ export default function WorkspaceScreen() {
             actions={[
               { label: t(MESSAGE.settings), onSelect: () => setSettings(true) },
               { label: t(MESSAGE.subscriptionPlans), onSelect: () => setBilling(true) },
+              { label: t(MESSAGE.aboutDocsnest), onSelect: () => router.push('/intro#editor') },
               {
                 label: t(MESSAGE.signOut),
                 icon: 'sign-out',
@@ -164,13 +254,15 @@ export default function WorkspaceScreen() {
       </header>
       <div className="body">
         <aside className="sidebar">
-          <Link className="sidebar-tools-link" href="/local">
-            {t(MESSAGE.localTools)}
-          </Link>
           <ActionMenu
             className="new-menu"
             label={t(MESSAGE.newItem)}
             actions={[
+              {
+                label: t(MESSAGE.newDocument),
+                icon: 'document',
+                onSelect: createDefaultDocument,
+              },
               ...(['markdown', 'json', 'code'] as const).map((kind) => ({
                 label:
                   kind === 'markdown'
@@ -199,38 +291,28 @@ export default function WorkspaceScreen() {
                 },
               })),
               {
-                label: t(MESSAGE.newDocument),
-                icon: 'document',
-                onSelect: () => {
-                  if (scope !== 'mine') {
-                    setScope('mine');
-                    setPath([]);
-                  }
-                  setQuery('');
-                  void documentSession.newDoc().then(() => {
-                    if (documentSession.activeRef.current) setShowFiles(false);
-                  });
-                },
-              },
-              {
                 label: t(MESSAGE.newFolder),
                 icon: 'folder',
                 onSelect: () => {
-                  const name = window.prompt(t(MESSAGE.folderName));
-                  if (name) {
-                    if (scope !== 'mine') {
-                      setScope('mine');
-                      setPath([]);
-                    }
-                    setQuery('');
-                    void mutate(() => createFolder(name, parent));
-                  }
+                  setNameAction({
+                    title: t(MESSAGE.newFolder),
+                    initial: '',
+                    submit: async (name) => {
+                      await createFolder(name, scope === 'mine' ? parent : null);
+                      if (scope !== 'mine') {
+                        setScope('mine');
+                        setPath([]);
+                      }
+                      setQuery('');
+                      await reload();
+                    },
+                  });
                 },
               },
               {
                 label: t(MESSAGE.importTxtNative),
                 icon: 'upload',
-                onSelect: () => importInput.current?.click(),
+                onSelect: () => setImportOpen(true),
               },
             ]}
           >
@@ -245,25 +327,28 @@ export default function WorkspaceScreen() {
             accept=".txt,.tedoc,.docx,.md,.markdown,.json,.js,.ts,.jsx,.tsx,.py,.html,.css"
             onChange={(event) => {
               const file = event.target.files?.[0];
-              const importingUser = session.user?.id;
               event.target.value = '';
               if (!file) return;
-              void readImportedFile(file)
-                .then(async (snapshot) => {
-                  if (importUser.current !== importingUser) return;
-                  if (importScope.current !== 'mine') setPath([]);
-                  setScope('mine');
-                  setQuery('');
-                  await documentSession.newDoc(
-                    snapshot,
-                    sourceFileType(file.name) ? file.name : undefined,
-                  );
-                  if (documentSession.activeRef.current) setShowFiles(false);
-                })
-                .catch((failure) => setError(errorMessage(failure)));
+              void handleImport(file).catch((failure) => setError(errorMessage(failure)));
             }}
           />
           <p className="sidebar-label">{t(MESSAGE.library)}</p>
+          <select
+            className="mobile-library-scope"
+            aria-label={t(MESSAGE.library)}
+            value={scope}
+            onChange={(event) => {
+              const next = event.target.value as Scope;
+              setScope(next);
+              if (next === 'mine') setPath([]);
+              setQuery('');
+              setShowFiles(true);
+            }}
+          >
+            <option value="mine">{t(MESSAGE.myDocuments)}</option>
+            <option value="shared">{t(MESSAGE.sharedWithMe)}</option>
+            <option value="trash">{t(MESSAGE.trash)}</option>
+          </select>
           <button
             className={scope === 'mine' ? 'selected' : ''}
             aria-current={scope === 'mine' ? 'page' : undefined}
@@ -298,22 +383,18 @@ export default function WorkspaceScreen() {
           >
             <Icon name="trash" /> {t(MESSAGE.trash)}{' '}
           </button>
-          <div className="sidebar-bottom">
-            <button onClick={() => setBilling(true)}>
-              <Icon name="document" />
-              {t(MESSAGE.subscriptionPlans)}
-            </button>
-            {scope === 'trash' && (
+          {scope === 'trash' && (
+            <div className="sidebar-bottom">
               <p className="sidebar-note">{t(MESSAGE.deletedDocumentsAreRetainedFor14Days)}</p>
-            )}
-          </div>
+            </div>
+          )}
         </aside>
         <main>
           <ErrorNotice message={error} onClose={() => setError('')} />
           <ErrorNotice message={documentSession.recoveryError} />
-          {active && !showFiles && (
-            <button className="back-to-files" onClick={() => setShowFiles(true)}>
-              <Icon name="chevron" size={15} /> {t(MESSAGE.documentList)}{' '}
+          {active && showFiles && (
+            <button className="return-editor" onClick={() => setShowFiles(false)}>
+              <Icon name="chevron" size={15} /> {t(MESSAGE.returnToEditor)}
             </button>
           )}
           {(!active || showFiles) && (
@@ -323,9 +404,22 @@ export default function WorkspaceScreen() {
               path={path}
               folders={contents.folders}
               documents={contents.documents}
+              sortBy={sortBy}
+              sortDirection={sortDirection}
+              onSortBy={(next) => {
+                setSortBy(next);
+                setSortDirection(next === 'name' ? 'asc' : 'desc');
+              }}
+              onSortDirection={() =>
+                setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'))
+              }
               query={searchQuery}
               loading={contents.loading}
+              loadError={contents.loadError}
               hasMore={!!contents.cursor}
+              onRetry={() => void contents.reload()}
+              onNewDocument={createDefaultDocument}
+              onImport={() => setImportOpen(true)}
               onLoadMore={() => {
                 if (contents.cursor) void contents.reload(contents.cursor);
               }}
@@ -334,15 +428,20 @@ export default function WorkspaceScreen() {
                 setQuery('');
               }}
               onClearSearch={() => setQuery('')}
-              onReturnToEditor={active ? () => setShowFiles(false) : undefined}
               folderActions={{
                 onOpen: (folder) => {
                   setPath([...path, folder]);
                   setQuery('');
                 },
                 onRename: (folder) => {
-                  const name = window.prompt(t(MESSAGE.folderName), folder.name);
-                  if (name) void mutate(() => renameFolder(folder, name));
+                  setNameAction({
+                    title: t(MESSAGE.rename),
+                    initial: folder.name,
+                    submit: async (name) => {
+                      await renameFolder(folder, name);
+                      await reload();
+                    },
+                  });
                 },
                 onMove: (folder) => {
                   void chooseMove({ kind: 'folder', item: folder });
@@ -359,113 +458,244 @@ export default function WorkspaceScreen() {
                   });
                 },
                 onRename: (document) => {
-                  const title = window.prompt(t(MESSAGE.documentName), document.title);
-                  if (title) void mutate(() => renameDocument(document, title));
+                  setNameAction({
+                    title: t(MESSAGE.rename),
+                    initial: document.title,
+                    submit: async (name) => {
+                      await renameDocument(document, name);
+                      await reload();
+                    },
+                  });
                 },
                 onMove: (document) => {
                   void chooseMove({ kind: 'document', item: document });
                 },
                 onTrash: (document) => {
-                  void mutate(() => trashDocument(document));
-                  if (active?.document.id === document.id) documentSession.clearActive();
+                  setError('');
+                  void trashDocument(document)
+                    .then(async () => {
+                      await reload();
+                      setTrashUndo({ id: document.id, title: document.title });
+                      if (active?.document.id === document.id) documentSession.clearActive();
+                    })
+                    .catch((failure) => setError(errorMessage(failure)));
                 },
                 onRestore: (document) => {
-                  void mutate(() => restoreDocument(document));
+                  setRestoreTarget(document);
                 },
               }}
             />
           )}
           {active && (
             <div hidden={showFiles}>
-              {sourceFileType(active.document.title) ? (
-                <SourceFilePane
-                  key={active.document.id}
-                  active={active}
-                  status={documentSession.status}
-                  saving={documentSession.saving}
-                  online={documentSession.online}
-                  controllerRef={documentSession.controller}
-                  hostRef={documentSession.editorElement}
-                  onSave={documentSession.save}
-                  onHistory={() => {
-                    void listVersions(active.document.id)
-                      .then((page) => setVersions(page.items))
-                      .catch((failure) => setError(errorMessage(failure)));
+              <div className="editor-navigation">
+                <button
+                  className="back-to-files"
+                  aria-label={t(MESSAGE.documentList)}
+                  title={t(MESSAGE.documentList)}
+                  onClick={() => setShowFiles(true)}
+                >
+                  <Icon name="chevron" size={17} />
+                </button>
+                <div
+                  className="editor-mode-switch"
+                  role="tablist"
+                  aria-label={toolsCopy.viewAs}
+                  onKeyDown={(event) => {
+                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                    const tabs = Array.from(
+                      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                        '[role="tab"]:not(:disabled)',
+                      ),
+                    );
+                    const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
+                    const next =
+                      event.key === 'Home'
+                        ? 0
+                        : event.key === 'End'
+                          ? tabs.length - 1
+                          : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) %
+                            tabs.length;
+                    event.preventDefault();
+                    tabs[next]?.focus();
+                    tabs[next]?.click();
                   }}
-                  onShare={() => setShare(true)}
-                  onError={setError}
-                  recovery={
-                    <RecoveryPanel
-                      active={active}
-                      draft={documentSession.draft}
-                      status={documentSession.status}
-                      onRecover={documentSession.recoverLocal}
-                      onDiscard={documentSession.discardDraft}
-                      onOpenLatest={async () => {
-                        await documentSession.preserve(active);
-                        await documentSession.open(active.document);
-                      }}
-                      onCopy={documentSession.newDoc}
-                      onError={setError}
-                    />
-                  }
-                />
-              ) : (
-                <EditorPane
-                  active={active}
-                  tick={documentSession.tick}
-                  status={documentSession.status}
-                  online={documentSession.online}
-                  saving={documentSession.saving}
-                  controller={documentSession.controller}
-                  host={documentSession.editorElement}
-                  onSave={documentSession.save}
-                  onCollaborate={documentSession.collaborate}
-                  onCopy={documentSession.newDoc}
-                  onImport={documentSession.importFile}
-                  onExport={exports.start}
-                  onHistory={() => {
-                    void listVersions(active.document.id)
-                      .then((page) => setVersions(page.items))
-                      .catch((failure) => setError(errorMessage(failure)));
-                  }}
-                  onShare={() => setShare(true)}
-                  onClearHistory={documentSession.clearHistory}
-                  onError={setError}
-                  recovery={
-                    <RecoveryPanel
-                      active={active}
-                      draft={documentSession.draft}
-                      status={documentSession.status}
-                      onRecover={documentSession.recoverLocal}
-                      onDiscard={documentSession.discardDraft}
-                      onOpenLatest={async () => {
-                        await documentSession.preserve(active);
-                        await documentSession.open(active.document);
-                      }}
-                      onCopy={documentSession.newDoc}
-                      onError={setError}
-                    />
-                  }
-                />
-              )}
+                >
+                  {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      id={`edit-mode-${mode}`}
+                      role="tab"
+                      aria-selected={editMode === mode}
+                      aria-controls="cloud-editor-panel"
+                      tabIndex={editMode === mode ? 0 : -1}
+                      onClick={() => setModeChoice({ documentId: active.document.id, mode })}
+                    >
+                      {toolsCopy[mode]}
+                    </button>
+                  ))}
+                  <button
+                    id="edit-mode-collaborate"
+                    role="tab"
+                    aria-selected={editMode === 'collaborate'}
+                    aria-controls="cloud-editor-panel"
+                    tabIndex={editMode === 'collaborate' ? 0 : -1}
+                    disabled={active.readOnly || !online || collaborationTooLarge}
+                    title={collaborationTooLarge ? t(MESSAGE.collaborationLimit) : undefined}
+                    onClick={() =>
+                      setModeChoice({ documentId: active.document.id, mode: 'collaborate' })
+                    }
+                  >
+                    {t(MESSAGE.editTogether)}
+                  </button>
+                </div>
+              </div>
+              <div
+                id="cloud-editor-panel"
+                role="tabpanel"
+                aria-labelledby={`edit-mode-${editMode}`}
+              >
+                {editMode !== 'document' && editMode !== 'collaborate' ? (
+                  <SourceFilePane
+                    key={`${active.document.id}:${editMode}`}
+                    active={active}
+                    kindOverride={editMode}
+                    status={documentSession.status}
+                    saving={documentSession.saving}
+                    online={documentSession.online}
+                    controllerRef={documentSession.controller}
+                    hostRef={documentSession.editorElement}
+                    onSave={documentSession.save}
+                    onCopy={documentSession.newDoc}
+                    onHistory={() => {
+                      void listVersions(active.document.id)
+                        .then((page) => setVersions(page.items))
+                        .catch((failure) => setError(errorMessage(failure)));
+                    }}
+                    onBackToCurrent={() => void documentSession.open(active.document)}
+                    onShare={() => setShare(true)}
+                    onRename={renameCurrent}
+                    onError={setError}
+                    recovery={
+                      <RecoveryPanel
+                        active={active}
+                        draft={documentSession.draft}
+                        status={documentSession.status}
+                        onRecover={documentSession.recoverLocal}
+                        onDiscard={documentSession.discardDraft}
+                        onOpenLatest={async () => {
+                          await documentSession.preserve(active);
+                          await documentSession.open(active.document);
+                        }}
+                        onCopy={documentSession.newDoc}
+                        onError={setError}
+                      />
+                    }
+                  />
+                ) : (
+                  <EditorPane
+                    active={active}
+                    tick={documentSession.tick}
+                    status={documentSession.status}
+                    online={documentSession.online}
+                    saving={documentSession.saving}
+                    controller={documentSession.controller}
+                    host={documentSession.editorElement}
+                    onSave={documentSession.save}
+                    onCopy={documentSession.newDoc}
+                    onImport={documentSession.importFile}
+                    onExport={exports.start}
+                    onHistory={() => {
+                      void listVersions(active.document.id)
+                        .then((page) => setVersions(page.items))
+                        .catch((failure) => setError(errorMessage(failure)));
+                    }}
+                    onBackToCurrent={() => void documentSession.open(active.document)}
+                    onShare={() => setShare(true)}
+                    onRename={renameCurrent}
+                    onClearHistory={documentSession.clearHistory}
+                    onError={setError}
+                    recovery={
+                      <RecoveryPanel
+                        active={active}
+                        draft={documentSession.draft}
+                        status={documentSession.status}
+                        onRecover={documentSession.recoverLocal}
+                        onDiscard={documentSession.discardDraft}
+                        onOpenLatest={async () => {
+                          await documentSession.preserve(active);
+                          await documentSession.open(active.document);
+                        }}
+                        onCopy={documentSession.newDoc}
+                        onError={setError}
+                      />
+                    }
+                  />
+                )}
+              </div>
             </div>
           )}
           <ExportJobsPanel jobs={exports.jobs} onUpdate={exports.setJobs} onError={setError} />
         </main>
       </div>
+      {trashUndo && (
+        <div className="trash-undo" role="status">
+          <span>
+            {t(MESSAGE.movedToTrash)} {trashUndo.title}
+          </span>
+          <button
+            disabled={undoBusy}
+            onClick={() => {
+              const target = trashUndo;
+              setUndoBusy(true);
+              void (async () => {
+                let cursor: string | undefined;
+                do {
+                  const page = await listDocuments('TRASH', null, cursor, target.title);
+                  const found = page.items.find((item) => item.id === target.id);
+                  if (found) {
+                    await restoreDocument(found);
+                    await reload();
+                    setTrashUndo(null);
+                    return;
+                  }
+                  cursor = page.nextCursor ?? undefined;
+                } while (cursor);
+                throw new Error(MESSAGE.documentNotFound);
+              })()
+                .catch((failure) => setError(errorMessage(failure)))
+                .finally(() => setUndoBusy(false));
+            }}
+          >
+            {t(MESSAGE.undo)}
+          </button>
+          <button
+            aria-label={t(MESSAGE.close)}
+            disabled={undoBusy}
+            onClick={() => setTrashUndo(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {share && active && (
         <ShareDialog
           documentId={active.document.id}
+          documentTitle={active.document.title}
+          ownerName={session.user.displayName}
           onClose={() => setShare(false)}
-          setError={setError}
         />
       )}
       {versions && active && (
         <VersionDialog
           versions={versions}
+          activeRevision={active.revision}
           onOpen={(revision) => {
             void documentSession.open(active.document, revision);
+          }}
+          onBack={() => void documentSession.open(active.document)}
+          onCopy={() => {
+            void documentSession.newDoc(active.model.snapshot());
             setVersions(null);
           }}
           onClose={() => setVersions(null)}
@@ -475,21 +705,60 @@ export default function WorkspaceScreen() {
         <MoveDialog
           destination={destination}
           folders={allFolders}
-          onMove={(target) => {
-            void mutate(() =>
-              destination.kind === 'folder'
-                ? moveFolder(destination.item, target)
-                : moveDocument(destination.item, target),
-            );
-            setDestination(null);
+          onMove={async (target) => {
+            if (destination.kind === 'folder') await moveFolder(destination.item, target);
+            else await moveDocument(destination.item, target);
+            await reload();
           }}
           onClose={() => setDestination(null)}
         />
       )}
+      {nameAction && (
+        <NameDialog
+          title={nameAction.title}
+          initial={nameAction.initial}
+          onSubmit={nameAction.submit}
+          onClose={() => setNameAction(null)}
+        />
+      )}
+      {importOpen && <ImportDialog onImport={handleImport} onClose={() => setImportOpen(false)} />}
+      {restoreTarget && (
+        <ModalDialog
+          title={t(MESSAGE.restore)}
+          onClose={() => setRestoreTarget(null)}
+          className="restore-dialog"
+        >
+          <h2>
+            {t(MESSAGE.restore)} {restoreTarget.title}?
+          </h2>
+          <p>{t(MESSAGE.restoreAccessWarning)}</p>
+          <div className="dialog-actions">
+            <button disabled={restoreBusy} onClick={() => setRestoreTarget(null)}>
+              {t(MESSAGE.cancel)}
+            </button>
+            <button
+              className="primary"
+              disabled={restoreBusy}
+              onClick={() => {
+                setRestoreBusy(true);
+                void restoreDocument(restoreTarget)
+                  .then(async () => {
+                    await reload();
+                    setRestoreTarget(null);
+                  })
+                  .catch((failure) => setError(errorMessage(failure)))
+                  .finally(() => setRestoreBusy(false));
+              }}
+            >
+              {t(MESSAGE.restore)}
+            </button>
+          </div>
+        </ModalDialog>
+      )}
       {settings && (
         <SettingsDialog
-          locale={preferences.locale}
           theme={preferences.theme}
+          sessionOnly={preferences.sessionOnly}
           onLocale={(locale) => preferences.update({ locale })}
           onTheme={(theme) => preferences.update({ theme })}
           onClose={() => setSettings(false)}

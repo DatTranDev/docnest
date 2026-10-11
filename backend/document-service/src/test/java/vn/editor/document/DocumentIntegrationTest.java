@@ -66,6 +66,7 @@ import vn.editor.document.documents.application.command.ApplyPreviewCompletionCo
 import vn.editor.document.documents.application.command.ApplyPreviewCompletionHandler;
 import vn.editor.document.documents.application.command.RetentionCommandHandler;
 import vn.editor.document.documents.application.command.SaveResult;
+import vn.editor.document.documents.application.query.ListDocumentsQuery;
 import vn.editor.document.documents.infrastructure.JdbcOutboxDao;
 import vn.editor.document.documents.infrastructure.JdbcRetentionDao;
 import vn.editor.document.shared.domain.DomainException;
@@ -175,6 +176,63 @@ class DocumentIntegrationTest {
     DomainException e = assertThrows(DomainException.class, action, code);
     assertEquals(status, e.status);
     assertEquals(code, e.code);
+  }
+
+  @Test
+  void documentSortUsesStablePagesForNameDateAndSize() throws Exception {
+    String zulu =
+        (String)
+            s.createDocument(owner, DocumentHarness.map("title", "Zulu", "folderId", null))
+                .get("id");
+    String alpha =
+        (String)
+            s.createDocument(owner, DocumentHarness.map("title", "Alpha", "folderId", null))
+                .get("id");
+    String middle =
+        (String)
+            s.createDocument(owner, DocumentHarness.map("title", "Middle", "folderId", null))
+                .get("id");
+    db.update(
+        "UPDATE documents SET created_at=? WHERE id=?",
+        Timestamp.from(Instant.parse("2026-01-01T00:00:00Z")),
+        zulu);
+    db.update(
+        "UPDATE documents SET created_at=? WHERE id=?",
+        Timestamp.from(Instant.parse("2026-01-02T00:00:00Z")),
+        alpha);
+    db.update(
+        "UPDATE documents SET created_at=? WHERE id=?",
+        Timestamp.from(Instant.parse("2026-01-03T00:00:00Z")),
+        middle);
+    commit(owner, alpha, upload(owner, alpha, "empty.tedoc", 0), 0, DocumentHarness.uuid());
+
+    assertEquals(List.of(middle, alpha, zulu), sortedDocumentIds("createdAt", "desc"));
+    assertEquals(List.of(alpha, middle, zulu), sortedDocumentIds("name", "asc"));
+    assertEquals(List.of(zulu, middle, alpha), sortedDocumentIds("name", "desc"));
+    assertEquals(alpha, sortedDocumentIds("size", "desc").getFirst());
+    var first =
+        s.documentQueries.handle(
+            new ListDocumentsQuery(owner, "OWNED", "root", null, "name", "asc", null, 1));
+    error(
+        400,
+        "INVALID_CURSOR",
+        () ->
+            s.documentQueries.handle(
+                new ListDocumentsQuery(
+                    owner, "OWNED", "root", null, "size", "desc", first.nextCursor(), 1)));
+  }
+
+  List<String> sortedDocumentIds(String sortBy, String direction) {
+    List<String> ids = new ArrayList<>();
+    String cursor = null;
+    do {
+      var page =
+          s.documentQueries.handle(
+              new ListDocumentsQuery(owner, "OWNED", "root", null, sortBy, direction, cursor, 1));
+      page.items().forEach(document -> ids.add(document.id()));
+      cursor = page.nextCursor();
+    } while (cursor != null);
+    return ids;
   }
 
   @Test

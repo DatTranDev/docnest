@@ -74,11 +74,6 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     await page.getByRole('button', { name: 'New', exact: true }).waitFor();
     stage = 'localized document prompt';
     const title = `i18n check ${Date.now()}`;
-    page.once('dialog', async (dialog) => {
-      assert.equal(dialog.message(), 'Document name');
-      assert.equal(dialog.defaultValue(), 'New document');
-      await dialog.accept(title);
-    });
     const created = page.waitForResponse(
       (r) => r.url().endsWith('/api/v1/documents') && r.request().method() === 'POST',
     );
@@ -86,11 +81,20 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     await page.getByRole('menuitem', { name: 'New document', exact: true }).click();
     documentId = (await (await created).json()).id;
     await page.locator('.cm-content').waitFor();
+    await page.getByRole('button', { name: 'Document list', exact: true }).click();
+    const createdRow = page.locator(`[data-document-id="${documentId}"]`);
+    await createdRow.getByRole('button', { name: 'Actions for New document', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+    const renameDialog = page.getByRole('dialog', { name: 'Rename', exact: true });
+    await renameDialog.getByRole('textbox', { name: 'Name' }).fill(title);
+    await renameDialog.getByRole('button', { name: 'Rename', exact: true }).click();
+    await createdRow.getByRole('button', { name: title, exact: true }).click();
     const text = 'Hello Việt Nam 😀';
     await page.locator('.cm-content').click();
     await page.keyboard.insertText(text);
     await page.keyboard.press('ControlOrMeta+a');
     await page.getByRole('button', { name: 'Bold', exact: true }).click();
+    await page.locator('.toolbar-more-format summary').click();
     await page.getByRole('combobox', { name: 'Font', exact: true }).selectOption('Georgia');
     await page.getByRole('combobox', { name: 'Font size', exact: true }).selectOption('16');
     await page.getByRole('combobox', { name: 'Text style', exact: true }).selectOption('heading2');
@@ -261,6 +265,7 @@ async function api(context, token, path, method = 'GET', data, status = 200) {
     );
     await page.locator('.cm-content').click();
     await page.keyboard.press('ControlOrMeta+a');
+    await page.locator('.toolbar-more-format summary').click();
     await page.getByRole('button', { name: 'Clear formatting', exact: true }).click();
     await page.getByRole('button', { name: 'Undo', exact: true }).click();
     await page.waitForFunction(() =>

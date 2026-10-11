@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { DocumentInfo } from '@/features/documents';
+import type { DocumentInfo, DocumentSortBy, SortDirection } from '@/features/documents';
 import type { Folder } from '@/features/folders';
 import { errorMessage } from '@/lib/http';
 import { useLatest } from '@/lib/react/useLatest';
@@ -13,39 +13,39 @@ export function useWorkspaceContents(
   online: boolean,
   onError: (message: string) => void,
   titleQuery = '',
+  sortBy: DocumentSortBy = 'createdAt',
+  sortDirection: SortDirection = 'desc',
 ) {
   const [documents, setDocuments] = useState<DocumentInfo[]>([]),
     [folders, setFolders] = useState<Folder[]>([]),
     [cursor, setCursor] = useState<string | null>(null),
-    [loadedContext, setLoadedContext] = useState('');
-  const context = JSON.stringify([userId, scope, parent, titleQuery]),
+    [loadedContext, setLoadedContext] = useState(''),
+    [loadError, setLoadError] = useState('');
+  const context = JSON.stringify([userId, scope, parent, titleQuery, sortBy, sortDirection]),
     currentContext = useLatest(context),
     sequence = useRef(0);
   const reload = useCallback(
     (next?: string): Promise<void> => {
       if (!userId || context !== currentContext.current) return Promise.resolve();
       const requestSequence = ++sequence.current;
-      return workspaceContents(scope, parent, next, titleQuery)
+      return workspaceContents(scope, parent, next, titleQuery, sortBy, sortDirection)
         .then(({ listing, folders: entries }) => {
           if (requestSequence !== sequence.current || context !== currentContext.current) return;
           setDocuments(next ? (previous) => [...previous, ...listing.items] : listing.items);
           setCursor(listing.nextCursor);
           setFolders(entries);
           setLoadedContext(context);
+          setLoadError('');
         })
         .catch((error) => {
           if (requestSequence === sequence.current && context === currentContext.current) {
-            if (!next) {
-              setDocuments([]);
-              setFolders([]);
-              setCursor(null);
-              setLoadedContext(context);
-            }
-            onError(errorMessage(error));
+            if (!next) setLoadedContext(context);
+            setLoadError(errorMessage(error));
+            if (next) onError(errorMessage(error));
           }
         });
     },
-    [context, currentContext, onError, parent, scope, userId, titleQuery],
+    [context, currentContext, onError, parent, scope, userId, titleQuery, sortBy, sortDirection],
   );
   useEffect(() => {
     void reload();
@@ -68,6 +68,7 @@ export function useWorkspaceContents(
     folders: loadedContext === context ? folders : [],
     cursor: loadedContext === context ? cursor : null,
     loading: loadedContext !== context,
+    loadError: loadedContext === context ? loadError : '',
     reload,
   };
 }

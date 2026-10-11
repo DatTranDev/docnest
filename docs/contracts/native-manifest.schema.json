@@ -3,7 +3,7 @@
   "additionalProperties": false,
   "properties": {
     "schemaVersion": {
-      "enum": [1, 2, 3, 4, 5]
+      "enum": [1, 2, 3, 4, 5, 6]
     },
     "textEncoding": {
       "const": "utf-8"
@@ -47,7 +47,7 @@
       "pattern": "^[a-f0-9]{64}$"
     },
     "formattingEncoding": {
-      "enum": ["sparse-v1", "sparse-v2", "sparse-v3"]
+      "enum": ["sparse-v1", "sparse-v2", "sparse-v3", "sparse-v4"]
     },
     "formattingSha256": {
       "type": "string",
@@ -80,14 +80,14 @@
       "if": {
         "properties": {
           "schemaVersion": {
-            "const": 5
+            "const": 6
           }
         }
       },
       "then": {
         "properties": {
           "formattingEncoding": {
-            "const": "sparse-v3"
+            "const": "sparse-v4"
           }
         }
       },
@@ -95,21 +95,37 @@
         "if": {
           "properties": {
             "schemaVersion": {
-              "const": 4
+              "const": 5
             }
           }
         },
         "then": {
           "properties": {
             "formattingEncoding": {
-              "const": "sparse-v2"
+              "const": "sparse-v3"
             }
           }
         },
         "else": {
-          "properties": {
-            "formattingEncoding": {
-              "const": "sparse-v1"
+          "if": {
+            "properties": {
+              "schemaVersion": {
+                "const": 4
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "formattingEncoding": {
+                "const": "sparse-v2"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "formattingEncoding": {
+                "const": "sparse-v1"
+              }
             }
           }
         }
@@ -119,7 +135,7 @@
       "if": {
         "properties": {
           "schemaVersion": {
-            "enum": [2, 3, 4, 5]
+            "enum": [2, 3, 4, 5, 6]
           }
         }
       },
@@ -143,7 +159,7 @@
       "if": {
         "properties": {
           "schemaVersion": {
-            "enum": [3, 4, 5]
+            "enum": [3, 4, 5, 6]
           }
         }
       },

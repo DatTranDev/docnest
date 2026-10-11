@@ -14,5 +14,9 @@ public interface AccountCommandRepository {
 
   Account findByEmail(AccountEmail email);
 
+  Account findByGoogleSubject(String subject);
+
+  void linkGoogleSubject(String subject, String userId);
+
   Account lockById(String id);
 }

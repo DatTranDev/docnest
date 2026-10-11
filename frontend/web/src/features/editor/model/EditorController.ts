@@ -103,6 +103,7 @@ export class EditorController {
   private readonly editability = new Compartment();
   private readonly language = new Compartment();
   private readonly sourceSyntax = new Compartment();
+  private readonly lineWrap = new Compartment();
   imageAlt = translate(DEFAULT_LOCALE, MESSAGE.imageInDocument);
   private locale: Locale | null = null;
   private destroyed = false;
@@ -128,6 +129,7 @@ export class EditorController {
           tableWidgetField(this, refresh),
           this.language.of([]),
           this.sourceSyntax.of([]),
+          this.lineWrap.of(EditorView.lineWrapping),
           this.editability.of([
             EditorView.editable.of(!readOnly),
             EditorState.readOnly.of(readOnly),
@@ -289,15 +291,18 @@ export class EditorController {
   setSourceSyntax(extension: Extension): void {
     this.sourceMode = true;
     this.view.dispatch({
-      effects: this.sourceSyntax.reconfigure([
-        extension,
-        Prec.highest(
-          keymap.of([
-            indentWithTab,
-            ...['Mod-b', 'Mod-i', 'Mod-u', 'Mod-\\'].map((key) => ({ key, run: () => true })),
-          ]),
-        ),
-      ]),
+      effects: [
+        this.lineWrap.reconfigure([]),
+        this.sourceSyntax.reconfigure([
+          extension,
+          Prec.highest(
+            keymap.of([
+              indentWithTab,
+              ...['Mod-b', 'Mod-i', 'Mod-u', 'Mod-\\'].map((key) => ({ key, run: () => true })),
+            ]),
+          ),
+        ]),
+      ],
     });
   }
   private copy(event: ClipboardEvent, cut = false): boolean {

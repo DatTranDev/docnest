@@ -63,6 +63,20 @@ export async function login(email: string, password: string): Promise<Session> {
     return session;
   });
 }
+export async function loginWithGoogle(credential: string): Promise<Session> {
+  const generation = ++sessionGeneration;
+  refreshing = null;
+  return mutateSessionCookie(async () => {
+    if (generation !== sessionGeneration)
+      throw new Error(MESSAGE.yourSessionHasChangedPleaseSignInAgain);
+    const result = await request<Session>('/api/v1/auth/google', 'POST', { credential });
+    if (generation !== sessionGeneration)
+      throw new Error(MESSAGE.yourSessionHasChangedPleaseSignInAgain);
+    session = result;
+    publishAccountInitial(result.user.displayName);
+    return session;
+  });
+}
 export async function register(
   email: string,
   password: string,

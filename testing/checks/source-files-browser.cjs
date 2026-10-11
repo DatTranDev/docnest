@@ -150,7 +150,7 @@ async function main() {
         const result = pane.locator('.json-output .cm-content');
         await expect(result).toContainText('900719925474099312345');
         await result.fill('{"id":900719925474099312345,"edited":true}');
-        await pane.getByRole('button', { name: 'Dùng kết quả', exact: true }).click();
+        await pane.getByRole('button', { name: 'Thay nguồn bằng kết quả', exact: true }).click();
         await expect(source).toHaveText('{"id":900719925474099312345,"edited":true}');
         await save(document.id);
         await reopen(document.id);

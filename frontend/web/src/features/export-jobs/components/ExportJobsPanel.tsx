@@ -4,6 +4,7 @@ import { download, errorMessage } from '@/lib/http';
 import { cancelJob, jobContent } from '../api/jobs';
 import { EXPORT_FORMATS } from '../model/formats';
 import type { Job } from '../model/types';
+import { useState } from 'react';
 const JOB_LABELS: Record<string, string> = {
   QUEUED: MESSAGE.queued,
   READY: MESSAGE.ready,
@@ -22,50 +23,73 @@ export function ExportJobsPanel({
   onError: (message: string) => void;
 }) {
   const { t, localize, errorText } = useI18n();
+  const [open, setOpen] = useState(true);
 
   if (!jobs.length) return null;
   return (
-    <section>
-      <h3>{t(MESSAGE.exportJobs)}</h3>
-      {jobs.map((job) => (
-        <div className="row" key={job.id}>
-          {t(EXPORT_FORMATS[job.type].label)} ·{' '}
-          <span>{localize(JOB_LABELS[job.state] ?? job.state)}</span>
-          {job.errorCode && <span>{errorText(job.errorCode)}</span>}
-          {job.state === 'SUCCEEDED' && (
-            <button
-              onClick={() => {
-                void jobContent(job.id)
-                  .then((bytes) =>
-                    download(
-                      bytes,
-                      `export.${EXPORT_FORMATS[job.type].extension}`,
-                      EXPORT_FORMATS[job.type].mime,
-                    ),
-                  )
-                  .catch((error) => onError(errorMessage(error)));
-              }}
-            >
-              {t(MESSAGE.downloadResult)}{' '}
-            </button>
-          )}
-          {['QUEUED', 'READY', 'RUNNING'].includes(job.state) && (
-            <button
-              onClick={() => {
-                void cancelJob(job.id)
-                  .then((result) =>
-                    onUpdate((previous) =>
-                      previous.map((existing) => (existing.id === job.id ? result : existing)),
-                    ),
-                  )
-                  .catch((error) => onError(errorMessage(error)));
-              }}
-            >
-              {t(MESSAGE.cancel)}{' '}
-            </button>
-          )}
+    <section className="downloads-tray" aria-label={t(MESSAGE.exportJobs)}>
+      <button
+        className="downloads-tray-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        {t(MESSAGE.exportJobs)} ({jobs.length})
+      </button>
+      {open && (
+        <div className="downloads-tray-body">
+          {jobs.map((job) => (
+            <div className="downloads-job" key={job.id}>
+              <span className="downloads-format-icon" aria-hidden="true">
+                {EXPORT_FORMATS[job.type].extension.toUpperCase()}
+              </span>
+              <div className="downloads-job-details">
+                <strong>
+                  {job.documentTitle ?? t(EXPORT_FORMATS[job.type].label)}.
+                  {EXPORT_FORMATS[job.type].extension}
+                </strong>
+                <span>
+                  {t(MESSAGE.version)} {job.revision} ·{' '}
+                  {localize(JOB_LABELS[job.state] ?? job.state)}
+                </span>
+                {job.errorCode && <span>{errorText(job.errorCode)}</span>}
+              </div>
+              {job.state === 'SUCCEEDED' && (
+                <button
+                  onClick={() => {
+                    void jobContent(job.id)
+                      .then((bytes) =>
+                        download(
+                          bytes,
+                          `export.${EXPORT_FORMATS[job.type].extension}`,
+                          EXPORT_FORMATS[job.type].mime,
+                        ),
+                      )
+                      .catch((error) => onError(errorMessage(error)));
+                  }}
+                >
+                  {t(MESSAGE.downloadResult)}{' '}
+                </button>
+              )}
+              {['QUEUED', 'READY', 'RUNNING'].includes(job.state) && (
+                <button
+                  onClick={() => {
+                    void cancelJob(job.id)
+                      .then((result) =>
+                        onUpdate((previous) =>
+                          previous.map((existing) => (existing.id === job.id ? result : existing)),
+                        ),
+                      )
+                      .catch((error) => onError(errorMessage(error)));
+                  }}
+                >
+                  {t(MESSAGE.cancel)}{' '}
+                </button>
+              )}
+            </div>
+          ))}
+          <p className="downloads-tray-note">{t(MESSAGE.exportsUseSavedVersion)}</p>
         </div>
-      ))}
+      )}
     </section>
   );
 }

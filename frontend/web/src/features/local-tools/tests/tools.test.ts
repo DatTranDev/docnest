@@ -78,4 +78,19 @@ describe('local rendering and Word export', () => {
     expect(xml).toContain('1A73E8');
     expect(xml).toContain('<w:strike');
   });
+  it('exports a separate first-page header in a Word section', async () => {
+    const model = new EditorModel(TextAdapter.from('First page body'));
+    model.setPage({
+      header: 'Later pages',
+      firstPageHeader: 'First page only',
+      differentFirstPage: true,
+    });
+    const output = unzipSync(await exportLocalDocx(model.snapshot(), 'Header variants'));
+    const headers = Object.entries(output)
+      .filter(([name]) => /^word\/header\d+\.xml$/.test(name))
+      .map(([, bytes]) => strFromU8(bytes));
+    expect(headers.some((xml) => xml.includes('First page only'))).toBe(true);
+    expect(headers.some((xml) => xml.includes('Later pages'))).toBe(true);
+    expect(strFromU8(output['word/document.xml']!)).toContain('<w:titlePg');
+  });
 });

@@ -119,6 +119,9 @@ export class RichFormatting {
       this.paragraphs.some((p) => PARAGRAPH_KEYS.some((k) => p[k] !== undefined))
     );
   }
+  get pageVariants(): boolean {
+    return !!this.page.differentFirstPage || !!this.page.firstPageHeader;
+  }
   paragraphAt(lineFrom: number): Readonly<ParagraphFormat> {
     let low = 0,
       high = this.paragraphs.length;
@@ -323,6 +326,7 @@ export class RichFormatting {
     text: TextAdapter,
     extended = true,
     structured = true,
+    pageVariants = false,
   ): RichFormatting {
     if (!data || typeof data !== 'object' || Array.isArray(data))
       throw new Error('INVALID_FORMATTING');
@@ -411,7 +415,7 @@ export class RichFormatting {
     return new RichFormatting(
       runs,
       paragraphs,
-      object.page === undefined ? {} : parsePage(object.page),
+      object.page === undefined ? {} : parsePage(object.page, pageVariants),
     );
   }
 }

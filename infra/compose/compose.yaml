@@ -133,6 +133,8 @@ services:
     environment:
       <<: *app-env
       IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      MAX_USERS: ${MAX_USERS:-10}
       IDENTITY_DB_URL: jdbc:mysql://mysql:3306/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
       IDENTITY_DB_USER: identity
       JWT_KEY_PATH: /data/keys/identity-key.pem
@@ -233,7 +235,11 @@ services:
   web:
     profiles: [app]
     image: text-editor/web:local
-    build: { context: ../.., dockerfile: infra/compose/Web.Dockerfile }
+    build:
+      context: ../..
+      dockerfile: infra/compose/Web.Dockerfile
+      args:
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     init: true
     stop_grace_period: 45s

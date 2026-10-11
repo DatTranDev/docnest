@@ -62,13 +62,18 @@ select {
     gap: 16px;
   }
   select::picker-icon {
-    content: '⌄';
-    font-size: 18px;
+    content: '';
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
     color: var(--ui-muted);
-    transition: rotate 120ms;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 120ms;
   }
   select:open::picker-icon {
-    rotate: 180deg;
+    transform: translateY(2px) rotate(225deg);
   }
   ::picker(select) {
     padding: 6px;
@@ -92,6 +97,8 @@ select {
   select option:hover,
   select option:focus {
     background: var(--ui-tile);
+    outline: none;
+    box-shadow: none;
   }
   select option:checked {
     background: var(--ui-selected);
@@ -436,6 +443,9 @@ select {
 :root[data-theme='dark'] .document-cover:hover {
   background: #fff;
 }
+:root[data-theme='dark'] .document-cover .preview-placeholder {
+  color: #647083;
+}
 :root[data-theme='dark'] .library-count,
 :root[data-theme='dark'] .file-access,
 :root[data-theme='dark'] .file-kind,
@@ -491,5 +501,77 @@ select {
 @media (prefers-reduced-motion: reduce) {
   select::picker-icon {
     transition: none;
+  }
+}
+
+.settings-dialog {
+  width: min(600px, calc(100vw - 24px));
+  padding: 0;
+  border-radius: 12px;
+}
+.settings-heading {
+  align-items: center;
+  min-height: 72px;
+  padding: 12px 28px;
+  border-bottom: 1px solid var(--ui-border);
+}
+.settings-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #0e2050;
+  font-size: 21px;
+  font-weight: 700;
+}
+.settings-heading button {
+  border: 0;
+  background: transparent;
+  font-size: 24px;
+}
+.settings-content {
+  padding: 26px 28px 30px;
+}
+.settings-content h2 {
+  color: #0e2050;
+  font-size: 30px;
+}
+.settings-field {
+  display: grid;
+  gap: 10px;
+  margin: 30px 0;
+  font-weight: 650;
+}
+.settings-field .language-selector-inline-menu {
+  width: 100%;
+}
+.theme-options {
+  gap: 12px;
+}
+.theme-options legend {
+  margin-bottom: 14px;
+  font-weight: 650;
+}
+.theme-option {
+  min-height: 145px;
+  align-content: start;
+  text-align: center;
+}
+.theme-sample {
+  height: 84px;
+}
+.settings-saved {
+  margin: 30px 0 0;
+  padding: 14px 16px;
+  border-radius: 7px;
+  background: #e2f5eb;
+  color: #17613c;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .settings-heading {
+    padding: 12px 20px;
+  }
+  .settings-content {
+    padding: 22px 20px;
   }
 }

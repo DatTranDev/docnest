@@ -4,10 +4,11 @@ import { EditorState } from '@codemirror/state';
 import { lineNumbers } from '@codemirror/view';
 import { syntaxHighlighting } from '@codemirror/language';
 import { classHighlighter } from '@lezer/highlight';
-import { exportTxt } from '@ted/editor-core';
+import { exportTxt, type Snapshot } from '@ted/editor-core';
 import type { ActiveDocument } from '@/features/documents';
 import type { EditorController } from '@/features/editor';
 import { MESSAGE, useI18n } from '@/lib/i18n';
+import { EditableTitle } from '@/components/ui/EditableTitle';
 import { download } from '@/lib/http';
 import { useToolsCopy } from '../model/copy';
 import { languageSupport } from '../model/syntax';
@@ -25,10 +26,14 @@ export function SourceFilePane({
   controllerRef,
   hostRef,
   onSave,
+  onCopy,
   onHistory,
+  onBackToCurrent,
   onShare,
+  onRename,
   onError,
   recovery,
+  kindOverride,
 }: {
   active: ActiveDocument;
   status: string;
@@ -37,20 +42,38 @@ export function SourceFilePane({
   controllerRef: RefObject<EditorController | null>;
   hostRef: RefObject<HTMLDivElement | null>;
   onSave: () => Promise<void>;
+  onCopy: (snapshot: Snapshot, suggestedTitle?: string) => Promise<void>;
   onHistory: () => void;
+  onBackToCurrent: () => void;
   onShare: () => void;
+  onRename: (title: string) => Promise<void>;
   onError: (value: string) => void;
   recovery: ReactNode;
+  kindOverride?: 'markdown' | 'code' | 'json';
 }) {
   const copy = useToolsCopy(),
     { t, localize } = useI18n();
   const extension = active.document.title.split('.').at(-1)?.toLowerCase() ?? '';
-  const kind = ['md', 'markdown'].includes(extension)
-    ? 'markdown'
-    : extension === 'json'
-      ? 'json'
-      : 'code';
+  const kind =
+    kindOverride ??
+    (['md', 'markdown'].includes(extension) ? 'markdown' : extension === 'json' ? 'json' : 'code');
   const [view, setView] = useState('split');
+  const [syntaxLanguage, setSyntaxLanguage] = useState(
+    kind === 'code' && ['js', 'ts', 'jsx', 'tsx', 'py', 'html', 'css'].includes(extension)
+      ? extension
+      : kind === 'code'
+        ? 'javascript'
+        : kind,
+  );
+  useEffect(() => {
+    const mobile = matchMedia('(max-width: 650px)');
+    const selectSource = () => {
+      if (mobile.matches) setView((current) => (current === 'split' ? 'source' : current));
+    };
+    selectSource();
+    mobile.addEventListener('change', selectSource);
+    return () => mobile.removeEventListener('change', selectSource);
+  }, []);
   const [ready, setReady] = useState(0),
     [notice, setNotice] = useState('');
   const geometryRef = useRef<Pick<SourceHandle, 'scrollDOM' | 'lineTop'> | null>(null);
@@ -63,7 +86,7 @@ export function SourceFilePane({
       const controller = controllerRef.current;
       if (!controller || controller.model !== active.model) return;
       controller.setSourceSyntax([
-        languageSupport(extension) ?? [],
+        languageSupport(syntaxLanguage) ?? [],
         lineNumbers(),
         syntaxHighlighting(classHighlighter),
         EditorState.transactionFilter.of((transaction) => {
@@ -88,7 +111,7 @@ export function SourceFilePane({
       cancelAnimationFrame(frame);
       geometryRef.current = null;
     };
-  }, [controllerRef, active.model, active.readOnly, extension, onError, copy.sourceLimit]);
+  }, [controllerRef, active.model, active.readOnly, syntaxLanguage, onError, copy.sourceLimit]);
   useMarkdownScrollSync(
     geometryRef,
     previewRef,
@@ -115,15 +138,49 @@ export function SourceFilePane({
         userEvent: 'input',
       });
   }
+  function wrapMarkdown(before: string, after = '', placeholder = '') {
+    const controller = controllerRef.current;
+    if (!controller || active.readOnly) return;
+    const editor = controller.view;
+    const selection = editor.state.selection.main;
+    const text = editor.state.sliceDoc(selection.from, selection.to) || placeholder;
+    editor.dispatch({
+      changes: { from: selection.from, to: selection.to, insert: before + text + after },
+      selection: {
+        anchor: selection.from + before.length,
+        head: selection.from + before.length + text.length,
+      },
+      userEvent: 'input',
+    });
+    editor.focus();
+    setView('source');
+  }
+  function prefixMarkdown(prefix: string) {
+    const controller = controllerRef.current;
+    if (!controller || active.readOnly) return;
+    const editor = controller.view;
+    const selection = editor.state.selection.main;
+    const from = editor.state.doc.lineAt(selection.from).from;
+    const text = editor.state.sliceDoc(from, selection.to).replace(/^/gm, prefix);
+    editor.dispatch({ changes: { from, to: selection.to, insert: text }, userEvent: 'input' });
+    editor.focus();
+    setView('source');
+  }
   return (
     <section
-      className="source-file-pane local-site"
+      className={`source-file-pane local-site${active.revision !== undefined ? ' historical-view' : ''}`}
       aria-label={active.document.title}
       inert={status === MESSAGE.opening}
     >
       <div className="source-file-heading">
         <div>
-          <h2>{active.document.title}</h2>
+          <EditableTitle
+            title={active.document.title}
+            label={t(MESSAGE.rename)}
+            level={2}
+            editable={!active.readOnly && active.revision === undefined}
+            onRename={onRename}
+          />
           <span role="status">{localize(status)}</span>
         </div>
         <button
@@ -145,7 +202,26 @@ export function SourceFilePane({
           {copy.download}
         </button>
         <button onClick={onHistory}>{t(MESSAGE.versionHistory)}</button>
-        <button onClick={onShare}>{t(MESSAGE.share)}</button>
+        {active.revision !== undefined && (
+          <>
+            <button onClick={onBackToCurrent}>{t(MESSAGE.backToCurrent)}</button>
+            <button
+              onClick={() => {
+                const dot = active.document.title.lastIndexOf('.');
+                const title =
+                  dot > 0
+                    ? `${t(MESSAGE.valueCopy, { p0: active.document.title.slice(0, dot) })}${active.document.title.slice(dot)}`
+                    : t(MESSAGE.valueCopy, { p0: active.document.title });
+                void onCopy(active.model.snapshot(), title);
+              }}
+            >
+              {t(MESSAGE.saveAsNewDocument)}
+            </button>
+          </>
+        )}
+        {active.revision === undefined && active.document.effectiveRole === 'OWNER' && (
+          <button onClick={onShare}>{t(MESSAGE.share)}</button>
+        )}
       </div>
       {notice && <p role="status">{notice}</p>}
       {recovery}
@@ -166,6 +242,45 @@ export function SourceFilePane({
       ) : (
         <>
           <div className="source-toolbar">
+            {kind === 'markdown' && (
+              <div className="markdown-format-buttons">
+                <button
+                  disabled={active.readOnly}
+                  aria-label={copy.bold}
+                  onClick={() => wrapMarkdown('**', '**', 'text')}
+                >
+                  <b>B</b>
+                </button>
+                <button
+                  disabled={active.readOnly}
+                  aria-label={copy.italic}
+                  onClick={() => wrapMarkdown('*', '*', 'text')}
+                >
+                  <i>I</i>
+                </button>
+                <button
+                  disabled={active.readOnly}
+                  aria-label={copy.heading}
+                  onClick={() => prefixMarkdown('## ')}
+                >
+                  {copy.heading}
+                </button>
+                <button
+                  disabled={active.readOnly}
+                  aria-label={copy.list}
+                  onClick={() => prefixMarkdown('- ')}
+                >
+                  • ≡
+                </button>
+                <button
+                  disabled={active.readOnly}
+                  aria-label={copy.link}
+                  onClick={() => wrapMarkdown('[', '](https://)', 'link')}
+                >
+                  ↗
+                </button>
+              </div>
+            )}
             <button disabled={active.readOnly} onClick={() => controllerRef.current?.undo()}>
               {copy.undo}
             </button>
@@ -190,6 +305,28 @@ export function SourceFilePane({
                   </button>
                 ))}
               </div>
+            )}
+            {kind === 'code' && (
+              <select
+                aria-label={copy.codeLanguage}
+                value={syntaxLanguage}
+                onChange={(event) => setSyntaxLanguage(event.target.value)}
+              >
+                {[
+                  ['js', 'JavaScript'],
+                  ['jsx', 'JSX'],
+                  ['ts', 'TypeScript'],
+                  ['tsx', 'TSX'],
+                  ['py', 'Python'],
+                  ['html', 'HTML'],
+                  ['css', 'CSS'],
+                  ['txt', 'Plain text'],
+                ].map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
           {kind === 'markdown' ? (

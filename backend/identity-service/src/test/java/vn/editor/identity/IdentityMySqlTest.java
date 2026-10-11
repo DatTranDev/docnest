@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mysql.MySQLContainer;
 import vn.editor.identity.auth.application.command.AuthenticationSession;
+import vn.editor.identity.auth.application.command.GoogleLoginHandler;
 import vn.editor.identity.auth.application.command.LoginCommand;
 import vn.editor.identity.auth.application.command.LoginHandler;
 import vn.editor.identity.auth.application.command.LogoutCommand;
@@ -33,11 +34,13 @@ import vn.editor.identity.auth.application.command.RefreshSessionHandler;
 import vn.editor.identity.auth.application.command.RegisterAccountCommand;
 import vn.editor.identity.auth.application.command.RegisterAccountHandler;
 import vn.editor.identity.auth.application.command.SessionIssuer;
+import vn.editor.identity.auth.application.port.GoogleIdentity;
 import vn.editor.identity.auth.application.query.GetProfileHandler;
 import vn.editor.identity.auth.application.query.GetProfileQuery;
 import vn.editor.identity.auth.application.query.ResolveAccountHandler;
 import vn.editor.identity.auth.application.query.ResolveAccountQuery;
 import vn.editor.identity.auth.application.query.UserView;
+import vn.editor.identity.auth.domain.AccountEmail;
 import vn.editor.identity.auth.domain.AuthenticationFailure;
 import vn.editor.identity.auth.infrastructure.persistence.JdbcAccountCommandDao;
 import vn.editor.identity.auth.infrastructure.persistence.JdbcAccountReadDao;
@@ -56,6 +59,7 @@ class IdentityMySqlTest {
   JdbcTemplate jdbc;
   RegisterAccountHandler registration;
   LoginHandler login;
+  GoogleLoginHandler googleLogin;
   RefreshSessionHandler refresh;
   LogoutHandler logout;
 
@@ -89,6 +93,17 @@ class IdentityMySqlTest {
     Clock clock = Clock.systemUTC();
     registration = new RegisterAccountHandler(accounts, hashes, transactions, clock, maximum);
     login = new LoginHandler(accounts, hashes, transactions, issuer, clock);
+    googleLogin =
+        new GoogleLoginHandler(
+            accounts,
+            hashes,
+            transactions,
+            issuer,
+            credential ->
+                new GoogleIdentity(
+                    credential, new AccountEmail("google@example.com"), "Google User"),
+            clock,
+            maximum);
     refresh = new RefreshSessionHandler(accounts, sessions, tokens, transactions, issuer, clock);
     logout = new LogoutHandler(accounts, sessions, tokens, transactions);
   }
@@ -133,6 +148,27 @@ class IdentityMySqlTest {
       assertEquals(List.of("EMAIL_ALREADY_REGISTERED", "REGISTERED"), results);
       assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
     }
+  }
+
+  @Test
+  void googleIdentityCreatesOneAccountAndRefreshableSessions() {
+    AuthenticationSession first = googleLogin.handle("google-subject");
+    AuthenticationSession second = googleLogin.handle("google-subject");
+    assertEquals(first.user().id(), second.user().id());
+    assertNotEquals(first.refreshToken(), second.refreshToken());
+    assertEquals("google@example.com", first.user().email());
+    assertEquals(first.user().id(), refresh(first.refreshToken()).user().id());
+    assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
+    assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM google_identities", Integer.class));
+  }
+
+  @Test
+  void googleIdentityLinksAnExistingVerifiedEmailAccount() {
+    UserView existing = register("GOOGLE@example.com", "a strong password", "Existing");
+    AuthenticationSession google = googleLogin.handle("google-subject");
+    assertEquals(existing.id(), google.user().id());
+    assertEquals(existing.id(), login("google@example.com", "a strong password").user().id());
+    assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM users", Integer.class));
   }
 
   @Test

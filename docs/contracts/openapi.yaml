@@ -600,6 +600,20 @@ paths:
           schema:
             type: string
             maxLength: 200
+        - name: sortBy
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [createdAt, name, size]
+            default: createdAt
+        - name: sortDirection
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
         - *id003
         - *id004
     post:
@@ -1939,6 +1953,11 @@ components:
         deletedAt:
           type: string
           format: date-time
+          nullable: true
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 0
           nullable: true
         preview:
           type: object

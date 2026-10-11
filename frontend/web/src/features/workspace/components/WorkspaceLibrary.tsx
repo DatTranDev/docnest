@@ -1,8 +1,15 @@
 'use client';
 import { useMemo, useState, type ComponentProps } from 'react';
-import { DocumentRows, sourceFileType, type DocumentInfo } from '@/features/documents';
+import {
+  DocumentRows,
+  sourceFileType,
+  type DocumentInfo,
+  type DocumentSortBy,
+  type SortDirection,
+} from '@/features/documents';
 import { FolderRows, type Folder } from '@/features/folders';
 import { Icon } from '@/components/ui/Icon';
+import { OptionSelect } from '@/components/ui/OptionSelect';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { Scope } from '../model/types';
 import { useLibraryView } from '../hooks/useLibraryView';
@@ -12,13 +19,20 @@ export function WorkspaceLibrary({
   path,
   folders,
   documents,
+  sortBy,
+  sortDirection,
+  onSortBy,
+  onSortDirection,
   query,
   loading,
+  loadError,
   hasMore,
   onLoadMore,
   onPath,
   onClearSearch,
-  onReturnToEditor,
+  onRetry,
+  onNewDocument,
+  onImport,
   folderActions,
   documentActions,
 }: {
@@ -26,39 +40,42 @@ export function WorkspaceLibrary({
   path: Folder[];
   folders: Folder[];
   documents: DocumentInfo[];
+  sortBy: DocumentSortBy;
+  sortDirection: SortDirection;
+  onSortBy: (value: DocumentSortBy) => void;
+  onSortDirection: () => void;
   query: string;
   loading: boolean;
+  loadError: string;
   hasMore: boolean;
   onLoadMore: () => void;
   onPath: (path: Folder[]) => void;
   onClearSearch: () => void;
-  onReturnToEditor?: () => void;
+  onRetry: () => void;
+  onNewDocument: () => void;
+  onImport: () => void;
   folderActions: Omit<ComponentProps<typeof FolderRows>, 'folders'>;
   documentActions: Omit<ComponentProps<typeof DocumentRows>, 'documents' | 'trash' | 'view'>;
 }) {
   const { t, localeTag } = useI18n();
-  const [view, setView] = useLibraryView();
+  const [view, setView] = useLibraryView(scope);
   const [kind, setKind] = useState('all');
-  const [descending, setDescending] = useState(false);
   const items = useMemo(() => {
     const collator = new Intl.Collator(localeTag, { numeric: true, sensitivity: 'base' });
-    const direction = descending ? -1 : 1;
     return {
       folders:
         kind !== 'all' && kind !== 'folders'
           ? []
-          : [...folders].sort((a, b) => direction * collator.compare(a.name, b.name)),
+          : [...folders].sort((a, b) => collator.compare(a.name, b.name)),
       documents:
         kind === 'folders'
           ? []
-          : [...documents]
-              .filter(
-                (document) =>
-                  ['all', 'documents'].includes(kind) || sourceFileType(document.title) === kind,
-              )
-              .sort((a, b) => direction * collator.compare(a.title, b.title)),
+          : documents.filter(
+              (document) =>
+                ['all', 'documents'].includes(kind) || sourceFileType(document.title) === kind,
+            ),
     };
-  }, [folders, documents, kind, descending, localeTag]);
+  }, [folders, documents, kind, localeTag]);
   const title =
     scope === 'mine'
       ? MESSAGE.myDocuments
@@ -88,10 +105,15 @@ export function WorkspaceLibrary({
           <h1>{t(title)}</h1>
         )}
         <div className="workspace-heading-actions">
-          {onReturnToEditor && (
-            <button className="return-editor" onClick={onReturnToEditor}>
-              {t(MESSAGE.returnToEditor)}
-            </button>
+          {scope === 'mine' && (
+            <>
+              <button className="primary library-new-document" onClick={onNewDocument}>
+                {t(MESSAGE.newDocument)}
+              </button>
+              <button className="library-import" onClick={onImport}>
+                {t(MESSAGE.importFile)}
+              </button>
+            </>
           )}
           <div className="view-switch" role="group" aria-label={t(MESSAGE.viewLayout)}>
             {(['list', 'grid'] as const).map((layout) => (
@@ -108,6 +130,7 @@ export function WorkspaceLibrary({
           </div>
         </div>
       </div>
+      {scope === 'trash' && <p className="trash-restore-note">{t(MESSAGE.restoreAccessWarning)}</p>}
       <div className="workspace-toolbar">
         <label className="type-filter">
           <span>{t(MESSAGE.typeFilter)}</span>
@@ -124,6 +147,29 @@ export function WorkspaceLibrary({
             <option value="code">Code</option>
           </select>
         </label>
+        <div className="sort-filter">
+          <OptionSelect
+            label={t(MESSAGE.sortBy)}
+            prefix={t(MESSAGE.sortBy)}
+            value={sortBy}
+            options={[
+              { value: 'createdAt', label: t(MESSAGE.sortDateCreated) },
+              { value: 'name', label: t(MESSAGE.itemName) },
+              { value: 'size', label: t(MESSAGE.sortSize) },
+            ]}
+            onChange={(value) => onSortBy(value as DocumentSortBy)}
+          />
+        </div>
+        <button
+          className="sort-direction"
+          aria-label={t(MESSAGE.reverseSortOrder)}
+          title={t(sortDirection === 'asc' ? MESSAGE.sortAscending : MESSAGE.sortDescending)}
+          onClick={onSortDirection}
+        >
+          <span className={sortDirection === 'desc' ? 'sort-descending' : ''}>
+            <Icon name="arrow-up" size={17} />
+          </span>
+        </button>
         {query && (
           <button className="search-chip" onClick={onClearSearch}>
             <span>{query}</span>
@@ -131,26 +177,40 @@ export function WorkspaceLibrary({
           </button>
         )}
         <span className="library-count">
-          {t(MESSAGE.itemsShown, { p0: items.folders.length + items.documents.length })}
+          {t(MESSAGE.itemsLoaded, { p0: items.folders.length + items.documents.length })}
         </span>
       </div>
       <div className="library-columns">
-        <button
-          className="name-sort"
-          aria-label={t(MESSAGE.sortVisibleByName)}
-          onClick={() => setDescending(!descending)}
-        >
-          {t(MESSAGE.itemName)}{' '}
-          <span className={descending ? 'sort-descending' : ''}>
-            <Icon name="arrow-up" size={15} />
-          </span>
-        </button>
+        <span className="name-sort">{t(MESSAGE.itemName)}</span>
         <span className="column-kind">{t(MESSAGE.typeFilter)}</span>
         <span className="column-access">{t(MESSAGE.accessLabel)}</span>
       </div>
+      {!loading && loadError && !empty && (
+        <div className="library-error library-error-inline" role="alert">
+          <span>{t(MESSAGE.libraryLoadFailed)}</span>
+          <button onClick={onRetry}>{t(MESSAGE.retry)}</button>
+        </div>
+      )}
       {loading ? (
         <div className="library-loading" role="status">
-          {t(MESSAGE.loading)}
+          <span className="visually-hidden">{t(MESSAGE.loading)}</span>
+          <div className="library-skeleton" aria-hidden="true">
+            {[0, 1, 2, 3].map((row) => (
+              <div key={row}>
+                <span />
+                <span />
+                <span />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : loadError && empty ? (
+        <div className="library-error" role="alert">
+          <h2>{t(MESSAGE.libraryLoadFailed)}</h2>
+          <p>{t(MESSAGE.libraryLoadAdvice)}</p>
+          <button className="primary" onClick={onRetry}>
+            {t(MESSAGE.retry)}
+          </button>
         </div>
       ) : (
         <>
@@ -202,6 +262,11 @@ export function WorkspaceLibrary({
                   }}
                 >
                   {t(MESSAGE.clearFilters)}
+                </button>
+              )}
+              {scope === 'mine' && !query && kind === 'all' && (
+                <button className="primary" onClick={onNewDocument}>
+                  {t(MESSAGE.newDocument)}
                 </button>
               )}
             </div>

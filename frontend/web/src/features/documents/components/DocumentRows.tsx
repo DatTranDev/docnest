@@ -60,7 +60,7 @@ export function DocumentRows({
         }
         return (
           <article
-            className="file document-file"
+            className={`file document-file${trash ? ' trash-file' : ''}`}
             key={document.id}
             data-document-id={document.id}
             aria-label={document.title}
@@ -85,10 +85,16 @@ export function DocumentRows({
               }
             </span>
             <span className="file-access">{localize(roleLabel(document.effectiveRole))}</span>
-            <ActionMenu
-              label={t(MESSAGE.actionsForValue, { p0: document.title })}
-              actions={actions}
-            />
+            {trash && view === 'list' ? (
+              <button className="restore-row-button" onClick={() => onRestore(document)}>
+                {t(MESSAGE.restore)}
+              </button>
+            ) : (
+              <ActionMenu
+                label={t(MESSAGE.actionsForValue, { p0: document.title })}
+                actions={actions}
+              />
+            )}
             {view === 'grid' && (
               <>
                 <button

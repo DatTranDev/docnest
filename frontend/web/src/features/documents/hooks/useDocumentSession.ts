@@ -17,7 +17,7 @@ import {
 import { ApiError, errorMessage } from '@/lib/http';
 import { useOnlineStatus } from '@/lib/react/useOnlineStatus';
 import { useLatest } from '@/lib/react/useLatest';
-import { createDocument, getDocument, versionContent } from '../api/documents';
+import { createDocument, getDocument, renameDocument, versionContent } from '../api/documents';
 import { readImportedFile } from '../model/importFile';
 import { saveNativeVersion } from '../api/saveDocument';
 import { sourceFileType } from '../model/sourceFiles';
@@ -27,6 +27,7 @@ export function useDocumentSession(
   folderId: string | null,
   onDocumentsChanged: () => Promise<void>,
   setError: (message: string) => void,
+  surfaceMode?: string,
 ) {
   const { t, locale } = useI18n();
   const translation = useLatest(t);
@@ -222,17 +223,24 @@ export function useDocumentSession(
     }
   }, [activeRef, checkAccess, controller, preserve, reload, setError, statusRef, userRef]);
   const newDoc = useCallback(
-    async (snapshot?: Snapshot, suggestedTitle?: string): Promise<void> => {
+    async (
+      snapshot?: Snapshot,
+      suggestedTitle?: string,
+      options?: { skipTitlePrompt?: boolean; throwOnError?: boolean },
+    ): Promise<void> => {
       const active = activeRef.current;
-      const title = window.prompt(
-        translation.current(MESSAGE.documentName),
-        suggestedTitle ??
-          (snapshot
-            ? translation.current(MESSAGE.valueCopy, {
-                p0: active?.document.title ?? translation.current(MESSAGE.draft),
-              })
-            : translation.current(MESSAGE.newDocumentLabel)),
-      );
+      const title =
+        options?.skipTitlePrompt && suggestedTitle
+          ? suggestedTitle
+          : !snapshot && !suggestedTitle
+            ? translation.current(MESSAGE.newDocumentLabel)
+            : window.prompt(
+                translation.current(MESSAGE.documentName),
+                suggestedTitle ??
+                  translation.current(MESSAGE.valueCopy, {
+                    p0: active?.document.title ?? translation.current(MESSAGE.draft),
+                  }),
+              );
       if (!title) return;
       try {
         if (active) await preserve(active);
@@ -252,6 +260,7 @@ export function useDocumentSession(
         await reload.current();
       } catch (e) {
         setError(errorMessage(e));
+        if (options?.throwOnError) throw e;
       }
     },
     [activeRef, open, parentFolder, preserve, reload, setError, translation],
@@ -311,7 +320,7 @@ export function useDocumentSession(
       instance.destroy();
       if (controller.current === instance) controller.current = null;
     };
-  }, [activeRef, selectedModel, selectedReadOnly, userRef, currentLocale]);
+  }, [activeRef, selectedModel, selectedReadOnly, userRef, currentLocale, surfaceMode]);
   useEffect(() => {
     const timer = setInterval(() => {
       const document = activeRef.current,
@@ -379,6 +388,21 @@ export function useDocumentSession(
     openingSequence.current++;
     setActive(null);
   }, []);
+  const renameActive = useCallback(
+    async (title: string): Promise<void> => {
+      const current = activeRef.current;
+      if (!current || current.readOnly) return;
+      const renamed = await renameDocument(current.document, title);
+      const latest = activeRef.current;
+      if (latest?.model === current.model) {
+        const updated = { ...latest, document: { ...latest.document, ...renamed } };
+        activeRef.current = updated;
+        setActive(updated);
+      }
+      await reload.current();
+    },
+    [activeRef, reload],
+  );
   const importFile = useCallback(
     async (file: File) => {
       const document = activeRef.current;
@@ -481,6 +505,7 @@ export function useDocumentSession(
     newDoc,
     preserve,
     clearActive,
+    renameActive,
     importFile,
     recoverLocal,
     discardDraft,

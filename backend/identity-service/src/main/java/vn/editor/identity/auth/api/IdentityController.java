@@ -17,12 +17,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
+import vn.editor.identity.auth.api.dto.GoogleLoginRequestDto;
 import vn.editor.identity.auth.api.dto.LoginRequestDto;
 import vn.editor.identity.auth.api.dto.RegisterRequestDto;
 import vn.editor.identity.auth.api.dto.ResolveAccountRequestDto;
 import vn.editor.identity.auth.application.command.AuthenticationSession;
 import vn.editor.identity.auth.application.command.CheckLoginAttemptCommand;
 import vn.editor.identity.auth.application.command.CheckLoginAttemptService;
+import vn.editor.identity.auth.application.command.GoogleLoginService;
 import vn.editor.identity.auth.application.command.LoginCommand;
 import vn.editor.identity.auth.application.command.LoginService;
 import vn.editor.identity.auth.application.command.LogoutCommand;
@@ -43,6 +45,7 @@ import vn.editor.identity.auth.application.query.UserView;
 public final class IdentityController {
   private final RegisterAccountService register;
   private final LoginService login;
+  private final GoogleLoginService googleLogin;
   private final RefreshSessionService refresh;
   private final LogoutService logout;
   private final GetProfileService profiles;
@@ -55,6 +58,7 @@ public final class IdentityController {
   public IdentityController(
       RegisterAccountService register,
       LoginService login,
+      GoogleLoginService googleLogin,
       RefreshSessionService refresh,
       LogoutService logout,
       GetProfileService profiles,
@@ -65,6 +69,7 @@ public final class IdentityController {
       @Value("${editor.auth.secure-cookies}") boolean secure) {
     this.register = register;
     this.login = login;
+    this.googleLogin = googleLogin;
     this.refresh = refresh;
     this.logout = logout;
     this.profiles = profiles;
@@ -97,6 +102,13 @@ public final class IdentityController {
   public ResponseEntity<?> login(@RequestBody LoginRequestDto request, HttpServletRequest http) {
     rates.handle(new CheckLoginAttemptCommand(http.getRemoteAddr()));
     return session(login.handle(new LoginCommand(request.email(), request.password())));
+  }
+
+  @PostMapping("/api/v1/auth/google")
+  public ResponseEntity<?> googleLogin(
+      @RequestBody GoogleLoginRequestDto request, HttpServletRequest http) {
+    rates.handle(new CheckLoginAttemptCommand(http.getRemoteAddr()));
+    return session(googleLogin.handle(request.credential()));
   }
 
   @PostMapping("/api/v1/auth/refresh")

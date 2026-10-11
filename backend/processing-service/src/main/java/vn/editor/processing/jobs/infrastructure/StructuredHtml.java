@@ -16,10 +16,12 @@ final class StructuredHtml {
       w.write(
           "<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><meta charset=\"utf-8\"/><title>Export</title><style>");
       w.write(
-          "@page{size:A4;margin:22mm 18mm;@top-center{content:element(header)}@bottom-center{content:element(footer)}}body{font-family:Arial,sans-serif;font-size:11pt;}#header{position:running(header)}#footer{position:running(footer)}.page-number:before{content:counter(page)}.paragraph{white-space:pre-wrap;min-height:1em}table{border-collapse:collapse;width:100%;table-layout:fixed}td{border:1px solid #cbd5e1;padding:6pt;vertical-align:top}tr{page-break-inside:avoid}img{max-width:100%;height:auto}ol,ul{margin-top:0;margin-bottom:0}a{color:#1967d2;text-decoration:underline}</style></head><body>");
+          "@page{size:A4;margin:22mm 18mm;@top-center{content:element(header)}@bottom-center{content:element(footer)}}@page:first{ @top-center{content:element(firstHeader)} }body{font-family:Arial,sans-serif;font-size:11pt;}#header{position:running(header)}#firstHeader{position:running(firstHeader)}#footer{position:running(footer)}.page-number:before{content:counter(page)}.paragraph{white-space:pre-wrap;min-height:1em}table{border-collapse:collapse;width:100%;table-layout:fixed}td{border:1px solid #cbd5e1;padding:6pt;vertical-align:top}tr{page-break-inside:avoid}img{max-width:100%;height:auto}ol,ul{margin-top:0;margin-bottom:0}a{color:#1967d2;text-decoration:underline}</style></head><body>");
       var page = d.formatting().page();
       w.write("<div id=\"header\">");
       escape(w, page.header());
+      w.write("</div><div id=\"firstHeader\">");
+      escape(w, page.differentFirstPage() ? page.firstPageHeader() : page.header());
       w.write("</div><div id=\"footer\">");
       escape(w, page.footer());
       if (page.pageNumbers()) w.write(" <span class=\"page-number\"></span>");

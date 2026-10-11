@@ -34,12 +34,18 @@ const extensions: Record<string, [Mode, CodeLanguage?]> = {
   html: ['code', 'html'],
   css: ['code', 'css'],
 };
-export default function LocalWorkbench({ standalone = false }: { standalone?: boolean }) {
+export default function LocalWorkbench({
+  standalone = false,
+  embedded = false,
+}: {
+  standalone?: boolean;
+  embedded?: boolean;
+}) {
   const copy = useToolsCopy(),
     { locale, errorText } = useI18n();
   const [mode, setMode] = useState<Mode>(() => {
     const requested = new URLSearchParams(window.location.search).get('mode');
-    return modes.includes(requested as Mode) ? (requested as Mode) : 'markdown';
+    return modes.includes(requested as Mode) ? (requested as Mode) : 'document';
   });
   const [content, setContent] = useState(initial);
   const [names, setNames] = useState({
@@ -50,6 +56,16 @@ export default function LocalWorkbench({ standalone = false }: { standalone?: bo
   });
   const [language, setLanguage] = useState<CodeLanguage>('javascript');
   const [view, setView] = useState('split');
+  useEffect(() => {
+    const mobile = matchMedia('(max-width: 650px)');
+    const selectSource = () => {
+      if (mobile.matches) setView((current) => (current === 'split' ? 'source' : current));
+    };
+    selectSource();
+    mobile.addEventListener('change', selectSource);
+    return () => mobile.removeEventListener('change', selectSource);
+  }, []);
+  const [mobileMarkdownTools, setMobileMarkdownTools] = useState(false);
   const [error, setError] = useState(''),
     [status, setStatus] = useState('');
   const dirty = useRef<Record<Mode, boolean>>({
@@ -165,10 +181,13 @@ export default function LocalWorkbench({ standalone = false }: { standalone?: bo
       setError(copy.error);
     }
   }
+  const WorkbenchRegion = embedded ? 'section' : 'main';
   return (
-    <div className="local-site">
-      <SiteHeader standalone={standalone} editor />
-      <main className="local-workbench">
+    <div className={`local-site${embedded ? ' intro-workbench-embed' : ''}`} data-mode={mode}>
+      {!embedded && (
+        <SiteHeader standalone={standalone} editor onOpenFile={() => fileInput.current?.click()} />
+      )}
+      <WorkbenchRegion className="local-workbench">
         <div className="local-heading">
           <div>
             <h1>{copy.local}</h1>
@@ -266,6 +285,8 @@ export default function LocalWorkbench({ standalone = false }: { standalone?: bo
         >
           <LocalDocument
             name={names.document}
+            onOpenFile={() => fileInput.current?.click()}
+            onNameChange={(name) => setNames((previous) => ({ ...previous, document: name }))}
             handle={documentRef}
             onDirty={(value) => {
               dirty.current.document = value;
@@ -287,33 +308,46 @@ export default function LocalWorkbench({ standalone = false }: { standalone?: bo
             <button onClick={() => markdown.current?.wrap('_', '_', 'text')}>
               <i>{copy.italic}</i>
             </button>
-            <button onClick={() => markdown.current?.prefix('## ')}>{copy.heading}</button>
-            <button onClick={() => markdown.current?.prefix('> ')}>{copy.quote}</button>
-            <button onClick={() => markdown.current?.prefix('- ')}>{copy.list}</button>
-            <button onClick={() => markdown.current?.prefix('- [ ] ')}>{copy.task}</button>
-            <button onClick={() => markdown.current?.wrap('[', '](https://example.com)', 'link')}>
-              {copy.link}
-            </button>
             <button
-              onClick={() =>
-                markdown.current?.wrap('\n```javascript\n', '\n```\n', 'const draft = "docsnest";')
-              }
+              className="markdown-more"
+              aria-expanded={mobileMarkdownTools}
+              onClick={() => setMobileMarkdownTools((open) => !open)}
             >
-              {copy.codeBlock}
+              {copy.format}
             </button>
-            <button
-              onClick={() =>
-                markdown.current?.wrap('\n| A | B |\n| --- | --- |\n| ', ' | Value |\n', 'Item')
-              }
-            >
-              {copy.table}
-            </button>
-            <button onClick={() => markdown.current?.undo()} aria-label={copy.undo}>
-              <Icon name="undo" />
-            </button>
-            <button onClick={() => markdown.current?.redo()} aria-label={copy.redo}>
-              <Icon name="redo" />
-            </button>
+            <div className={`markdown-advanced${mobileMarkdownTools ? ' is-open' : ''}`}>
+              <button onClick={() => markdown.current?.prefix('## ')}>{copy.heading}</button>
+              <button onClick={() => markdown.current?.prefix('> ')}>{copy.quote}</button>
+              <button onClick={() => markdown.current?.prefix('- ')}>{copy.list}</button>
+              <button onClick={() => markdown.current?.prefix('- [ ] ')}>{copy.task}</button>
+              <button onClick={() => markdown.current?.wrap('[', '](https://example.com)', 'link')}>
+                {copy.link}
+              </button>
+              <button
+                onClick={() =>
+                  markdown.current?.wrap(
+                    '\n```javascript\n',
+                    '\n```\n',
+                    'const draft = "docsnest";',
+                  )
+                }
+              >
+                {copy.codeBlock}
+              </button>
+              <button
+                onClick={() =>
+                  markdown.current?.wrap('\n| A | B |\n| --- | --- |\n| ', ' | Value |\n', 'Item')
+                }
+              >
+                {copy.table}
+              </button>
+              <button onClick={() => markdown.current?.undo()} aria-label={copy.undo}>
+                <Icon name="undo" />
+              </button>
+              <button onClick={() => markdown.current?.redo()} aria-label={copy.redo}>
+                <Icon name="redo" />
+              </button>
+            </div>
             <div className="local-view-switch">
               {(['source', 'split', 'preview'] as const).map((value) => (
                 <button key={value} aria-pressed={view === value} onClick={() => setView(value)}>
@@ -421,7 +455,7 @@ export default function LocalWorkbench({ standalone = false }: { standalone?: bo
             />
           </JsonPanels>
         </section>
-      </main>
+      </WorkbenchRegion>
     </div>
   );
 }

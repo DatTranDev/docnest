@@ -13,6 +13,26 @@ function deferred<T>() {
   return { promise, resolve };
 }
 describe('CSRF and in-memory token protocol', () => {
+  it('exchanges a Google credential for an application session', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(json({ headerName: 'X-CSRF-TOKEN', token: 'csrf' }))
+      .mockResolvedValueOnce(
+        json({
+          accessToken: 'google-session',
+          user: { id: 'u', email: 'a@example.test', displayName: 'A' },
+        }),
+      );
+    vi.stubGlobal('fetch', fetch);
+    const api = await import('../api/auth');
+    const session = await api.loginWithGoogle('google-id-token');
+    expect(session.accessToken).toBe('google-session');
+    expect(fetch.mock.calls[1]![0]).toBe('/api/v1/auth/google');
+    expect(JSON.parse(String(fetch.mock.calls[1]![1].body))).toEqual({
+      credential: 'google-id-token',
+    });
+  });
+
   it('renews a rejected CSRF exactly once after a server restart', async () => {
     const fetch = vi
       .fn()

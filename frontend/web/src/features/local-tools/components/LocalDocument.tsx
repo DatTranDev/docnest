@@ -12,16 +12,20 @@ export interface DocumentHandle {
 }
 export function LocalDocument({
   name,
+  onNameChange,
   handle,
   onDirty,
   onError,
   onStatus,
+  onOpenFile,
 }: {
   name: string;
+  onNameChange: (name: string) => void;
   handle: RefObject<DocumentHandle | null>;
   onDirty: (dirty: boolean) => void;
   onError: (error: string) => void;
   onStatus: (status: string) => void;
+  onOpenFile: () => void;
 }) {
   const { locale } = useI18n(),
     copy = useToolsCopy();
@@ -103,6 +107,8 @@ export function LocalDocument({
   return (
     <EditorPane
       localOnly
+      onTitleChange={onNameChange}
+      onOpenFile={onOpenFile}
       active={{
         model,
         readOnly: false,
@@ -116,7 +122,6 @@ export function LocalDocument({
       controller={controller}
       recovery={null}
       onSave={() => save().catch((error) => onError(errorMessage(error)))}
-      onCollaborate={async () => {}}
       onCopy={(snapshot: Snapshot) => save(snapshot).catch((error) => onError(errorMessage(error)))}
       onImport={(file) =>
         open(file)

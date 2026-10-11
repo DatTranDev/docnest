@@ -8,6 +8,7 @@ import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import vn.editor.identity.auth.application.command.CheckLoginAttemptHandler;
+import vn.editor.identity.auth.application.command.GoogleLoginHandler;
 import vn.editor.identity.auth.application.command.LoginHandler;
 import vn.editor.identity.auth.application.command.LogoutHandler;
 import vn.editor.identity.auth.application.command.RefreshSessionHandler;
@@ -17,6 +18,7 @@ import vn.editor.identity.auth.application.port.AccessTokens;
 import vn.editor.identity.auth.application.port.AccountCommandRepository;
 import vn.editor.identity.auth.application.port.AccountReadRepository;
 import vn.editor.identity.auth.application.port.CsrfTokens;
+import vn.editor.identity.auth.application.port.GoogleIdentityVerifier;
 import vn.editor.identity.auth.application.port.LoginAttempts;
 import vn.editor.identity.auth.application.port.PasswordHashes;
 import vn.editor.identity.auth.application.port.RefreshSessionRepository;
@@ -83,6 +85,19 @@ public class AuthenticationWiring {
       SessionIssuer issuer,
       Clock clock) {
     return new LoginHandler(accounts, passwords, transactions, issuer, clock);
+  }
+
+  @Bean
+  public GoogleLoginHandler googleLoginHandler(
+      AccountCommandRepository accounts,
+      PasswordHashes passwords,
+      Transactions transactions,
+      SessionIssuer issuer,
+      GoogleIdentityVerifier identities,
+      Clock clock,
+      @Value("${editor.auth.max-users}") int maximum) {
+    return new GoogleLoginHandler(
+        accounts, passwords, transactions, issuer, identities, clock, maximum);
   }
 
   @Bean

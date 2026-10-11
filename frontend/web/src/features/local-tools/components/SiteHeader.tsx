@@ -8,9 +8,11 @@ import { useAccountInitial } from '@/features/auth';
 export function SiteHeader({
   standalone = false,
   editor = false,
+  onOpenFile,
 }: {
   standalone?: boolean;
   editor?: boolean;
+  onOpenFile?: () => void;
 }) {
   const copy = useToolsCopy();
   const initial = useAccountInitial();
@@ -32,14 +34,28 @@ export function SiteHeader({
     query.addEventListener('change', apply);
     return () => query.removeEventListener('change', apply);
   }, [theme]);
+  const changeTheme = (value: string) => {
+    themeFallback = value;
+    try {
+      localStorage.setItem('docsnest:local-theme', value);
+    } catch {
+      /* Session fallback. */
+    }
+    window.dispatchEvent(new Event('docsnest:local-theme'));
+  };
   return (
-    <header className="site-header">
+    <header className={`site-header${editor ? ' site-header-editor' : ' site-header-intro'}`}>
       <a className="brand" href={standalone ? './index.html' : '/intro'}>
         <span className="brand-icon">
           <Icon name="document" size={23} />
         </span>
         docsnest
       </a>
+      {editor && (
+        <a className="site-back-to-tools" href={standalone ? './index.html' : '/intro'}>
+          ← <span>{copy.backToTools}</span>
+        </a>
+      )}
       <nav aria-label={copy.navigation}>
         <a
           href={standalone ? './index.html' : '/intro'}
@@ -48,7 +64,7 @@ export function SiteHeader({
           {copy.intro}
         </a>
         <a
-          href={standalone ? './editor.html' : '/local'}
+          href={standalone ? './editor.html' : '/intro#editor'}
           aria-current={editor ? 'page' : undefined}
         >
           {copy.local}
@@ -60,16 +76,7 @@ export function SiteHeader({
         <select
           aria-label={copy.theme}
           value={theme}
-          onChange={(event) => {
-            const value = event.target.value;
-            themeFallback = value;
-            try {
-              localStorage.setItem('docsnest:local-theme', value);
-            } catch {
-              /* Session fallback. */
-            }
-            window.dispatchEvent(new Event('docsnest:local-theme'));
-          }}
+          onChange={(event) => changeTheme(event.target.value)}
         >
           <option value="light">{copy.light}</option>
           <option value="dark">{copy.dark}</option>
@@ -84,6 +91,25 @@ export function SiteHeader({
           {initial ? <span className="account-avatar">{initial}</span> : copy.login}
         </a>
       </div>
+      <details className="site-header-overflow">
+        <summary aria-label={copy.navigation}>⋮</summary>
+        <div>
+          {editor && <button onClick={onOpenFile}>{copy.upload}</button>}
+          <a href={workspaceUrl}>{initial ? copy.manageFiles : copy.login}</a>
+          <a href={standalone ? './index.html' : '/intro'}>{copy.intro}</a>
+          {!standalone && <a href="/intro#editor">{copy.local}</a>}
+          <LanguageSelector />
+          <select
+            aria-label={copy.theme}
+            value={theme}
+            onChange={(event) => changeTheme(event.target.value)}
+          >
+            <option value="light">{copy.light}</option>
+            <option value="dark">{copy.dark}</option>
+            <option value="system">{copy.system}</option>
+          </select>
+        </div>
+      </details>
     </header>
   );
 }

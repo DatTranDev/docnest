@@ -1,13 +1,21 @@
 import { bytes, request, type Page } from '@/lib/http';
-import type { DocumentInfo, DocumentScope, Version } from '../model/types';
+import type {
+  DocumentInfo,
+  DocumentScope,
+  DocumentSortBy,
+  SortDirection,
+  Version,
+} from '../model/types';
 import { sourceFileType } from '../model/sourceFiles';
 export function listDocuments(
   scope: DocumentScope,
   parent: string | null,
   cursor?: string,
   titleQuery?: string,
+  sortBy: DocumentSortBy = 'createdAt',
+  sortDirection: SortDirection = 'desc',
 ): Promise<Page<DocumentInfo>> {
-  const query = new URLSearchParams({ scope, limit: '50' });
+  const query = new URLSearchParams({ scope, limit: '50', sortBy, sortDirection });
   if (parent) query.set('parent', parent);
   if (cursor) query.set('cursor', cursor);
   if (titleQuery) query.set('titleQuery', titleQuery);

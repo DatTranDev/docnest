@@ -64,6 +64,23 @@ public class JdbcAccountCommandDao implements AccountCommandRepository {
   }
 
   @Override
+  public Account findByGoogleSubject(String subject) {
+    List<Map<String, Object>> rows =
+        jdbc.queryForList(
+            "SELECT u.* FROM users u JOIN google_identities g ON g.user_id=u.id WHERE g.google_subject=?",
+            subject);
+    return rows.isEmpty() ? null : map(rows.getFirst());
+  }
+
+  @Override
+  public void linkGoogleSubject(String subject, String userId) {
+    jdbc.update(
+        "INSERT INTO google_identities(google_subject,user_id,created_at) VALUES(?,?,UTC_TIMESTAMP(6))",
+        subject,
+        userId);
+  }
+
+  @Override
   public Account lockById(String id) {
     return map(jdbc.queryForMap("SELECT * FROM users WHERE id=? FOR UPDATE", id));
   }

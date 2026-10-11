@@ -21,7 +21,7 @@ import { classHighlighter } from '@lezer/highlight';
 import { languageSupport } from '../model/syntax';
 import { SOURCE_LIMIT } from '../model/json';
 export interface SourceHandle {
-  replace: (value: string) => void;
+  replace: (value: string, focus?: boolean) => void;
   wrap: (before: string, after?: string, placeholder?: string) => void;
   prefix: (value: string) => void;
   undo: () => void;
@@ -89,13 +89,13 @@ export function SourceEditor({
         ).from;
         return editor.lineBlockAt(position).top + editor.documentPadding.top;
       },
-      replace: (value) => {
+      replace: (value, focus = true) => {
         editor.dispatch({
           changes: { from: 0, to: editor.state.doc.length, insert: value },
           selection: { anchor: 0 },
           userEvent: 'input',
         });
-        editor.focus();
+        if (focus) editor.focus();
       },
       wrap: (before, after = '', placeholder = '') => {
         const selection = editor.state.selection.main,

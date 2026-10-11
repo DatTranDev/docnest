@@ -5,6 +5,6 @@ const LocalWorkbench = dynamic(() => import('./LocalWorkbench'), {
   ssr: false,
   loading: () => <LoadingIndicator />,
 });
-export function LocalClient() {
-  return <LocalWorkbench />;
+export function LocalClient({ embedded = false }: { embedded?: boolean }) {
+  return <LocalWorkbench embedded={embedded} />;
 }

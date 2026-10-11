@@ -66,17 +66,25 @@ async function main() {
   const upload = (file) => page.locator('.local-heading input[type=file]').setInputFiles(file);
   const source = () => page.locator('[role=tabpanel]:visible .source-editor .cm-content').first();
   async function download(button, output) {
-    const pending = page.waitForEvent('download');
+    const pending = page.waitForEvent('download').catch((error) => error);
     await button.click();
     const file = await pending;
+    if (file instanceof Error) throw file;
     await file.saveAs(path.join(reports, output));
     return readFileSync(path.join(reports, output));
   }
   try {
     await page.goto(origin + '/index.html');
-    await expect(page.locator('.intro-words h1')).toHaveText('Viết thành ý. Giữ thành tệp.');
+    await expect(page.locator('.intro-words h1')).toHaveText(
+      'Viết, lưu và chia sẻ công việc của bạn.',
+    );
     await page.screenshot({ path: `${reports}/local-intro.png`, fullPage: true });
-    await page.getByRole('link', { name: 'Mở trình soạn thảo', exact: true }).first().click();
+    await page.getByRole('link', { name: 'Bắt đầu viết →', exact: true }).click();
+    await expect(page.getByRole('tab', { name: 'Văn bản', exact: true })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await page.getByRole('tab', { name: 'Markdown', exact: true }).click();
     await expect(page.getByRole('tab', { name: 'Markdown', exact: true })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -161,7 +169,7 @@ async function main() {
       mimeType: 'application/json',
       buffer: Buffer.from(original),
     });
-    await page.getByRole('button', { name: 'Căn lề', exact: true }).click();
+    // The formatted result now updates without a separate Format click.
     await expect(page.getByLabel('Kết quả kiểm tra JSON')).toHaveText('JSON hợp lệ.');
     const output = page.locator('#local-json .json-output .cm-content');
     await expect(output).toContainText('900719925474099312345');
@@ -182,7 +190,7 @@ async function main() {
       'local-json-result.json',
     );
     assert.equal(edited.toString('utf8'), '{"edited":true,"id":900719925474099312345}');
-    await page.getByRole('button', { name: 'Dùng kết quả', exact: true }).click();
+    await page.getByRole('button', { name: 'Thay nguồn bằng kết quả', exact: true }).click();
     await expect(source()).toHaveText('{"edited":true,"id":900719925474099312345}');
     await source().fill(original);
     assert.ok((await source().innerText()).includes('900719925474099312345'));
@@ -206,12 +214,17 @@ async function main() {
     assert.equal(await source().getAttribute('data-acceptance-identity'), 'source');
     await page.getByRole('tab', { name: 'JSON', exact: true }).click();
     await expect(source()).toHaveText('{"x":}');
-    await page.getByLabel('Ngôn ngữ', { exact: true }).selectOption('en');
+    await page.locator('.site-settings').getByRole('button', { name: 'Ngôn ngữ' }).click();
+    await page.getByRole('menuitemradio', { name: 'English' }).click();
     await expect(page.getByRole('button', { name: 'Format', exact: true })).toBeVisible();
     await expect(source()).toHaveText('{"x":}');
-    await page.getByLabel('Appearance', { exact: true }).selectOption('dark');
+    await page
+      .locator('.site-settings')
+      .getByLabel('Appearance', { exact: true })
+      .selectOption('dark');
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
-    await page.getByLabel('Language', { exact: true }).selectOption('vi');
+    await page.locator('.site-settings').getByRole('button', { name: 'Language' }).click();
+    await page.getByRole('menuitemradio', { name: 'Tiếng Việt' }).click();
     stage = 'document';
     await upload({
       name: 'draft.docx',
@@ -231,16 +244,13 @@ async function main() {
       })
       .toBe('function');
     assert.equal(await page.locator('#local-document .cm-content table').count(), 1);
+    const menu = page.locator('#local-document .editor-heading-actions details');
+    await menu.locator('summary').click();
     const native = await download(
-      page
-        .locator('#local-document .editor-heading')
-        .getByRole('button', { name: 'Tải bản native', exact: true }),
+      menu.getByRole('button', { name: 'Tải bản native', exact: true }),
       'local-draft.tedoc',
     );
     assert.ok(unzipSync(native)['manifest.json']);
-    const menu = page
-      .locator('#local-document details')
-      .filter({ has: page.locator('summary', { hasText: 'Tệp' }) });
     await menu.locator('summary').click();
     const docx = await download(
       menu.getByRole('button', { name: 'Xuất DOCX', exact: true }),

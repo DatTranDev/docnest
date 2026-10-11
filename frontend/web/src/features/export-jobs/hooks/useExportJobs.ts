@@ -23,7 +23,7 @@ export function useExportJobs(
           document.revision ?? document.document.headRevision,
           type,
         );
-        setJobs((previous) => [job, ...previous]);
+        setJobs((previous) => [{ ...job, documentTitle: document.document.title }, ...previous]);
       } catch (error) {
         onError(errorMessage(error));
       }
@@ -33,7 +33,9 @@ export function useExportJobs(
   useEffect(() => {
     if (!jobs.some((job) => ['QUEUED', 'READY', 'RUNNING'].includes(job.state))) return;
     const timer = setInterval(() => {
-      void Promise.all(jobs.map((job) => getJob(job.id)))
+      void Promise.all(
+        jobs.map(async (job) => ({ ...(await getJob(job.id)), documentTitle: job.documentTitle })),
+      )
         .then(setJobs)
         .catch((error) => onError(errorMessage(error)));
     }, 1500);

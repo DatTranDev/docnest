@@ -118,9 +118,18 @@ public final class NativeCodec {
 
   public record TableCell(String id, int columns) {}
 
-  public record PageSettings(String header, String footer, boolean pageNumbers) {
+  public record PageSettings(
+      String header,
+      String firstPageHeader,
+      String footer,
+      boolean pageNumbers,
+      boolean differentFirstPage) {
+    public PageSettings(String header, String footer, boolean pageNumbers) {
+      this(header, "", footer, pageNumbers, false);
+    }
+
     public static PageSettings empty() {
-      return new PageSettings("", "", false);
+      return new PageSettings("", "", "", false, false);
     }
   }
 
@@ -224,7 +233,8 @@ public final class NativeCodec {
     } catch (Exception ex) {
       throw new InvalidNative("INVALID_NATIVE_FILE");
     }
-    boolean structured = m != null && Objects.equals(m.get("schemaVersion"), 5);
+    boolean pageVariants = m != null && Objects.equals(m.get("schemaVersion"), 6);
+    boolean structured = m != null && (pageVariants || Objects.equals(m.get("schemaVersion"), 5));
     boolean extended = m != null && (Objects.equals(m.get("schemaVersion"), 4) || structured);
     boolean media = m != null && (Objects.equals(m.get("schemaVersion"), 3) || extended);
     boolean rich = m != null && (Objects.equals(m.get("schemaVersion"), 2) || media);
@@ -239,7 +249,9 @@ public final class NativeCodec {
         || (rich
             && (!Objects.equals(
                     m.get("formattingEncoding"),
-                    structured ? "sparse-v3" : extended ? "sparse-v2" : "sparse-v1")
+                    pageVariants
+                        ? "sparse-v4"
+                        : structured ? "sparse-v3" : extended ? "sparse-v2" : "sparse-v1")
                 || !Objects.equals(
                     m.get("formattingSha256"), sha256(entries.get("formatting.json")))))
         || !Objects.equals(m.get("textEncoding"), "utf-8")
@@ -266,7 +278,8 @@ public final class NativeCodec {
     byte[] masks = decodeStyles(styles, text.length());
     Formatting formatting =
         rich
-            ? decodeFormatting(entries.get("formatting.json"), text, extended, structured)
+            ? decodeFormatting(
+                entries.get("formatting.json"), text, extended, structured, pageVariants)
             : Formatting.empty();
     List<EmbeddedImage> images = media ? decodeImages(entries.get("media.json"), text) : List.of();
     BreakIterator graphemes = BreakIterator.getCharacterInstance(ULocale.ROOT);
@@ -364,7 +377,8 @@ public final class NativeCodec {
   }
 
   private static Formatting decodeFormatting(
-      byte[] raw, String text, boolean extended, boolean structured) throws InvalidNative {
+      byte[] raw, String text, boolean extended, boolean structured, boolean pageVariants)
+      throws InvalidNative {
     try {
       Map<?, ?> data = JSON.readValue(strictUtf8(raw), Map.class);
       if (data == null
@@ -451,7 +465,9 @@ public final class NativeCodec {
       return new Formatting(
           List.copyOf(runs),
           List.copyOf(paragraphs),
-          data.containsKey("page") ? StructureCodec.page(data.get("page")) : PageSettings.empty());
+          data.containsKey("page")
+              ? StructureCodec.page(data.get("page"), pageVariants)
+              : PageSettings.empty());
     } catch (IOException | ClassCastException ex) {
       throw new InvalidNative("INVALID_NATIVE_FILE");
     }

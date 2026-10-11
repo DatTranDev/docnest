@@ -4,7 +4,7 @@ import { ImageStore, IMAGE_PLACEHOLDER } from './images';
 import { graphemes, MAX_BYTES, TextAdapter } from './text';
 import type { Snapshot } from './model';
 export interface Manifest {
-  schemaVersion: 1 | 2 | 3 | 4 | 5;
+  schemaVersion: 1 | 2 | 3 | 4 | 5 | 6;
   textEncoding: 'utf-8';
   internalEol: 'LF';
   preferredExportEol: 'LF' | 'CRLF';
@@ -16,7 +16,7 @@ export interface Manifest {
   stylesEncoding: 'adaptive-v1';
   textSha256: string;
   stylesSha256: string;
-  formattingEncoding?: 'sparse-v1' | 'sparse-v2' | 'sparse-v3';
+  formattingEncoding?: 'sparse-v1' | 'sparse-v2' | 'sparse-v3' | 'sparse-v4';
   formattingSha256?: string;
   mediaEncoding?: 'embedded-v1';
   mediaSha256?: string;
@@ -351,13 +351,14 @@ export async function encodeNative(s: Snapshot): Promise<Uint8Array> {
     formatting = s.formatting ?? new RichFormatting(),
     images = s.images ?? new ImageStore(),
     structured = formatting.structured,
+    pageVariants = formatting.pageVariants,
     extended = formatting.extended,
     media = !images.empty || extended || structured,
     rich = !formatting.empty || media,
     formattingBytes = rich ? encoder.encode(JSON.stringify(formatting.toJSON())) : undefined,
     mediaBytes = media ? encoder.encode(JSON.stringify(images.toJSON())) : undefined,
     manifest: Manifest = {
-      schemaVersion: structured ? 5 : extended ? 4 : media ? 3 : rich ? 2 : 1,
+      schemaVersion: pageVariants ? 6 : structured ? 5 : extended ? 4 : media ? 3 : rich ? 2 : 1,
       textEncoding: 'utf-8',
       internalEol: 'LF',
       preferredExportEol: s.preferredExportEol,
@@ -371,11 +372,13 @@ export async function encodeNative(s: Snapshot): Promise<Uint8Array> {
       stylesSha256: await sha256(styles),
       ...(formattingBytes
         ? {
-            formattingEncoding: structured
-              ? ('sparse-v3' as const)
-              : extended
-                ? ('sparse-v2' as const)
-                : ('sparse-v1' as const),
+            formattingEncoding: pageVariants
+              ? ('sparse-v4' as const)
+              : structured
+                ? ('sparse-v3' as const)
+                : extended
+                  ? ('sparse-v2' as const)
+                  : ('sparse-v1' as const),
             formattingSha256: await sha256(formattingBytes),
           }
         : {}),
@@ -403,7 +406,7 @@ export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
         : manifest.schemaVersion === 2
           ? 'exportBom,formattingEncoding,formattingSha256,internalEol,logicalLines,offsetUnit,preferredExportEol,schemaVersion,stylesEncoding,stylesSha256,textEncoding,textSha256,utf16Length,utf8Bytes'
           : 'exportBom,internalEol,logicalLines,offsetUnit,preferredExportEol,schemaVersion,stylesEncoding,stylesSha256,textEncoding,textSha256,utf16Length,utf8Bytes') ||
-    ![1, 2, 3, 4, 5].includes(manifest.schemaVersion) ||
+    ![1, 2, 3, 4, 5, 6].includes(manifest.schemaVersion) ||
     manifest.textEncoding !== 'utf-8' ||
     manifest.internalEol !== 'LF' ||
     manifest.offsetUnit !== 'utf16' ||
@@ -414,11 +417,13 @@ export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
     !/^([a-f0-9]{64})$/.test(manifest.stylesSha256) ||
     (manifest.schemaVersion >= 2 &&
       (manifest.formattingEncoding !==
-        (manifest.schemaVersion === 5
-          ? 'sparse-v3'
-          : manifest.schemaVersion === 4
-            ? 'sparse-v2'
-            : 'sparse-v1') ||
+        (manifest.schemaVersion === 6
+          ? 'sparse-v4'
+          : manifest.schemaVersion === 5
+            ? 'sparse-v3'
+            : manifest.schemaVersion === 4
+              ? 'sparse-v2'
+              : 'sparse-v1') ||
         !/^([a-f0-9]{64})$/.test(manifest.formattingSha256 ?? '') ||
         !e['formatting.json'])) ||
     (manifest.schemaVersion === 1 && Boolean(e['formatting.json'])) ||
@@ -476,7 +481,8 @@ export async function decodeNative(bytes: Uint8Array): Promise<Snapshot> {
           JSON.parse(decoder.decode(formattingBytes)),
           text,
           manifest.schemaVersion >= 4,
-          manifest.schemaVersion === 5,
+          manifest.schemaVersion >= 5,
+          manifest.schemaVersion === 6,
         )
       : new RichFormatting(),
     images: mediaBytes

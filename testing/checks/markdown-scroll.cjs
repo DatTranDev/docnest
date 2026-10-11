@@ -100,7 +100,16 @@ module.exports = async function markdownScroll(page, upload) {
   await page.getByRole('button', { name: 'Song song', exact: true }).click();
   await fromSource(15);
   await page.setViewportSize({ width: 390, height: 844 });
-  await fromPreview(35);
-  await fromSource(25);
+  await expect(page.getByRole('button', { name: 'Nguồn', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.locator('#local-markdown .source-pane')).toBeVisible();
+  await page.getByRole('button', { name: 'Xem trước', exact: true }).click();
+  await expect(page.locator('#local-markdown .preview-pane h2')).toHaveCount(70);
+  await expect(page.locator('#local-markdown .preview-column')).toBeVisible();
+  await page.getByRole('button', { name: 'Nguồn', exact: true }).click();
+  await expect(page.locator('#local-markdown .source-pane')).toBeVisible();
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   await page.setViewportSize({ width: 1440, height: 1000 });
 };

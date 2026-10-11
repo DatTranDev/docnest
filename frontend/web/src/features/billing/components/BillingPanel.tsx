@@ -27,7 +27,7 @@ const labels: Record<Plan, string> = {
 export function BillingPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { t, localize, localeTag } = useI18n();
 
-  const [chosenPlan, setChosenPlan] = useState<Plan>('PRO_YEARLY');
+  const [chosenPlan, setChosenPlan] = useState<Plan>('PRO_MONTHLY');
   const [account, setAccount] = useState<Subscription | null>(null);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -172,9 +172,7 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
           </p>
         )}
 
-        {enabled === false && (
-          <p role="status">{t(MESSAGE.testPaymentsAreNotConfiguredExistingFeaturesRemain)} </p>
-        )}
+        {enabled === false && <p role="status">{t(MESSAGE.subscriptionUnavailable)}</p>}
         <div className="billing-options">
           <div className="billing-free">
             <h3>{t(MESSAGE.freePlan)}</h3>
@@ -196,73 +194,79 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
               <span className="current-plan-badge">{t(MESSAGE.currentPlanBadge)}</span>
             )}
           </div>
-          <div className="billing-pro">
-            <h3>docsnest Pro</h3>
-            <p>{t(MESSAGE.proPlanCaption)}</p>
-            <div className="billing-cycle" role="group" aria-label={t(MESSAGE.subscriptionPlans)}>
-              {(['PRO_MONTHLY', 'PRO_YEARLY'] as const).map((plan) => (
-                <button
-                  key={plan}
-                  aria-pressed={chosenPlan === plan}
-                  onClick={() => setChosenPlan(plan)}
-                >
-                  {t(plan === 'PRO_MONTHLY' ? MESSAGE.monthlyBilling : MESSAGE.yearlyBilling)}
-                </button>
-              ))}
+          {enabled === true && (
+            <div className="billing-pro">
+              <h3>docsnest Pro</h3>
+              <p>{t(MESSAGE.proPlanCaption)}</p>
+              <div className="billing-cycle" role="group" aria-label={t(MESSAGE.subscriptionPlans)}>
+                {(['PRO_MONTHLY', 'PRO_YEARLY'] as const).map((plan) => (
+                  <button
+                    key={plan}
+                    aria-pressed={chosenPlan === plan}
+                    onClick={() => setChosenPlan(plan)}
+                  >
+                    {t(plan === 'PRO_MONTHLY' ? MESSAGE.monthlyBilling : MESSAGE.yearlyBilling)}
+                  </button>
+                ))}
+              </div>
+              <p className="billing-cycle-caption">
+                {t(
+                  chosenPlan === 'PRO_MONTHLY'
+                    ? MESSAGE.proMonthlyCaption
+                    : MESSAGE.proYearlyCaption,
+                )}
+              </p>
+              <strong className="billing-price">{t(MESSAGE.pricingAtCheckout)}</strong>
+              <button
+                className="primary billing-checkout"
+                disabled={!enabled || busy || !account || account.plan !== 'FREE'}
+                onClick={() => void action('checkout', chosenPlan)}
+              >
+                {busy ? t(MESSAGE.updatingSubscription) : t(MESSAGE.continueToCheckout)}
+              </button>
+              <p className="billing-checkout-note">{t(MESSAGE.checkoutCaption)}</p>
             </div>
-            <p className="billing-cycle-caption">
-              {t(
-                chosenPlan === 'PRO_MONTHLY' ? MESSAGE.proMonthlyCaption : MESSAGE.proYearlyCaption,
-              )}
-            </p>
-            <strong className="billing-price">{t(MESSAGE.pricingAtCheckout)}</strong>
-            <button
-              className="primary billing-checkout"
-              disabled={!enabled || busy || !account || account.plan !== 'FREE'}
-              onClick={() => void action('checkout', chosenPlan)}
-            >
-              {busy ? t(MESSAGE.updatingSubscription) : t(MESSAGE.continueToCheckout)}
-            </button>
-            <p className="billing-checkout-note">{t(MESSAGE.checkoutCaption)}</p>
-          </div>
+          )}
         </div>
         <p className="billing-free-note">{t(MESSAGE.featuresRemainFree)}</p>
-        <div className="billing-actions">
-          <button
-            disabled={!enabled || busy}
-            onClick={() => {
-              void action('portal');
-            }}
-          >
-            {t(MESSAGE.manageOnStripe)}{' '}
-          </button>
-          <button
-            disabled={!enabled || busy || account?.plan === 'FREE' || account?.cancelAtPeriodEnd}
-            onClick={() => {
-              void action('cancel');
-            }}
-          >
-            {t(MESSAGE.cancelRenewal)}{' '}
-          </button>
-          <button
-            disabled={!enabled || busy}
-            onClick={() => {
-              void action('reconcile');
-            }}
-          >
-            {t(MESSAGE.refreshSubscription)}{' '}
-          </button>
-          {pending && (
+        {enabled === true && (
+          <div className="billing-actions">
+            <button
+              disabled={busy || account?.plan === 'FREE'}
+              onClick={() => {
+                void action('portal');
+              }}
+            >
+              {t(MESSAGE.manageOnStripe)}{' '}
+            </button>
+            <button
+              disabled={busy || account?.plan === 'FREE' || account?.cancelAtPeriodEnd}
+              onClick={() => {
+                void action('cancel');
+              }}
+            >
+              {t(MESSAGE.cancelRenewal)}{' '}
+            </button>
             <button
               disabled={busy}
               onClick={() => {
-                void resume();
+                void action('reconcile');
               }}
             >
-              {t(MESSAGE.resumeRequest)}{' '}
+              {t(MESSAGE.refreshSubscription)}{' '}
             </button>
-          )}
-        </div>
+            {pending && (
+              <button
+                disabled={busy}
+                onClick={() => {
+                  void resume();
+                }}
+              >
+                {t(MESSAGE.resumeRequest)}{' '}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

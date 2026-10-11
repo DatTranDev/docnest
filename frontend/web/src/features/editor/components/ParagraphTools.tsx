@@ -23,8 +23,10 @@ export function ParagraphTools({
     [rows, setRows] = useState(2),
     [columns, setColumns] = useState(2);
   const [header, setHeader] = useState(''),
+    [firstPageHeader, setFirstPageHeader] = useState(''),
     [footer, setFooter] = useState(''),
-    [numbers, setNumbers] = useState(false);
+    [numbers, setNumbers] = useState(false),
+    [differentFirstPage, setDifferentFirstPage] = useState(false);
   const run = (action: () => void) => {
     try {
       action();
@@ -148,8 +150,10 @@ export function ParagraphTools({
           disabled={readOnly}
           onClick={() => {
             setHeader(page.header ?? '');
+            setFirstPageHeader(page.firstPageHeader ?? '');
             setFooter(page.footer ?? '');
             setNumbers(page.pageNumbers ?? false);
+            setDifferentFirstPage(page.differentFirstPage ?? false);
             setDialog('page');
           }}
         >
@@ -181,7 +185,13 @@ export function ParagraphTools({
                 if (dialog === 'link') controller.current?.formatCharacter({ link: link || null });
                 if (dialog === 'table') controller.current?.insertTable(rows, columns);
                 if (dialog === 'page')
-                  controller.current?.setPage({ header, footer, pageNumbers: numbers });
+                  controller.current?.setPage({
+                    header,
+                    firstPageHeader,
+                    footer,
+                    pageNumbers: numbers,
+                    differentFirstPage,
+                  });
               });
             }}
           >
@@ -248,6 +258,14 @@ export function ParagraphTools({
                   />
                 </label>
                 <label>
+                  {t(MESSAGE.firstPageHeader)}
+                  <input
+                    maxLength={500}
+                    value={firstPageHeader}
+                    onChange={(e) => setFirstPageHeader(e.target.value)}
+                  />
+                </label>
+                <label>
                   {t(MESSAGE.pageFooter)}
                   <input
                     maxLength={500}
@@ -262,6 +280,14 @@ export function ParagraphTools({
                     onChange={(e) => setNumbers(e.target.checked)}
                   />
                   {t(MESSAGE.pageNumbers)}
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={differentFirstPage}
+                    onChange={(e) => setDifferentFirstPage(e.target.checked)}
+                  />
+                  {t(MESSAGE.differentFirstPage)}
                 </label>
               </>
             )}

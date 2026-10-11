@@ -8,8 +8,12 @@ export interface DocumentInfo {
   metadataRevision: number;
   effectiveRole: 'OWNER' | 'EDITOR' | 'VIEWER';
   deletedAt: string | null;
+  createdAt?: string;
+  sizeBytes?: number | null;
   preview?: Record<string, unknown> | null;
 }
+export type DocumentSortBy = 'createdAt' | 'name' | 'size';
+export type SortDirection = 'asc' | 'desc';
 export interface Version {
   id: string;
   revision: number;

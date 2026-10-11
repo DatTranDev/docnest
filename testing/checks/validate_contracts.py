@@ -41,3 +41,11 @@ result = {
     json.dumps(result, indent=2), encoding="utf-8"
 )
 print(json.dumps(result))
+
+Draft202012Validator.check_schema(
+    json.loads(
+        (root / "docs/contracts/native-formatting-v6.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+)
