@@ -87,10 +87,8 @@ async function typeEnd(page, value) {
     await guest.page.getByRole('button', { name: 'Được chia sẻ', exact: true }).click();
     await guest.page.getByRole('button', { name: title, exact: true }).last().click();
     for (const user of [owner, guest]) {
-      await user.page.getByRole('button', { name: 'Cùng chỉnh sửa', exact: true }).click();
-      await user.page
-        .getByRole('button', { name: 'Đã đồng bộ cộng tác', exact: true })
-        .waitFor({ timeout: 20000 });
+      await user.page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
+      await user.page.getByText('Đã đồng bộ cộng tác', { exact: true }).waitFor({ timeout: 20000 });
     }
     console.log('check: concurrent offline insert');
     await owner.context.setOffline(true);
@@ -192,15 +190,15 @@ async function typeEnd(page, value) {
     await owner.page.getByRole('button', { name: title, exact: true }).last().click();
     await owner.page.locator('.editor-inline-image').waitFor();
     assert.equal(await editorText(owner.page), merged);
-    await owner.page.getByRole('button', { name: 'Cùng chỉnh sửa', exact: true }).click();
-    await owner.page.getByRole('button', { name: 'Đã đồng bộ cộng tác', exact: true }).waitFor();
+    await owner.page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
+    await owner.page.getByText('Đã đồng bộ cộng tác', { exact: true }).waitFor();
 
     console.log('check: same-account tabs and offline journal recovery');
     const secondTab = await owner.context.newPage();
     await secondTab.goto(base);
     await secondTab.getByRole('button', { name: title, exact: true }).last().click();
-    await secondTab.getByRole('button', { name: 'Cùng chỉnh sửa', exact: true }).click();
-    await secondTab.getByRole('button', { name: 'Đã đồng bộ cộng tác', exact: true }).waitFor();
+    await secondTab.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
+    await secondTab.getByText('Đã đồng bộ cộng tác', { exact: true }).waitFor();
     await owner.context.setOffline(true);
     await typeEnd(owner.page, ' tab-one');
     await typeEnd(secondTab, ' tab-two');
@@ -225,7 +223,7 @@ async function typeEnd(page, value) {
     owner.page = await owner.context.newPage();
     await owner.page.goto(base);
     await owner.page.getByRole('button', { name: title, exact: true }).last().click();
-    await owner.page.getByRole('button', { name: 'Cùng chỉnh sửa', exact: true }).click();
+    await owner.page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
     await converge(
       owner.page,
       guest.page,
