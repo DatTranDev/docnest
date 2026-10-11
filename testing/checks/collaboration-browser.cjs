@@ -68,6 +68,17 @@ async function typeEnd(page, value) {
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.insertText(value);
 }
+async function enterCollaboration(page, documentId) {
+  const joined = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `/api/v1/collaboration/${documentId}/join` &&
+      response.request().method() === 'POST',
+  );
+  const tab = page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true });
+  await tab.click();
+  assert.equal((await joined).status(), 200, 'Collaboration join status');
+  assert.equal(await tab.getAttribute('aria-selected'), 'true');
+}
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -87,8 +98,7 @@ async function typeEnd(page, value) {
     await guest.page.getByRole('button', { name: 'Được chia sẻ', exact: true }).click();
     await guest.page.getByRole('button', { name: title, exact: true }).last().click();
     for (const user of [owner, guest]) {
-      await user.page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
-      await user.page.getByText('Đã đồng bộ cộng tác', { exact: true }).waitFor({ timeout: 20000 });
+      await enterCollaboration(user.page, document.id);
     }
     console.log('check: concurrent offline insert');
     await owner.context.setOffline(true);
@@ -190,15 +200,13 @@ async function typeEnd(page, value) {
     await owner.page.getByRole('button', { name: title, exact: true }).last().click();
     await owner.page.locator('.editor-inline-image').waitFor();
     assert.equal(await editorText(owner.page), merged);
-    await owner.page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
-    await owner.page.getByText('Đã đồng bộ cộng tác', { exact: true }).waitFor();
+    await enterCollaboration(owner.page, document.id);
 
     console.log('check: same-account tabs and offline journal recovery');
     const secondTab = await owner.context.newPage();
     await secondTab.goto(base);
     await secondTab.getByRole('button', { name: title, exact: true }).last().click();
-    await secondTab.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
-    await secondTab.getByText('Đã đồng bộ cộng tác', { exact: true }).waitFor();
+    await enterCollaboration(secondTab, document.id);
     await owner.context.setOffline(true);
     await typeEnd(owner.page, ' tab-one');
     await typeEnd(secondTab, ' tab-two');
@@ -223,7 +231,7 @@ async function typeEnd(page, value) {
     owner.page = await owner.context.newPage();
     await owner.page.goto(base);
     await owner.page.getByRole('button', { name: title, exact: true }).last().click();
-    await owner.page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true }).click();
+    await enterCollaboration(owner.page, document.id);
     await converge(
       owner.page,
       guest.page,
