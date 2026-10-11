@@ -208,6 +208,8 @@ class OfficeExporterTest {
     var out = new ByteArrayOutputStream();
     OfficeExporter.pdf(sample(), out, () -> {});
     assertTrue(out.toString(StandardCharsets.ISO_8859_1).startsWith("%PDF-"));
+    Path evidenceDirectory = Path.of("../../testing/reports/raw");
+    Files.createDirectories(evidenceDirectory);
     try (var pdf = Loader.loadPDF(out.toByteArray())) {
       assertEquals(2, pdf.getNumberOfPages());
       String text = new PDFTextStripper().getText(pdf);
@@ -221,11 +223,10 @@ class OfficeExporterTest {
         javax.imageio.ImageIO.write(
             renderer.renderImageWithDPI(page, 96),
             "png",
-            Path.of("../../testing/reports/raw/structure-pdf-" + page + ".png").toFile());
+            evidenceDirectory.resolve("structure-pdf-" + page + ".png").toFile());
       }
     }
-    Path evidence = Path.of("../../testing/reports/raw/structure-export.pdf");
-    Files.createDirectories(evidence.getParent());
+    Path evidence = evidenceDirectory.resolve("structure-export.pdf");
     Files.write(evidence, out.toByteArray());
   }
 
