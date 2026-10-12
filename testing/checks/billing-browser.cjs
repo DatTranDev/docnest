@@ -6,6 +6,7 @@ const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
 const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
 assert.ok(root, 'Initialize local environment first');
+let stage = 'startup';
 
 (async () => {
   const browser = await chromium.launch({ headless: true });
@@ -14,7 +15,7 @@ assert.ok(root, 'Initialize local environment first');
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', () => errors.push('browser exception'));
-    const email = 'smoke-owner@editor.test';
+    const email = process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test';
     const password = createHash('sha256')
       .update(root + email)
       .digest('hex')
@@ -30,11 +31,12 @@ assert.ok(root, 'Initialize local environment first');
       false,
       'This no-purchase UI check requires Stripe disabled',
     );
+    stage = 'login';
     await page.goto(base);
     await page.getByRole('textbox', { name: 'Email', exact: true }).fill(email);
     await page.getByRole('textbox', { name: 'Mật khẩu', exact: true }).fill(password);
     await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-    const open = page.getByRole('button', { name: 'Gói dịch vụ', exact: true });
+    const open = page.getByRole('button', { name: /^Tài khoản của / });
     await open.waitFor();
     let polls = 0;
     page.on('response', (response) => {
@@ -44,20 +46,21 @@ assert.ok(root, 'Initialize local environment first');
         polls++;
       }
     });
+    stage = 'disabled provider and private subscription polling';
     await open.click();
+    await page.getByRole('menuitem', { name: 'Gói dịch vụ', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Gói dịch vụ' });
-    await dialog.getByText('Free', { exact: true }).waitFor();
-    assert.equal(await dialog.getByRole('button', { name: 'Xem giá và đăng ký' }).count(), 2);
-    for (const button of await dialog.getByRole('button', { name: 'Xem giá và đăng ký' }).all())
-      assert.equal(await button.isDisabled(), true);
-    assert.equal(
-      await dialog.getByRole('button', { name: 'Quản lý trên Stripe' }).isDisabled(),
-      true,
-    );
-    assert.equal(
-      await dialog.getByRole('button', { name: 'Đồng bộ trạng thái' }).isDisabled(),
-      true,
-    );
+    await dialog
+      .locator('p')
+      .filter({ hasText: /^Gói hiện tại:\s*Miễn phí/ })
+      .waitFor();
+    await dialog
+      .getByRole('status')
+      .getByText(/^Chưa thể đăng ký gói trả phí/)
+      .waitFor();
+    assert.equal(await dialog.locator('.billing-pro, .billing-actions').count(), 0);
+    assert.ok(polls > 0, 'The dialog must fetch the private subscription');
+    stage = 'focus trap and return';
     await page.keyboard.press('Tab');
     assert.equal(
       await dialog
@@ -72,19 +75,21 @@ assert.ok(root, 'Initialize local environment first');
     await page.waitForTimeout(3000);
     assert.equal(polls, settled, 'Closed dialog must stop polling');
     await page.setViewportSize({ width: 390, height: 844 });
+    stage = 'mobile layout';
     await open.click();
+    await page.getByRole('menuitem', { name: 'Gói dịch vụ', exact: true }).click();
     await dialog.waitFor();
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
     mkdirSync('testing/reports/raw', { recursive: true });
     await page.screenshot({ path: 'testing/reports/raw/billing-mobile.png' });
     assert.equal(errors.length, 0);
     console.log(
-      'PASS real billing UI: login, Free state, disabled Checkout/Portal, private polling, focus/escape, unmount and mobile layout. Stripe sandbox PENDING.',
+      'PASS real billing UI: login, Free state, unavailable paid controls, private polling, focus/escape, unmount and mobile layout. Stripe sandbox PENDING.',
     );
   } finally {
     await browser.close();
   }
-})().catch(() => {
-  console.error('FAIL billing UI; protected browser data withheld');
+})().catch((error) => {
+  console.error(`FAIL billing UI at ${stage}; protected browser data withheld (${error.name})`);
   process.exitCode = 1;
 });

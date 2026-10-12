@@ -1,5 +1,5 @@
 /* Real services: account settings, native select UI, DOCX import/save and DOCX/PDF jobs. */
-const { chromium } = require('playwright');
+const { chromium, expect } = require('@playwright/test');
 const { zipSync, unzipSync, strToU8 } = require('fflate');
 const { readFileSync, mkdirSync, writeFileSync } = require('node:fs');
 const { createHash } = require('node:crypto');
@@ -120,7 +120,7 @@ async function theme(page, value) {
   try {
     mkdirSync(report, { recursive: true });
     await page.goto(base);
-    owner = await login(page, 'smoke-recipient@editor.test');
+    owner = await login(page, process.env.SMOKE_RECIPIENT_EMAIL || 'smoke-recipient@editor.test');
     await page.getByRole('button', { name: 'New', exact: true }).waitFor();
     assert.equal(await page.title(), 'docsnest');
     stage = 'native dropdown visual and keyboard';
@@ -137,21 +137,21 @@ async function theme(page, value) {
     await filter.selectOption('all');
     stage = 'import DOCX through New menu';
     await page.getByRole('button', { name: 'Shared with me', exact: true }).click();
-    const title = `docsnest acceptance ${Date.now()}`;
+    const title = `docsnest acceptance ${Date.now()}.docx`;
     await page.getByRole('button', { name: 'New', exact: true }).click();
-    const chooser = page.waitForEvent('filechooser');
     await page.getByRole('menuitem', { name: 'Import a local file', exact: true }).click();
-    const fileChooser = await chooser;
-    const created = page.waitForResponse(
-      (r) => r.url().endsWith('/api/v1/documents') && r.request().method() === 'POST',
-    );
-    page.once('dialog', (dialog) => dialog.accept(title));
-    await fileChooser.setFiles({
-      name: 'Writing plan.docx',
+    const importDialog = page.getByRole('dialog', { name: 'Import file', exact: true });
+    await importDialog.getByLabel('Choose a file', { exact: true }).setInputFiles({
+      name: title,
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       buffer: Buffer.from(sample),
     });
-    const creation = await created;
+    const [creation] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.url().endsWith('/api/v1/documents') && r.request().method() === 'POST',
+      ),
+      importDialog.getByRole('button', { name: 'Import file', exact: true }).click(),
+    ]);
     assert.equal(creation.status(), 201, 'Imported document creation');
     documentId = (await creation.json()).id;
     assert.equal(
@@ -225,7 +225,7 @@ async function theme(page, value) {
     for (const type of ['DOCX', 'PDF']) {
       const menu = page
         .locator('.tool-menu')
-        .filter({ has: page.locator('summary', { hasText: 'File' }) });
+        .filter({ has: page.locator('summary', { hasText: /^Download$/ }) });
       if (!(await menu.evaluate((node) => node.open))) await menu.locator('summary').click();
       const requested = page.waitForResponse(
         (r) => r.url().endsWith('/api/v1/jobs') && r.request().method() === 'POST',
@@ -239,23 +239,21 @@ async function theme(page, value) {
       const response = await requested;
       assert.equal(response.status(), 202);
       const job = await response.json();
-      await page.waitForFunction(
-        async ([url, token, id]) => {
-          const response = await fetch(`${url}/api/v1/jobs/${id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          return response.ok && (await response.json()).state === 'SUCCEEDED';
-        },
-        [base, owner.accessToken, job.id],
-        { timeout: 60000 },
-      );
-      const download = page.waitForEvent('download');
-      await page
-        .locator('.row')
-        .filter({ hasText: `Export ${type}` })
-        .getByRole('button', { name: 'Download result', exact: true })
-        .click();
-      const output = await download;
+      await expect
+        .poll(async () => (await api(context, owner.accessToken, `/api/v1/jobs/${job.id}`)).state, {
+          timeout: 60000,
+        })
+        .toBe('SUCCEEDED');
+      const [output] = await Promise.all([
+        page.waitForEvent('download'),
+        page
+          .locator('.downloads-job')
+          .filter({
+            has: page.locator('.downloads-format-icon', { hasText: new RegExp(`^${type}$`) }),
+          })
+          .getByRole('button', { name: 'Download result', exact: true })
+          .click(),
+      ]);
       const path = `${report}/docsnest-import-export.${type.toLowerCase()}`;
       await output.saveAs(path);
       const bytes = readFileSync(path);
@@ -339,14 +337,13 @@ async function theme(page, value) {
     await billing
       .getByRole('heading', { name: 'Một nơi cho mọi bản thảo.', exact: true })
       .waitFor();
-    await billing.getByRole('button', { name: 'Hàng tháng', exact: true }).click();
-    assert.equal(
-      await billing
-        .getByRole('button', { name: 'Hàng tháng', exact: true })
-        .getAttribute('aria-pressed'),
-      'true',
-    );
-    await billing.getByRole('button', { name: 'Hàng năm', exact: true }).click();
+    const plans = await (await context.request.get(base + '/api/v1/billing/plans')).json();
+    assert.equal(plans.enabled, false, 'This no-purchase check requires Stripe disabled');
+    await billing
+      .getByRole('status')
+      .getByText(/^Chưa thể đăng ký gói trả phí/)
+      .waitFor();
+    assert.equal(await billing.locator('.billing-pro, .billing-actions').count(), 0);
     await page.screenshot({ path: `${report}/docsnest-subscription.png` });
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(
@@ -368,7 +365,7 @@ async function theme(page, value) {
     await page.getByRole('menuitem', { name: 'Đăng xuất', exact: true }).click();
     await page.getByRole('textbox', { name: 'Mật khẩu', exact: true }).waitFor();
     await selectLanguage(page, 'Ngôn ngữ', 'en');
-    const second = await login(page, 'smoke-owner@editor.test');
+    const second = await login(page, process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test');
     await page.getByRole('button', { name: 'New', exact: true }).waitFor();
     await theme(page, 'light');
     dialog = await settings(page);
@@ -387,7 +384,7 @@ async function theme(page, value) {
     await accountMenu(page);
     await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click();
     await page.getByRole('textbox', { name: 'Password', exact: true }).waitFor();
-    owner = await login(page, 'smoke-recipient@editor.test');
+    owner = await login(page, process.env.SMOKE_RECIPIENT_EMAIL || 'smoke-recipient@editor.test');
     await page.getByRole('button', { name: 'Mới', exact: true }).waitFor();
     await theme(page, 'dark');
     assert.deepEqual(errors, [], 'No browser exceptions');

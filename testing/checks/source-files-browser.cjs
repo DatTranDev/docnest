@@ -87,7 +87,10 @@ async function main() {
   }
   try {
     mkdirSync(reports, { recursive: true });
-    const owner = await account(context, 'smoke-recipient@editor.test');
+    const owner = await account(
+      context,
+      process.env.SMOKE_OWNER_EMAIL || 'smoke-recipient@editor.test',
+    );
     stage = 'standalone login link';
     await page.goto(localOrigin + '/editor.html');
     await page.getByRole('link', { name: 'Đăng nhập', exact: true }).click();
@@ -119,19 +122,26 @@ async function main() {
     let jsonId, codeId;
     for (const [name, text] of files) {
       stage = 'import/save/reopen ' + name.split('.').at(-1);
-      const pending = page.waitForResponse(
-        (response) =>
-          new URL(response.url()).pathname === '/api/v1/documents' &&
-          response.request().method() === 'POST',
-      );
-      await page
-        .getByLabel('Nhập tệp', { exact: true })
+      await page.getByRole('button', { name: 'Mới', exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Nhập tệp từ máy', exact: true }).click();
+      const importDialog = page.getByRole('dialog', { name: 'Nhập tệp', exact: true });
+      await importDialog
+        .getByLabel('Chọn tệp', { exact: true })
         .setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from(text) });
-      const document = await (await pending).json();
+      const [createdResponse] = await Promise.all([
+        page.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname === '/api/v1/documents' &&
+            response.request().method() === 'POST',
+        ),
+        importDialog.getByRole('button', { name: 'Nhập tệp', exact: true }).click(),
+      ]);
+      assert.equal(createdResponse.status(), 201);
+      const document = await createdResponse.json();
       created.push(document.id);
       if (name.endsWith('.json')) jsonId = document.id;
       if (name.endsWith('.py')) codeId = document.id;
-      await expect(pane.getByRole('heading', { name, exact: true })).toBeVisible();
+      await expect(pane.locator('.source-file-heading h2')).toHaveText(name);
       await expect(source).toHaveText(text.trimEnd(), { useInnerText: true });
       await expect(pane.locator('.cloud-source-editor .cm-lineNumbers')).toBeVisible();
       if (name.endsWith('.md'))
@@ -185,7 +195,7 @@ async function main() {
     await page.getByRole('menuitem', { name: 'Tệp Markdown mới', exact: true }).click();
     const fresh = await (await pending).json();
     created.push(fresh.id);
-    await expect(pane.getByRole('heading', { name: 'Ban-thao.md', exact: true })).toBeVisible();
+    await expect(pane.locator('.source-file-heading h2')).toHaveText('Ban-thao.md');
     await source.fill('# New Markdown');
     await save(fresh.id);
     await page.getByRole('button', { name: 'Danh sách tài liệu', exact: true }).click();
@@ -193,7 +203,7 @@ async function main() {
     await expect(page.locator('.document-file')).toHaveCount(1);
     await page.getByLabel('Loại', { exact: true }).selectOption('all');
     await page.locator(`[data-document-id="${codeId}"] .file-name`).click();
-    await expect(pane.getByRole('heading', { name: 'snippet.py', exact: true })).toBeVisible();
+    await expect(pane.locator('.source-file-heading h2')).toHaveText('snippet.py');
     await expect(source).toContainText('# added');
     stage = 'offline native draft recovery';
     await context.setOffline(true);
@@ -254,7 +264,7 @@ async function main() {
         'false',
       );
       await expect(
-        viewerPage.getByRole('button', { name: 'Dùng kết quả', exact: true }),
+        viewerPage.getByRole('button', { name: 'Thay nguồn bằng kết quả', exact: true }),
       ).toBeDisabled();
       await expect(viewerPage.locator('.json-output .cm-content')).toContainText(
         '900719925474099312345',
@@ -270,6 +280,7 @@ async function main() {
       .click();
     await page.getByRole('menuitem', { name: 'Đăng xuất', exact: true }).click();
     await expect(page.getByRole('textbox', { name: 'Email', exact: true })).toBeVisible();
+    await page.setViewportSize({ width: 1440, height: 1000 });
     await page.goto(localOrigin + '/editor.html');
     await expect(page.getByRole('link', { name: 'Đăng nhập', exact: true })).toBeVisible();
     assert.equal(pageErrors, 0);

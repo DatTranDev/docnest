@@ -7,6 +7,8 @@ const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
 const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
 assert.ok(root, 'Initialize local environment first');
 const report = 'testing/reports/raw';
+const ownerEmail = process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test';
+const recipientEmail = process.env.SMOKE_RECIPIENT_EMAIL || 'smoke-recipient@editor.test';
 async function login(browser, email) {
   const context = await browser.newContext();
   await context.addCookies([{ name: 'ted-locale', value: 'en', url: base }]);
@@ -92,8 +94,8 @@ async function waitCells(page, first, second) {
   let stage = 'login';
   try {
     mkdirSync(report, { recursive: true });
-    owner = await login(browser, 'smoke-owner@editor.test');
-    const guest = await login(browser, 'smoke-recipient@editor.test');
+    owner = await login(browser, ownerEmail);
+    const guest = await login(browser, recipientEmail);
     const { page } = owner;
     const errors = [];
     page.on('pageerror', (error) =>
@@ -122,6 +124,7 @@ async function waitCells(page, first, second) {
     await page.locator('.cm-content').click();
     await page.keyboard.insertText('First Việt\nSecond\n');
     await page.keyboard.press('ControlOrMeta+a');
+    await page.locator('.toolbar-more-format > summary').click();
     await page.getByRole('button', { name: 'Numbered list', exact: true }).click();
     await page.getByRole('button', { name: 'Increase indent', exact: true }).click();
     await page.getByRole('combobox', { name: 'Line spacing', exact: true }).selectOption('2');
@@ -189,7 +192,7 @@ async function waitCells(page, first, second) {
     await page.locator('.page-preview-table td').first().waitFor();
     await page.waitForFunction(() => document.querySelectorAll('.page-preview-sheet').length >= 2);
     assert.equal(
-      await page.locator('.page-preview-sheet header').first().textContent(),
+      await page.getByRole('textbox', { name: 'First page header', exact: true }).inputValue(),
       'Header Việt',
     );
     await page.screenshot({ path: `${report}/structure-desktop.png`, fullPage: true });
@@ -239,24 +242,48 @@ async function waitCells(page, first, second) {
     }
     stage = 'two-user concurrent table edits';
     await api(owner, `/api/v1/documents/${documentId}/permissions`, 'POST', {
-      email: 'smoke-recipient@editor.test',
+      email: recipientEmail,
       role: 'EDITOR',
     });
     await guest.page.reload();
+    stage = 'guest shared library';
     await guest.page.getByRole('button', { name: 'Shared with me', exact: true }).click();
-    await guest.page.getByRole('button', { name: title, exact: true }).last().click();
+    stage = 'guest shared document';
+    await guest.page.locator(`[data-document-id="${documentId}"] .file-name`).click();
     for (const user of [owner, guest]) {
-      await user.page.getByRole('button', { name: 'Edit together', exact: true }).click();
-      await user.page
-        .getByRole('button', { name: 'Collaboration synced', exact: true })
-        .waitFor({ timeout: 30000 });
+      stage = user === owner ? 'owner collaboration join' : 'guest collaboration join';
+      await user.page.locator('.cm-content').waitFor();
+      const tab = user.page.getByRole('tab', { name: 'Edit together', exact: true });
+      const [joined] = await Promise.all([
+        user.page.waitForResponse(
+          (response) =>
+            new URL(response.url()).pathname === `/api/v1/collaboration/${documentId}/join` &&
+            response.request().method() === 'POST',
+        ),
+        tab.click(),
+      ]);
+      assert.equal(joined.status(), 200, 'Collaboration join status');
+      const room = await joined.json();
+      const synced = await user.page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === `/api/v1/collaboration/${documentId}/updates` &&
+          response.request().method() === 'GET' &&
+          Number(url.searchParams.get('after')) >= room.sequence &&
+          response.status() === 200
+        );
+      });
+      await synced.finished();
+      assert.equal(await tab.getAttribute('aria-selected'), 'true');
     }
+    stage = 'offline table edits';
     await owner.context.setOffline(true);
     await guest.context.setOffline(true);
     await fillCell(owner.page, 0, 'Owner Việt');
     await fillCell(guest.page, 1, 'Guest Việt');
     await owner.context.setOffline(false);
     await guest.context.setOffline(false);
+    stage = 'table convergence';
     await waitCells(owner.page, 'Owner Việt', 'Guest Việt');
     await waitCells(guest.page, 'Owner Việt', 'Guest Việt');
     await save(owner);
@@ -338,6 +365,9 @@ async function waitCells(page, first, second) {
     if (owner)
       await owner.page.screenshot({ path: `${report}/structure-failure.png`, fullPage: true });
     console.error(`FAIL structure stage: ${stage}; ${error.name}`);
+    console.error(
+      /structure-browser\.cjs:\d+:\d+/.exec(error.stack ?? '')?.[0] ?? 'unknown test location',
+    );
     process.exitCode = 1;
   } finally {
     if (owner && documentId) {
