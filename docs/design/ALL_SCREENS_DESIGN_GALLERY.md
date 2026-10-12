@@ -72,7 +72,7 @@ The original proposal remains the anchor: compact identity/save status, one ever
 
 <a id="04-shared-trash"></a>
 
-![Shared files and Trash concept](assets/screens/04-shared-trash.png)
+![Shared files and Trash concept](assets/screens/04-shared-trash-v2.png)
 
 **What changes:** Shared files emphasize Can view / Can edit. Trash retains familiar library structure and makes restore consequences explicit.
 
@@ -82,7 +82,7 @@ The original proposal remains the anchor: compact identity/save status, one ever
 
 <a id="05-library-states"></a>
 
-![Empty, search, loading and error states concept](assets/screens/05-library-states.png)
+![Empty, search, loading and error states concept](assets/screens/05-library-states-v2.png)
 
 **What changes:** First visit, filtered results, loading and failed requests receive different states. Clear actions prevent errors from looking like an empty account.
 
@@ -102,7 +102,7 @@ The original proposal remains the anchor: compact identity/save status, one ever
 
 <a id="07-json"></a>
 
-![JSON source and result concept](assets/screens/07-json.png)
+![JSON source and result concept](assets/screens/07-json-v2.png)
 
 **What changes:** Source and editable result are distinct. Save applies to the source, while result actions explain replacement and downloads. A fresh empty result cannot replace nonempty source.
 
@@ -112,7 +112,7 @@ The original proposal remains the anchor: compact identity/save status, one ever
 
 <a id="08-local-document"></a>
 
-![Local document editor concept](assets/screens/08-local-document.png)
+![Local document editor concept](assets/screens/08-local-document-v2.png)
 
 **What changes:** The local rich editor has the same visual language but a different persistence label and primary action: This tab only / Download.
 

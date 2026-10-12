@@ -2,7 +2,7 @@
 
 ## Targeted correction prompts
 
-Each correction uses the corresponding first-pass board as its sole edit target. Selected corrections are saved as `-v2.png`; originals remain preserved.
+Each correction used the corresponding first-pass board as its sole edit target. Selected corrections are saved as `-v2.png` and linked from the gallery. Superseded first-pass PNGs were removed from the current tree to avoid duplicate assets; earlier commits retain them.
 
 ### 04-shared-trash
 

@@ -15,5 +15,8 @@ data
 testing/reports
 frontend/web/public/benchmarks
 testing/benchmark
+testing/checks
+docs/design
+.github
 **/.terraform
 **/*.tfstate*
