@@ -46,6 +46,7 @@ data/
 !*.tfvars.example
 !*.tfvars.json.example
 *.tfplan
+/infra/gcp/*.plan
 crash.log
 crash.*.log
 .terraformrc

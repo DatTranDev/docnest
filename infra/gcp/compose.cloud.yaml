@@ -8,6 +8,10 @@ services:
       SECURE_COOKIES: 'true'
       JWT_ALLOW_KEY_GENERATION: 'false'
       JWT_KEY_PATH: /data/keys/identity-key.pem
+      WEB_ORIGIN: ${WEB_ORIGIN:?Set the exact public HTTPS origin}
+      ALLOWED_ORIGINS: ${WEB_ORIGIN:?Set the exact public HTTPS origin}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      MAX_USERS: ${MAX_USERS:-10}
   document-service:
     image: ${DOCUMENT_IMAGE:?Use Artifact Registry image digest}
     environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false', STORAGE_PROVIDER: GCS }

@@ -20,6 +20,19 @@ variable "zone" {
 
 variable "web_origin" {
   type = string
+  validation {
+    condition     = can(regex("^https://[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?(:[0-9]{1,5})?$", var.web_origin))
+    error_message = "Set an exact HTTPS origin without a path, query, fragment or credentials."
+  }
+}
+
+variable "budget_start_date" {
+  description = "Actual start of the cumulative USD300 learning budget, in YYYY-MM-DD format."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", var.budget_start_date)) && can(formatdate("YYYY-MM-DD", "${var.budget_start_date}T00:00:00Z"))
+    error_message = "Set budget_start_date to a valid YYYY-MM-DD calendar date; preserve it on later rollouts."
+  }
 }
 
 variable "snapshots_bucket" {

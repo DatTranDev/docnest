@@ -23,12 +23,13 @@ jobs:
       - name: Build commit images
         env:
           REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/editor
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
         run: |
           set -euo pipefail
           for service in identity-service document-service processing-service collaboration-service payment-service; do
             docker build -f infra/compose/Service.Dockerfile --build-arg SERVICE="$service" -t "text-editor/$service:local" -t "$REGISTRY/$service:$GITHUB_SHA" .
           done
-          docker build -f infra/compose/Web.Dockerfile -t text-editor/web:local -t "$REGISTRY/web:$GITHUB_SHA" .
+          docker build -f infra/compose/Web.Dockerfile --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" -t text-editor/web:local -t "$REGISTRY/web:$GITHUB_SHA" .
       - name: Scan the exact images before publishing
         run: |
           set -euo pipefail

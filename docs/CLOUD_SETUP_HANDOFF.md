@@ -2,31 +2,37 @@
 
 Status: **DEPLOY_PENDING**. Configuration has been prepared and locally checked; no Google Cloud resources, billing links or credentials were created. Real GCS, VM/GKE smoke, remote backup restore, billing and cleanup gates remain unexecuted. Keep one paid environment active at a time. The USD300 budget is for the entire learning period.
 
-Prerequisites: a dedicated project you own, permission to link its billing account, Google Cloud CLI, Terraform1.14+, kubectl/Kustomize, Docker Compose2, a domain/DNS for HTTPS, and completed local validation. Use `docs/PROJECT_STATUS.md` for current local gates. The one-node lab is not highly available.
+Prerequisites: a dedicated project you own, permission to link its billing account, Google Cloud CLI, Terraform1.14+, kubectl/Kustomize, Docker Compose2, a domain/DNS for HTTPS, and completed local validation. Use `docs/PROJECT_STATUS.md` for current local gates. The one-node lab is not highly available. Current scope: **five Java services, five separate MySQL databases, six application images and five migration jobs**. Current Web writes native V6; deploy compatible readers before Web.
 
 ## Values you must configure
 
 | Value                                        | Where it belongs                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Project ID, billing account, region and zone | Copy `infra/gcp/terraform.tfvars.example` to ignored `terraform.tfvars`; set `project_id`, `billing_account`, `region`, `zone`. Default cost baseline us-central1/us-central1-a.                                                                                                                                                                                                                                                                                               |
+| Project ID, billing account, region and zone | Copy `infra/gcp/terraform.tfvars.example` to ignored `terraform.tfvars`; set `project_id`, `billing_account`, `region`, `zone` and required `budget_start_date` (actual cumulative-budget start, YYYY-MM-DD). Preserve this date on later rollouts. Default cost baseline us-central1/us-central1-a.                                                                                                                                                                           |
 | Three unique private bucket names            | Terraform `snapshots_bucket`, `results_bucket`, `backups_bucket`. **VM cloud.env: `GCS_SNAPSHOTS_BUCKET`, `GCS_RESULTS_BUCKET`**; Compose maps these to Document/Processing `SNAPSHOTS_BUCKET` and Processing `GCS_BUCKET`. K8s editor-config uses those container aliases directly. Do not put only the aliases in VM cloud.env.                                                                                                                                              |
 | HTTPS origin/domain                          | Terraform `web_origin`; `infra/gcp/Caddyfile`; cloud env `WEB_ORIGIN`, `ALLOWED_ORIGINS`, `PUBLIC_BASE_URL`, `JWT_ISSUER`; K8s editor-config. Exact origin required by CSRF and bucket CORS.                                                                                                                                                                                                                                                                                   |
-| Database passwords and caller keys           | Secret Manager versions for MYSQL_ROOT_PASSWORD, IDENTITY_DB_PASSWORD, DOCUMENT_DB_PASSWORD, PROCESSING_DB_PASSWORD, COLLABORATION_DB_PASSWORD, DOCUMENT_INTERNAL_KEY, PROCESSING_INTERNAL_KEY. Hexadecimal secrets32bytes satisfy bootstrap validation. Never put them in tfvars, images or Git.                                                                                                                                                                              |
-| Kafka credentials                            | Five distinct Secret Manager values: KAFKA_BROKER_PASSWORD, KAFKA_ADMIN_PASSWORD, KAFKA_DOCUMENT_PASSWORD, KAFKA_PROCESSING_PASSWORD, KAFKA_OPERATOR_PASSWORD. Put them in the protected VM env or K8s editor-secrets. Identity receives no Kafka password; Document/Processing receive their respective principal. Broker startup generates restricted ephemeral JAAS files.                                                                                                  |
+| Database passwords and caller keys           | Secret Manager versions for MYSQL_ROOT_PASSWORD, IDENTITY_DB_PASSWORD, DOCUMENT_DB_PASSWORD, PROCESSING_DB_PASSWORD, COLLABORATION_DB_PASSWORD, PAYMENT_DB_PASSWORD, DOCUMENT_INTERNAL_KEY, PROCESSING_INTERNAL_KEY. Hexadecimal secrets32bytes satisfy bootstrap validation. Never put them in tfvars, images or Git.                                                                                                                                                         |
+| Kafka credentials                            | Eight distinct Secret Manager values: KAFKA_BROKER_PASSWORD, KAFKA_ADMIN_PASSWORD, KAFKA_DOCUMENT_PASSWORD, KAFKA_PROCESSING_PASSWORD, KAFKA_OPERATOR_PASSWORD, KAFKA_IDENTITY_PASSWORD, KAFKA_COLLABORATION_PASSWORD, KAFKA_PAYMENT_PASSWORD. Each Java service receives only its own Kafka principal. Broker startup generates restricted ephemeral JAAS files.                                                                                                              |
 | RSA signing key                              | PKCS8 PEM RSA3072; Secret Manager `editor-jwt`; mount as `identity-key.pem` at `/keys` in K8s (`JWT_KEY_PATH=/keys/identity-key.pem`) or `/data/keys` on VM. Cloud `JWT_ALLOW_KEY_GENERATION=false`. Keep key stable across restart and back it up securely.                                                                                                                                                                                                                   |
-| Service database URLs/users                  | Identity IDENTITY_DB_URL/USER; Document DATABASE_URL/DOCUMENT_DB_USER; Processing PROCESSING_DB_URL/USER. Select only the respective database; retain `connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true`.                                                                                                                                                                                                                                                          |
+| Service database URLs/users                  | Identity IDENTITY_DB_URL/USER; Document DATABASE_URL/DOCUMENT_DB_USER; Processing PROCESSING_DB_URL/USER; Collaboration COLLABORATION_DB_URL/USER; Payment PAYMENT_DB_URL/USER. Select only the respective database; retain `connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true`.                                                                                                                                                                                    |
 | Internal URLs                                | IDENTITY_BASE_URL=http://identity-service:8080; DOCUMENT_URL=http://document-service:8080; JWT_JWK_URI=http://identity-service:8080/.well-known/jwks.json; PORT=8080; KAFKA_BOOTSTRAP_SERVERS=kafka:9092; REDIS_HOST=redis.                                                                                                                                                                                                                                                    |
-| Web gateway                                  | Compose/K8s web only: `IDENTITY_INTERNAL_ORIGIN=http://identity-service:8080`, `DOCUMENT_INTERNAL_ORIGIN=http://document-service:8080`, `PROCESSING_INTERNAL_ORIGIN=http://processing-service:8080`; `PORT=8080`, `NEXT_INTERNAL_PORT=3000`, `NODE_OPTIONS=--max-old-space-size=256`. Never expose port3000.                                                                                                                                                                   |
+| Web gateway                                  | Compose/K8s web only: `IDENTITY_INTERNAL_ORIGIN=http://identity-service:8080`, `DOCUMENT_INTERNAL_ORIGIN=http://document-service:8080`, `PROCESSING_INTERNAL_ORIGIN=http://processing-service:8080`, `COLLABORATION_INTERNAL_ORIGIN=http://collaboration-service:8080`, `PAYMENT_INTERNAL_ORIGIN=http://payment-service:8080`; `PORT=8080`, `NEXT_INTERNAL_PORT=3000`, `NODE_OPTIONS=--max-old-space-size=256`. Never expose port3000.                                         |
 | Optional trusted TLS proxy                   | `TRUSTED_PROXY_CIDRS` on web only. Empty by default: forwarding headers are discarded and the socket peer supplies client IP. For VM trust the inspected Caddy subnet/IP; for GKE trust verified GFE source ranges and the specific ingress frontend IP/32. See the exact configuration below; never use a wildcard or /0.                                                                                                                                                     |
 | Tested image digests                         | VM ignored env IDENTITY_IMAGE/DOCUMENT_IMAGE/PROCESSING_IMAGE/COLLABORATION_IMAGE/PAYMENT_IMAGE/WEB_IMAGE; Kustomize `images` replacements for all six application images and migration jobs. Deploy `@sha256:` references.                                                                                                                                                                                                                                                    |
 | GitHub OIDC                                  | Protected GitHub environment `cloud-lab`: `GCP_PROJECT`, `GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_CI_SERVICE_ACCOUNT` for cloud-images. For manual GKE deployment also set `GCP_DEPLOY_SERVICE_ACCOUNT`, `GCP_ZONE`, `GKE_CLUSTER`, `WEB_ORIGIN`, `GCS_SNAPSHOTS_BUCKET`, `GCS_RESULTS_BUCKET`. Optional `TRUSTED_PROXY_CIDRS` preserves the reviewed TLS proxy trust on every rollout; omit it to discard forwarding headers. Restrict provider to your repository/main branch. |
 | Lab environment                              | Terraform `environment=none` for buckets/IAM only, then exactly `vm` or `gke`. Remove the first paid environment before switching.                                                                                                                                                                                                                                                                                                                                             |
 
+Google sign-in: protected GitHub environment `cloud-lab` variable `GOOGLE_CLIENT_ID` is passed to the Web build as `NEXT_PUBLIC_GOOGLE_CLIENT_ID`. Set the identical `GOOGLE_CLIENT_ID` in VM cloud.env/GKE config. Changing the ID requires rebuilding Web. Add the exact HTTPS origin to the Web OAuth client's Authorized JavaScript origins; this ID-token callback flow needs no client secret or redirect URI. Empty ID disables Google sign-in. See [Google setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
+
+Account quota: VM/GitHub `MAX_USERS` defaults to 10; set an explicitly reviewed quota. The GKE renderer takes `--google-client-id`, `--max-users`, `--stripe-pro-monthly-price` and `--stripe-pro-yearly-price`; cloud-deploy forwards matching GitHub variables. Set both reviewed Stripe Price IDs or leave both empty to disable Checkout. Stripe secret keys belong only in protected runtime secrets, never GitHub variables.
+
+Terraform reserves static address `editor-lab-web` only for `environment=vm`; `terraform -chdir=infra/gcp output -raw vm_public_ip` gives the DNS A-record target. Returning to none releases that address along with the VM.
+
 ## IAM and private storage
 
 Terraform creates `editor-identity`, `editor-document`, `editor-processing`, `editor-vm`, `editor-node`, `editor-ci`. Document has Storage Object User on snapshots; Processing has Object Viewer on snapshots and Object User on results. VM shares bucket permissions between containers as the documented lab compromise. Node has Artifact Registry Reader, Logs Writer and Metrics Writer; application Google permissions use GKE Workload Identity. CI has Artifact Registry Writer only. Grant Secret Manager Secret Accessor **on individual secrets** to the runtime identities that need them; avoid project-wide secret access.
 
-Your provisioning identity needs relevant Compute/Container/Storage/Artifact Registry/Service Usage/IAM administration and Billing Budget permissions. Do not grant these administrator roles to runtime identities. Link each KSA to its GSA using the Terraform workload bindings plus the manifest annotation. Storage uses ADC, not downloaded service-account JSON keys. Authenticated download proxies avoid signBlob IAM; signed URLs can be added only with at most60seconds lifetime and generation pinning.
+Your provisioning identity needs relevant Compute/Container/Storage/Artifact Registry/Service Usage/IAM administration and Billing Budget permissions. Do not grant these administrator roles to runtime identities. Terraform creates the three annotated KSA/GSA bindings only after the GKE identity pool exists; none/vm create no GKE bindings. Use those bindings plus the manifest annotations. Storage uses ADC, not downloaded service-account JSON keys. Authenticated download proxies avoid signBlob IAM; signed URLs can be added only with at most60seconds lifetime and generation pinning.
 
 Buckets use uniform access, public access prevention and explicit soft-delete policy. No age lifecycle deletes snapshots. Application reference-aware GC retires old versions and applies the one-hour read/job grace. GCS resumable URIs are bearer capabilities: commit expires after15minutes, whereas the GCS URI can remain active; expired sessions require cancellation/orphan cleanup. [GCS resumable protocol](https://docs.cloud.google.com/storage/docs/performing-resumable-uploads), [generation preconditions](https://cloud.google.com/storage/docs/request-preconditions), [Workload Identity](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/workload-identity).
 
@@ -36,11 +42,13 @@ The following commands are a future operator handoff, **not executed by this imp
 
 ```bash
 export PROJECT=YOUR_LAB_PROJECT REGION=us-central1 ZONE=us-central1-a
+set -euo pipefail
 gcloud auth login
 gcloud config set project "$PROJECT"
+gcloud auth application-default login
 # Manually link billing only after reviewing estimate and budget; no command here silently links it.
 cp infra/gcp/terraform.tfvars.example infra/gcp/terraform.tfvars
-# Edit all values; start with environment="none".
+# Edit all values, including the actual budget_start_date; start with environment="none".
 terraform -chdir=infra/gcp init
 terraform -chdir=infra/gcp fmt -check
 terraform -chdir=infra/gcp validate
@@ -55,7 +63,7 @@ Use this explicit secret-name mapping. Run without shell tracing. `KEY` becomes 
 ```bash
 umask 077
 mkdir -p /protected/editor
-KEYS='MYSQL_ROOT_PASSWORD IDENTITY_DB_PASSWORD DOCUMENT_DB_PASSWORD PROCESSING_DB_PASSWORD COLLABORATION_DB_PASSWORD DOCUMENT_INTERNAL_KEY PROCESSING_INTERNAL_KEY KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD'
+KEYS='MYSQL_ROOT_PASSWORD IDENTITY_DB_PASSWORD DOCUMENT_DB_PASSWORD PROCESSING_DB_PASSWORD COLLABORATION_DB_PASSWORD PAYMENT_DB_PASSWORD DOCUMENT_INTERNAL_KEY PROCESSING_INTERNAL_KEY KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD KAFKA_IDENTITY_PASSWORD KAFKA_COLLABORATION_PASSWORD KAFKA_PAYMENT_PASSWORD'
 for key in $KEYS; do
   secret="editor-$(printf '%s' "$key" | tr '[:upper:]_' '[:lower:]-')"
   openssl rand -hex 32 > "/protected/editor/$key"
@@ -71,12 +79,19 @@ gcloud secrets add-iam-policy-binding editor-jwt --project="$PROJECT" \
   --member="serviceAccount:editor-vm@$PROJECT.iam.gserviceaccount.com" --role=roles/secretmanager.secretAccessor
 python - <<'PY'
 from pathlib import Path
-keys='MYSQL_ROOT_PASSWORD IDENTITY_DB_PASSWORD DOCUMENT_DB_PASSWORD PROCESSING_DB_PASSWORD COLLABORATION_DB_PASSWORD DOCUMENT_INTERNAL_KEY PROCESSING_INTERNAL_KEY KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD'.split()
+keys='MYSQL_ROOT_PASSWORD IDENTITY_DB_PASSWORD DOCUMENT_DB_PASSWORD PROCESSING_DB_PASSWORD COLLABORATION_DB_PASSWORD PAYMENT_DB_PASSWORD DOCUMENT_INTERNAL_KEY PROCESSING_INTERNAL_KEY KAFKA_BROKER_PASSWORD KAFKA_ADMIN_PASSWORD KAFKA_DOCUMENT_PASSWORD KAFKA_PROCESSING_PASSWORD KAFKA_OPERATOR_PASSWORD KAFKA_IDENTITY_PASSWORD KAFKA_COLLABORATION_PASSWORD KAFKA_PAYMENT_PASSWORD'.split()
 target=Path('/protected/editor/editor-secrets.env')
 target.write_text(''.join(key+'='+Path('/protected/editor/'+key).read_text().strip()+'\n' for key in keys))
+with target.open('a') as output:
+    for key in ('STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'):
+        source=Path('/protected/editor/'+key)
+        value=source.read_text().strip() if source.exists() else ''
+        output.write(key+'='+value+'\n')
 target.chmod(0o600)
 PY
 ```
+
+Before generating editor-secrets.env, optionally create protected STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET files from the selected sandbox and deployed HTTPS endpoint, or leave both absent to disable provider billing. They are external credentials, never randomly generated strings.
 
 Application pods consume operator-created Kubernetes Secrets; they do not fetch Secret Manager themselves and need no Secret Manager project-wide role. A GKE backup operator needs individual `editor-jwt` version access plus source bucket Object Viewer and destination backup Object Creator. Database dump/restore is an explicit maintenance operator action, independent of each application's own database-only credentials.
 
@@ -97,7 +112,7 @@ Run CI application validation first, then manually run cloud-images for that tes
 
 Before preparing cloud images, run `python -X utf8 tooling/scripts/run.py test` and `npm run build` locally. The test command enforces Spotless, explicit Java imports, POM formatting, Prettier, frontend dependency boundaries, strict TypeScript, Next/TypeScript ESLint, ArchUnit, gateway/Next lint resolver contracts, JUnit/Testcontainers and Vitest. `python -X utf8 tooling/scripts/run.py quality` checks quality without the complete integration suite; `python -X utf8 tooling/scripts/run.py format` applies handwritten Java/frontend/config/document formatting. GitHub CI uses the same commands on Linux. Remote GitHub execution remains NOT_RUN until this repository is pushed and its workflows run.
 
-For the optional manual GKE rollout workflow, create a separate deployment account after the cluster/bootstrap/secrets exist. Its [GKE Cluster Viewer role](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/iam) permits cluster discovery/connection; Kubernetes RBAC provides the scoped application and migration-job permissions. This account receives no Terraform administration, registry write or Google secret access.
+For the optional manual GKE rollout workflow, create a separate deployment account after the cluster/bootstrap/secrets exist. Its [GKE Cluster Viewer role](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/iam) permits cluster discovery/connection; Kubernetes RBAC provides the scoped application and migration-job permissions. This account can also get/patch/update only the existing editor-config ConfigMap; apply the updated deploy-rbac template before using the workflow. It receives no Kubernetes Secret access, Terraform administration, registry write or Google secret access.
 
 ```bash
 gcloud iam service-accounts create editor-deploy --project="$PROJECT" --display-name='Editor protected GKE deployer'
@@ -112,31 +127,37 @@ kubectl apply --dry-run=server -f /protected/editor/deploy-rbac.yaml
 kubectl apply -f /protected/editor/deploy-rbac.yaml
 ```
 
-Set `GCP_DEPLOY_SERVICE_ACCOUNT=editor-deploy@PROJECT.iam.gserviceaccount.com`, `GCP_ZONE=us-central1-a`, `GKE_CLUSTER=editor-lab` and the remaining environment variables in the values table. Protect `cloud-lab` and main. Kubernetes RBAC cannot constrain Job `create` by resource name; this account can create Jobs within editor-lab, so restrict who may approve this workflow. Manually dispatch `.github/workflows/cloud-deploy.yml` with the reviewed six-image JSON artifact from cloud-images and a reviewed pre-rollout encrypted backup reference. It server-validates manifests, runs separate Flyway Jobs, rolls out the existing applications by digest, and records previous digests/public health. It never provisions the cluster or supplies secrets. Its real cloud execution is DEPLOY_PENDING.
+Set `GCP_DEPLOY_SERVICE_ACCOUNT=editor-deploy@PROJECT.iam.gserviceaccount.com`, `GCP_ZONE=us-central1-a`, `GKE_CLUSTER=editor-lab` and the remaining environment variables in the values table. Protect `cloud-lab` and main. Kubernetes RBAC cannot constrain Job `create` by resource name; this account can create Jobs within editor-lab, so restrict who may approve this workflow. Manually dispatch `.github/workflows/cloud-deploy.yml` with the reviewed six-image JSON artifact from cloud-images and a reviewed pre-rollout encrypted backup reference. It server-validates manifests, updates existing editor-config with reviewed public Google/quota/Price values, runs separate Flyway Jobs, waits for all five backend readers before rolling out Web by digest, and records previous digests/public health. It never provisions the cluster or supplies secrets. Its real cloud execution is DEPLOY_PENDING.
 
 Before public deployment, rescan the reviewed cloud image digests. The scan writes `testing/reports/image-os-scan.json` and CI uploads it as an artifact; see `testing/checks/IMAGE_OS_SCAN.md` for reproduction. The initial Next Node/Bookworm image retained52 High and4 Critical OS findings after APT upgrades; the measured failure is summarized here; its JSON was a generated local artifact. ADR020 replaces it with the digest-pinned official Node24.11.1 Alpine3.23 base for both build and runtime, APK security updates and gcompat. This requires an actual compatible musl/SWC production build and fresh scan of the resulting image; previous nginx/Alpine and Debian scans do not validate it. The existing High/Critical and incomplete-scan rejection stays enforced. Dependency and image findings are tied to the exact tested commit/digest and exclude infrastructure unless explicitly listed. No scanner account or paid scan service was created.
 
-The local replacement's Linux/amd64 production build, nine container gateway contracts, matching built-source hash and live child readiness passed; its final exact image had zero OS findings across21 packages. Those historical runs wrote generated reports under `testing/reports/`; current routine CI does not upload reports or run the browser E2E suite. Alpine uses musl; the official Node project classifies musl/amd64 as an experimental build tier. These checks cover the local and planned e2-standard-2 CPU architecture; ARM64/other architectures remain NOT_RUN and require their own compatible build/runtime validation. Cloud image rebuilds must repeat their exact-image scans before publication.
+The local replacement's Linux/amd64 production build, nine container gateway contracts, matching built-source hash and live child readiness passed; its final exact image had zero OS findings across21 packages. Those historical runs wrote generated reports under `testing/reports/`; current routine CI does not upload reports or run the removed general E2E suite; focused browser checks run against real local services. Alpine uses musl; the official Node project classifies musl/amd64 as an experimental build tier. These checks cover the local and planned e2-standard-2 CPU architecture; ARM64/other architectures remain NOT_RUN and require their own compatible build/runtime validation. Cloud image rebuilds must repeat their exact-image scans before publication.
 
-For VM, change Terraform `environment=vm`, review/apply the new plan. Connect using `gcloud compute ssh editor-lab --zone="$ZONE" --tunnel-through-iap`. Install Docker Engine/Compose from their official Ubuntu instructions. Copy the repository's Compose/proxy files, root-only cloud env and reviewed digests under `/opt/editor`. Mount the JWT key into the Identity volume before app startup. Base Compose plus `infra/gcp/compose.cloud.yaml` uses ADC from the VM metadata identity; no credential file is needed.
+For VM, change Terraform `environment=vm`, review/apply the new plan. Configure domain DNS using the vm_public_ip output before expecting TLS. Connect using `gcloud compute ssh editor-lab --zone="$ZONE" --tunnel-through-iap`. Install Docker Engine/Compose from their official Ubuntu instructions. Copy the repository's Compose/proxy files, root-only cloud env and reviewed digests under `/opt/editor`. Mount the JWT key into the Identity volume before app startup. Base Compose plus `infra/gcp/compose.cloud.yaml` uses ADC from the VM metadata identity; no credential file is needed.
 
 ```bash
+set -euo pipefail
 cd /opt/editor
 # Create cloud.env from protected secret values and add reviewed configuration.
 install -m 600 /protected/editor/editor-secrets.env /opt/editor/cloud.env
 cat >> /opt/editor/cloud.env <<'ENV'
 WEB_ORIGIN=https://YOUR_DOMAIN
 JWT_ISSUER=https://YOUR_DOMAIN
+STORAGE_PROVIDER=GCS
+GOOGLE_CLIENT_ID=
+MAX_USERS=10
+STRIPE_PRO_MONTHLY_PRICE=
+STRIPE_PRO_YEARLY_PRICE=
 GCS_SNAPSHOTS_BUCKET=YOUR_PRIVATE_SNAPSHOTS_BUCKET
 GCS_RESULTS_BUCKET=YOUR_PRIVATE_RESULTS_BUCKET
 ENV
-# Replace placeholders. digests.json is the validated six-image cloud-images artifact.
+# Replace placeholders; set the same Google Client ID as the Web build and both reviewed Prices if enabled. Resolve Secret Manager references into protected values; Compose does not fetch them. digests.json is the validated six-image cloud-images artifact.
 python - <<'PY'
 import json
 from pathlib import Path
 images=json.loads(Path('/protected/digests.json').read_text())
 with Path('/opt/editor/cloud.env').open('a') as target:
-    for name,key in [('identity-service','IDENTITY_IMAGE'),('document-service','DOCUMENT_IMAGE'),('processing-service','PROCESSING_IMAGE'),('web','WEB_IMAGE')]:
+    for name,key in [('identity-service','IDENTITY_IMAGE'),('document-service','DOCUMENT_IMAGE'),('processing-service','PROCESSING_IMAGE'),('collaboration-service','COLLABORATION_IMAGE'),('payment-service','PAYMENT_IMAGE'),('web','WEB_IMAGE')]:
         target.write(key+'='+images[name]+'\n')
 PY
 # Configure infra/gcp/Caddyfile with the same DNS domain as WEB_ORIGIN.
@@ -147,18 +168,19 @@ docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f
   run --rm --no-deps --user 0:0 --entrypoint /bin/sh \
   -v /protected/editor/identity-key.pem:/incoming/identity-key.pem:ro identity-service \
   -c 'install -d -o 10001 -g 10001 -m 700 /data/keys && install -o 10001 -g 10001 -m 600 /incoming/identity-key.pem /data/keys/identity-key.pem'
-docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml up -d mysql kafka redis
+docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml up -d --wait mysql kafka redis
 # Create topics AND exact service/group ACLs using the authenticated admin configuration.
 docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml exec -T kafka bash /opt/editor-kafka/kafka-init-acls.sh
-for svc in identity-service document-service processing-service; do
+for svc in identity-service document-service processing-service collaboration-service payment-service; do
   docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml --profile app run --rm "$svc" --editor.migrate-only=true
 done
-docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml --profile app up -d --no-build --wait
+docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml --profile app up -d --no-build --wait identity-service document-service processing-service collaboration-service payment-service
+docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml --profile app up -d --no-build --wait web https
 ```
 
 The web gateway publishes8080 on loopback only; Caddy publishes80/443 with automatic TLS. Public firewall permits80/443 and IAP SSH, never3306/6379/9092/3000. Configure DNS A record before expecting certificate issuance. Set HTTPS `WEB_ORIGIN`, cookies Secure=true, origin allowlist and JWT issuer before the first login. Verify `/internal` and `/actuator` return404 publicly.
 
-Reproduce the local standalone migration gate after `python tooling/scripts/run.py up` with `python -X utf8 testing/checks/migration_only.py`. It runs all four current Java images with the cloud profile against their own local databases, while signing-key/GCS credentials and runtime broker/cache/service endpoints are deliberately unusable. Each process must exit0, validate every installed migration (including Processing V3), leave Flyway history unchanged and emit no runtime startup markers. It writes redacted per-service logs and `testing/reports/migration-only.json` with image IDs, source hashes and the actual migration inventory. This verifies local migration entry points; it does not execute GCS or cloud migration jobs.
+Reproduce the local standalone migration gate after `python tooling/scripts/run.py up` with `python -X utf8 testing/checks/migration_only.py`. It runs all five current Java images with the cloud profile against their own local databases, while signing-key/GCS credentials and runtime broker/cache/service endpoints are deliberately unusable. Each process must exit0, validate every installed migration (Identity V4, Document V3, Processing V5, Collaboration V2 and Payment V1), leave Flyway history unchanged and emit no runtime startup markers. It writes redacted per-service logs and `testing/reports/migration-only.json` with image IDs, source hashes and the actual migration inventory. This verifies local migration entry points; it does not execute GCS or cloud migration jobs.
 
 The web image runs UID1000 on pinned Node24.11.1 with a512MiB container limit. `node frontend/web/server/gateway.mjs` launches the traced [Next standalone server](https://nextjs.org/docs/app/api-reference/config/next-config-js/output) on127.0.0.1:3000; public and static assets are included in the image. Public8080 routes auth/JWKS to Identity, jobs to Processing, the remaining API to Document, and pages/assets to Next. Uploads and downloads stream with backpressure; uploads are capped at32MiB, each proxy request has a130second deadline, and dynamic/API responses use `private, no-store`. Cookies, CSRF, Origin and idempotency headers retain their values. `/healthz` probes the live Next child over HTTP; termination drains requests for at most30seconds and terminates the child within the45second container/pod grace. Child stdout/stderr and request URLs are not logged.
 
@@ -175,19 +197,24 @@ printf '\nTRUSTED_PROXY_CIDRS=YOUR_REVIEWED_CADDY_CIDR\n' >> /opt/editor/cloud.e
 docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml --profile app up -d --no-build web
 ```
 
-The shared VM network is a learning-lab trust boundary: trusting its subnet also trusts other containers on that subnet. Prefer Caddy's address/32 when it is stable, and update it after Caddy recreation. Keep `TRUSTED_PROXY_CIDRS` empty until the explicit value has been reviewed. All four Spring service origins are server-only settings, with no URL credentials, paths, query or fragment allowed.
+The shared VM network is a learning-lab trust boundary: trusting its subnet also trusts other containers on that subnet. Prefer Caddy's address/32 when it is stable, and update it after Caddy recreation. Keep `TRUSTED_PROXY_CIDRS` empty until the explicit value has been reviewed. All five Spring service origins are server-only settings, with no URL credentials, paths, query or fragment allowed.
 
 For GKE, back up and remove VM compute first; set `environment=gke`, review/apply one zonal e2-standard-2 node without autoscaling. Do not increase node count automatically if pending pods show insufficient capacity; inspect allocatable resources and recalculate the short-lab budget. Replace placeholder config/SA annotations and image digests in a private overlay. Supply secrets before applying workloads.
 
 ```bash
 gcloud container clusters get-credentials editor-lab --zone="$ZONE"
+set -euo pipefail
 kubectl create namespace editor-lab --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n editor-lab create secret generic editor-secrets --from-env-file=/protected/editor/editor-secrets.env
 kubectl -n editor-lab create secret generic editor-jwt --from-file=identity-key.pem=/protected/editor/identity-key.pem
-# /protected/digests.json maps identity-service/document-service/processing-service/web to registry @sha256 digests.
-python tooling/scripts/render_cloud.py --project "$PROJECT" --origin https://YOUR_DOMAIN \
+# /protected/digests.json maps all five Java services and web to registry @sha256 digests.
+# Set reviewed public provider config; empty Google/Prices disable those providers.
+export GOOGLE_CLIENT_ID= MAX_USERS=10 STRIPE_PRO_MONTHLY_PRICE= STRIPE_PRO_YEARLY_PRICE=
+python tooling/scripts/render_cloud.py --project "$PROJECT" --region "$REGION" --origin https://YOUR_DOMAIN \
   --snapshots-bucket YOUR_SNAPSHOTS_BUCKET --results-bucket YOUR_RESULTS_BUCKET \
-  --digests /protected/digests.json --output /protected/cloud-render
+  --digests /protected/digests.json --google-client-id "$GOOGLE_CLIENT_ID" --max-users "$MAX_USERS" \
+  --stripe-pro-monthly-price "$STRIPE_PRO_MONTHLY_PRICE" --stripe-pro-yearly-price "$STRIPE_PRO_YEARLY_PRICE" \
+  --output /protected/cloud-render
 kubectl apply --dry-run=server -f /protected/cloud-render/bootstrap.yaml
 kubectl apply -f /protected/cloud-render/bootstrap.yaml
 kubectl apply --dry-run=server -f /protected/cloud-render/infrastructure.yaml
@@ -197,12 +224,21 @@ kubectl -n editor-lab rollout status statefulset/kafka --timeout=300s
 kubectl -n editor-lab exec kafka-0 -- bash -s < infra/k8s/create-topics.sh
 kubectl apply --dry-run=server -f /protected/cloud-render/migrations.yaml
 kubectl apply -f /protected/cloud-render/migrations.yaml
-kubectl -n editor-lab wait --for=condition=complete --timeout=300s job/migrate-identity-service job/migrate-document-service job/migrate-processing-service job/migrate-collaboration-service
+kubectl -n editor-lab wait --for=condition=complete --timeout=300s job/migrate-identity-service job/migrate-document-service job/migrate-processing-service job/migrate-collaboration-service job/migrate-payment-service
 kubectl apply --dry-run=server -f /protected/cloud-render/applications.yaml
-kubectl apply -f /protected/cloud-render/applications.yaml
-kubectl -n editor-lab rollout status deployment/identity-service --timeout=300s
-kubectl -n editor-lab rollout status deployment/document-service --timeout=300s
-kubectl -n editor-lab rollout status deployment/processing-service --timeout=300s
+python - <<'PY'
+from pathlib import Path
+import yaml
+root=Path('/protected/cloud-render')
+objects=list(yaml.safe_load_all((root/'applications.yaml').read_text()))
+(root/'backends.yaml').write_text(yaml.safe_dump_all([obj for obj in objects if obj['metadata']['name']!='web']))
+(root/'web.yaml').write_text(yaml.safe_dump_all([obj for obj in objects if obj['metadata']['name']=='web']))
+PY
+kubectl apply -f /protected/cloud-render/backends.yaml
+for service in identity-service document-service processing-service collaboration-service payment-service; do
+  kubectl -n editor-lab rollout status deployment/"$service" --timeout=300s
+done
+kubectl apply -f /protected/cloud-render/web.yaml
 kubectl -n editor-lab rollout status deployment/web --timeout=300s
 kubectl -n editor-lab get pods,pvc,services
 ```
@@ -234,7 +270,7 @@ Manually validate the deployed UI and API against real services; the repository 
 
 For GKE P15, retain rollout/consumer-group assignments; scale Processing to2, kill one worker during an export and observe lease reclaim without duplicate result publication. Restart mysql/kafka pods and prove PVC persistence. Check liveness remains healthy during broker/cache outage, readiness depends on mandatory SQL, and backlogs clear after recovery. Record measured metadata/validation latency, heap and image digests. Do not describe these as passed before executing them.
 
-Perform an isolated restore drill before relying on backups. Local `python tooling/scripts/run.py backup` captures all four SQL databases, local objects and JWT keys; the prior three-database restore drill passed; rerun a four-database drill in an isolated lab before relying on the expanded backup. Cloud execution below is **NOT_RUN**. `tooling/scripts/cloud_backup.py` provides a GCS-only operator capture and recovery preparation tool. It verifies that application containers/Pods have stopped, then captures a single-transaction dump of all four databases and copies exact `gs://bucket/key#generation` objects before live GC resumes. The private manifest records every physical version reference, active job source, nonnull job result, pending outbox reference, SQL/key SHA256, immutable image digests, Flyway versions/checksums and numeric Secret Manager key version. Deleted historical job sources/cleaned output attempts remain archived metadata rather than fabricated objects. A source hash mismatch or missing required object fails the backup.
+Perform an isolated restore drill before relying on backups. Local `python tooling/scripts/run.py backup` captures all five SQL databases, local objects and JWT keys; the prior three-database restore drill is historical; execute a current five-database drill in an isolated lab before relying on the expanded backup. Cloud execution below is **NOT_RUN**. `tooling/scripts/cloud_backup.py` provides a GCS-only operator capture and recovery preparation tool. It verifies that application containers/Pods have stopped, then captures a single-transaction dump of all five databases and copies exact `gs://bucket/key#generation` objects before live GC resumes. The private manifest records every physical version reference, active job source, nonnull job result, pending outbox reference, SQL/key SHA256, immutable image digests, Flyway versions/checksums and numeric Secret Manager key version. Deleted historical job sources/cleaned output attempts remain archived metadata rather than fabricated objects. A source hash mismatch or missing required object fails the backup.
 
 Set the protected GPG recipient fingerprint, reviewed image file and **numeric** JWT version first. These commands deliberately pause this single-node learning application during capture; SQL/Kafka/Redis remain running. Run without tracing and keep the archive directory mode700. A VM uses metadata ADC; a GKE operator uses its authorized gcloud session and explicit cluster context.
 
@@ -245,7 +281,7 @@ export BACKUP_DATE="$(date -u +%Y%m%dT%H%M%SZ)"
 export ARCHIVE="/protected/editor/backup-$BACKUP_DATE"
 # VM: run on /opt/editor with the protected cloud.env and reviewed six-image JSON.
 docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml --profile app \
-  stop https web identity-service document-service processing-service
+  stop https web identity-service document-service processing-service collaboration-service payment-service
 python tooling/scripts/cloud_backup.py backup --environment vm --project "$PROJECT" \
   --compose-env /opt/editor/cloud.env --directory "$ARCHIVE" --images /protected/digests.json \
   --jwt-secret-version "projects/$PROJECT/secrets/editor-jwt/versions/$JWT_VERSION"
@@ -314,7 +350,7 @@ On the isolated **VM**, set cloud.env's GCS_SNAPSHOTS_BUCKET/GCS_RESULTS_BUCKET 
 docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml up -d --wait mysql kafka redis
 docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml exec -T mysql \
   bash -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --default-character-set=utf8mb4' < "$RESTORE_ARCHIVE/databases.sql"
-for database in identity_db document_db processing_db; do
+for database in identity_db document_db processing_db collaboration_db payment_db; do
   docker compose --env-file /opt/editor/cloud.env -f infra/compose/compose.yaml -f infra/gcp/compose.cloud.yaml exec -T mysql \
     bash -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --default-character-set=utf8mb4' < "$RESTORE_ARCHIVE/$database-reference-patch.sql"
 done
@@ -327,7 +363,7 @@ For an isolated **GKE cluster**, set its new ConfigMap bucket aliases, create ed
 export RESTORE_CONTEXT=YOUR_REVIEWED_ISOLATED_GKE_CONTEXT
 kubectl --context "$RESTORE_CONTEXT" -n editor-lab exec -i mysql-0 -- \
   bash -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --default-character-set=utf8mb4' < "$RESTORE_ARCHIVE/databases.sql"
-for database in identity_db document_db processing_db; do
+for database in identity_db document_db processing_db collaboration_db payment_db; do
   kubectl --context "$RESTORE_CONTEXT" -n editor-lab exec -i mysql-0 -- \
     bash -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -uroot --default-character-set=utf8mb4' < "$RESTORE_ARCHIVE/$database-reference-patch.sql"
 done
@@ -376,7 +412,7 @@ When **all** lab data and backup retention can be discarded, empty only the insp
 
 ## Collaboration deployment scope
 
-ADR027 adds the fourth Java service and `collaboration_db`. The templates and image/backup workflows now cover five application images and four database owners. Set `COLLABORATION_DB_PASSWORD` in `editor-secrets` or the protected VM env, and `COLLABORATION_IMAGE` to its reviewed digest on VM. Kubernetes uses a dedicated unannotated `collaboration-service` KSA, its own DB password, and no Document/Processing internal keys or GCP IAM roles. Google receives a Document-issued resumable capability for the configured snapshots bucket, never the user's JWT. Real GCS checkpoint and cloud rollout gates remain **PENDING/DEPLOY_PENDING**.
+ADR027 adds the fourth Java service and `collaboration_db`. Together with ADR028, current templates and image/backup workflows cover six application images and five database owners. Set `COLLABORATION_DB_PASSWORD` in `editor-secrets` or the protected VM env, and `COLLABORATION_IMAGE` to its reviewed digest on VM. Kubernetes uses a dedicated unannotated `collaboration-service` KSA, its own DB password, and no Document/Processing internal keys or GCP IAM roles. Google receives a Document-issued resumable capability for the configured snapshots bucket, never the user's JWT. Real GCS checkpoint and cloud rollout gates remain **PENDING/DEPLOY_PENDING**.
 
 For an existing lab, create the new password secret without rotating the other passwords. Quiesce all six applications and take the reviewed backup before upgrading. Apply the rendered ConfigMap/Secret and MySQL infrastructure configuration, wait for MySQL readiness, then bootstrap the new database idempotently:
 
@@ -484,3 +520,11 @@ This format extension needs no SQL migration or new IAM grant. Build all service
 Before enabling the new Web image, back up all five databases/storage/CRDT state and deploy readers that understand V1–V5 to all services. Apply Processing `V5__office_exports.sql` using the existing `migrate-processing-service` job (VM: migration-only profile). Verify Flyway V5 success and the jobs type check, then Processing readiness and TXT/HTML/DOCX/PDF job/download ACLs. Only then roll out Web V5 writers. API/event envelopes are unchanged; new job type enum values require matching schema readers. No additional IAM/resource/billing permission is needed; font resources are in the Processing image.
 
 Validate an English/Vietnamese file with table/list/link/break/header/footer, save/reopen, concurrent cell edits, each export and revoked download denial. Do not claim cloud validation from local checks. Older images cannot read stored V5 files or new export job types. Roll back only to a compatible V5/office-reader image; an older binary rollback requires an explicitly reviewed database/object/CRDT backup restoration and handling of newer writes/jobs. Do not drop V5 metadata, mutate applied migrations or automatically downgrade files. Cloud deployment stays DEPLOY_PENDING and the USD 300 constraint is unchanged.
+
+### Current native V6 / Google sign-in rollout
+
+Current readers/writer support native V1–V6, including different-first-page headers. V6 needs no new SQL migration, but Document/Processing/Collaboration readers must be ready before Web starts writing V6. The manual GKE workflow and VM/bootstrap commands enforce backend readiness before Web. Keep a V6-compatible rollback image set. Verify V6 save/reopen and DOCX/PDF first-page-header export through real HTTPS/GCS.
+
+Identity requires additive V4 Google-identity migration; run all five migration jobs even when Google sign-in is disabled. Google provider acceptance needs the real authorized HTTPS origin and a real account. Live Stripe remains unsupported. Local preparation checks do not certify cloud/provider acceptance.
+
+Offline preparation checks: `python testing/checks/validate_deployment.py` exercises actual Compose/Kustomize rendering, six digests/five migrations and invalid public-config rejection. With Terraform initialized, `terraform -chdir=infra/gcp test` runs mocked-provider plan contracts for none/vm/gke isolation, budget date and origin validation. These plans contact no cloud API and are not real-service or deployment evidence.

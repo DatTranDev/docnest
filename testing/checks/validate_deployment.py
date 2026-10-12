@@ -4,6 +4,7 @@ import datetime
 import json
 import pathlib
 import subprocess
+import sys
 
 import yaml
 
@@ -189,6 +190,8 @@ def main():
     assert "python tooling/scripts/run.py test" in ci and "npm run build" in ci
     assert "npm run worker-check" in ci and "migration_only.py" in ci
     assert "billing_saga_check.py" in ci
+    assert "terraform -chdir=infra/gcp test" in ci
+    assert "init -backend=false -input=false -lockfile=readonly" in ci
     assert "actions/upload-artifact" not in ci
     quality = read("tooling/scripts/run.py")
     for gate in (
@@ -221,12 +224,27 @@ def main():
     assert (
         deploy.index("kubectl create --dry-run=server")
         < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
-        < deploy.index("kubectl apply -f cloud-render/applications.yaml")
+        < deploy.index("kubectl apply -f cloud-render/backends.yaml")
+        < deploy.index("kubectl apply -f cloud-render/web.yaml")
     )
     assert "previous-digests.txt" in deploy and "GCP_DEPLOY_SERVICE_ACCOUNT" in deploy
     assert "terraform apply" not in deploy
     assert "loadConfig(process.env)" in deploy and "vars.TRUSTED_PROXY_CIDRS" in deploy
+    assert (
+        deploy.index("kubectl apply --dry-run=server -f cloud-render/config.yaml")
+        < deploy.index("kubectl apply -f cloud-render/config.yaml")
+        < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
+    )
+    assert "--google-client-id" in deploy and "--stripe-pro-monthly-price" in deploy
+    role = yaml.safe_load_all(read("infra/k8s/deploy-rbac.example.yaml"))
+    rules = next(role)["rules"]
+    config_rule = next(rule for rule in rules if rule["resources"] == ["configmaps"])
+    assert config_rule["resourceNames"] == ["editor-config"]
+    assert set(config_rule["verbs"]) == {"get", "patch", "update"}
+    assert all("secrets" not in rule["resources"] for rule in rules)
     publish = read(".github/workflows/cloud-images.yml")
+    assert "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" in publish
+    assert "vars.GOOGLE_CLIENT_ID" in publish
     assert publish.index("python testing/checks/image_secrets.py") < publish.index(
         "docker push"
     )
@@ -252,6 +270,13 @@ def main():
         "port": 8080,
     }
     checks.append("optional GKE BackendConfig aligns timeout/drain/health with gateway")
+    subprocess.run(
+        [sys.executable, str(ROOT / "testing/checks/cloud_preparation_check.py")],
+        check=True,
+    )
+    checks.append(
+        "actual offline Compose/Kustomize configuration, six digests, five migrations, optional providers and invalid-input rejection"
+    )
     report = {
         "status": "PASS",
         "completedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(),

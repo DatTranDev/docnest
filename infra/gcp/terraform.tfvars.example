@@ -1,5 +1,6 @@
 project_id = "YOUR_LAB_PROJECT"
 billing_account = "YOUR_BILLING_ACCOUNT"
+budget_start_date = "YOUR_BUDGET_START_DATE_YYYY-MM-DD"
 region = "us-central1"
 zone = "us-central1-a"
 web_origin = "https://YOUR_DOMAIN"

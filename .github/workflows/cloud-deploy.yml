@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       image_digests:
-        description: Four-image JSON from the tested cloud-images artifact
+        description: Six-image JSON from the tested cloud-images artifact
         type: string
         required: true
       backup_reference:
@@ -27,6 +27,10 @@ jobs:
       SNAPSHOTS: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
       RESULTS: ${{ vars.GCS_RESULTS_BUCKET }}
       TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      MAX_USERS: ${{ vars.MAX_USERS || '10' }}
+      STRIPE_PRO_MONTHLY_PRICE: ${{ vars.STRIPE_PRO_MONTHLY_PRICE }}
+      STRIPE_PRO_YEARLY_PRICE: ${{ vars.STRIPE_PRO_YEARLY_PRICE }}
       DIGEST_JSON: ${{ inputs.image_digests }}
       BACKUP_REFERENCE: ${{ inputs.backup_reference }}
     steps:
@@ -54,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE" --project "$PROJECT"
-          python tooling/scripts/render_cloud.py --project "$PROJECT" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --output cloud-render
+          python tooling/scripts/render_cloud.py --project "$PROJECT" --region "$REGION" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --google-client-id "$GOOGLE_CLIENT_ID" --max-users "$MAX_USERS" --stripe-pro-monthly-price "$STRIPE_PRO_MONTHLY_PRICE" --stripe-pro-yearly-price "$STRIPE_PRO_YEARLY_PRICE" --output cloud-render
           # Use the same validation as the runtime before preserving reviewed TLS
           # proxy trust in this rollout. An omitted variable keeps the safe default.
           node --input-type=module - <<'JS'
@@ -70,6 +74,13 @@ jobs:
                   env=obj['spec']['template']['spec']['containers'][0]['env']
                   next(item for item in env if item['name']=='TRUSTED_PROXY_CIDRS')['value']=os.environ['TRUSTED_PROXY_CIDRS']
           target.write_text(yaml.safe_dump_all(objects,sort_keys=False))
+          backends=[obj for obj in objects if obj['metadata']['name']!='web']
+          web=[obj for obj in objects if obj['metadata']['name']=='web']
+          pathlib.Path('cloud-render/backends.yaml').write_text(yaml.safe_dump_all(backends,sort_keys=False))
+          pathlib.Path('cloud-render/web.yaml').write_text(yaml.safe_dump_all(web,sort_keys=False))
+          bootstrap=yaml.safe_load_all(pathlib.Path('cloud-render/bootstrap.yaml').read_text())
+          config=next(obj for obj in bootstrap if obj['kind']=='ConfigMap' and obj['metadata']['name']=='editor-config')
+          pathlib.Path('cloud-render/config.yaml').write_text(yaml.safe_dump(config,sort_keys=False))
           PY
           # Existing bootstrap, secrets, IAM, SQL and Kafka are operator prerequisites.
           # Capture previous deployment images without reading Kubernetes secrets.
@@ -86,6 +97,7 @@ jobs:
           pathlib.Path('cloud-render/migration-validation.yaml').write_text(yaml.safe_dump_all(jobs))
           PY
           kubectl create --dry-run=server -f cloud-render/migration-validation.yaml
+          kubectl apply --dry-run=server -f cloud-render/config.yaml
           kubectl apply --dry-run=server -f cloud-render/applications.yaml
           python - <<'PY'
           import json, subprocess
@@ -94,12 +106,18 @@ jobs:
               if r.stdout and json.loads(r.stdout).get('status',{}).get('active',0): raise SystemExit('A migration Job is still active; inspect it before retrying')
           PY
           kubectl -n editor-lab delete job migrate-identity-service migrate-document-service migrate-processing-service migrate-collaboration-service migrate-payment-service --ignore-not-found
+          # Preserve reviewed public configuration before migrations and rollout.
+          # Bootstrap/IAM/secrets already exist; this account updates only editor-config.
+          kubectl apply -f cloud-render/config.yaml
           kubectl apply -f cloud-render/migrations.yaml
           kubectl -n editor-lab wait --for=condition=complete --timeout=300s job/migrate-identity-service job/migrate-document-service job/migrate-processing-service job/migrate-collaboration-service job/migrate-payment-service
-          kubectl apply -f cloud-render/applications.yaml
-          for service in identity-service document-service processing-service collaboration-service payment-service web; do
+          # Readers must be ready before publishing the current native-format writer.
+          kubectl apply -f cloud-render/backends.yaml
+          for service in identity-service document-service processing-service collaboration-service payment-service; do
             kubectl -n editor-lab rollout status deployment/"$service" --timeout=300s
           done
+          kubectl apply -f cloud-render/web.yaml
+          kubectl -n editor-lab rollout status deployment/web --timeout=300s
           curl --fail --silent --show-error "$ORIGIN/healthz" > deployment-evidence/public-health.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()

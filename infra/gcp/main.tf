@@ -7,7 +7,7 @@ locals {
 
 resource "google_project_service" "apis" {
 
-  for_each           = toset(["compute.googleapis.com", "container.googleapis.com", "storage.googleapis.com", "artifactregistry.googleapis.com", "secretmanager.googleapis.com", "iamcredentials.googleapis.com", "logging.googleapis.com", "billingbudgets.googleapis.com"])
+  for_each           = toset(["compute.googleapis.com", "container.googleapis.com", "storage.googleapis.com", "artifactregistry.googleapis.com", "secretmanager.googleapis.com", "iam.googleapis.com", "sts.googleapis.com", "iamcredentials.googleapis.com", "cloudresourcemanager.googleapis.com", "iap.googleapis.com", "logging.googleapis.com", "billingbudgets.googleapis.com"])
   project            = var.project_id
   service            = each.key
   disable_on_destroy = false
@@ -22,9 +22,9 @@ resource "google_billing_budget" "learning" {
     projects = ["projects/${data.google_project.lab.number}"]
     custom_period {
       start_date {
-        year  = 2026
-        month = 10
-        day   = 4
+        year  = tonumber(split("-", var.budget_start_date)[0])
+        month = tonumber(split("-", var.budget_start_date)[1])
+        day   = tonumber(split("-", var.budget_start_date)[2])
       }
     }
 
@@ -43,6 +43,8 @@ resource "google_billing_budget" "learning" {
   threshold_rules {
     threshold_percent = 0.333333
   }
+
+  depends_on = [google_project_service.apis]
 
   threshold_rules {
     threshold_percent = 0.6
@@ -83,6 +85,7 @@ resource "google_storage_bucket" "snapshots" {
   public_access_prevention    = "enforced"
   force_destroy               = false
   labels                      = local.labels
+  depends_on                  = [google_project_service.apis]
   soft_delete_policy {
     retention_duration_seconds = 0
   }
@@ -107,6 +110,7 @@ resource "google_storage_bucket" "results" {
   public_access_prevention    = "enforced"
   force_destroy               = false
   labels                      = local.labels
+  depends_on                  = [google_project_service.apis]
   soft_delete_policy {
     retention_duration_seconds = 0
   }
@@ -123,6 +127,7 @@ resource "google_storage_bucket" "backups" {
   public_access_prevention    = "enforced"
   force_destroy               = false
   labels                      = local.labels
+  depends_on                  = [google_project_service.apis]
   soft_delete_policy {
     retention_duration_seconds = 604800
   }
@@ -147,6 +152,7 @@ resource "google_service_account" "runtime" {
   for_each     = toset(["document", "processing", "identity", "vm", "node", "ci"])
   account_id   = "editor-${each.key}"
   display_name = "Editor ${each.key} lab account"
+  depends_on   = [google_project_service.apis]
 
 }
 
@@ -213,6 +219,7 @@ resource "google_artifact_registry_repository_iam_member" "ci" {
 resource "google_compute_network" "lab" {
   name                    = "editor-lab"
   auto_create_subnetworks = false
+  depends_on              = [google_project_service.apis]
 
 }
 
@@ -268,6 +275,15 @@ resource "google_compute_firewall" "iap" {
 
 }
 
+resource "google_compute_address" "vm" {
+  count        = var.environment == "vm" ? 1 : 0
+  name         = "editor-lab-web"
+  region       = var.region
+  address_type = "EXTERNAL"
+  labels       = local.labels
+  depends_on   = [google_project_service.apis]
+}
+
 resource "google_compute_instance" "vm" {
 
   count        = var.environment == "vm" ? 1 : 0
@@ -289,7 +305,7 @@ resource "google_compute_instance" "vm" {
   network_interface {
     subnetwork = google_compute_subnetwork.lab.id
     access_config {
-
+      nat_ip = google_compute_address.vm[0].address
     }
 
 
@@ -359,10 +375,11 @@ resource "google_container_cluster" "lab" {
 
 resource "google_service_account_iam_member" "workload" {
 
-  for_each           = toset(["identity", "document", "processing"])
+  for_each           = var.environment == "gke" ? toset(["identity", "document", "processing"]) : toset([])
   service_account_id = google_service_account.runtime[each.key].name
   role               = "roles/iam.workloadIdentityUser"
   member             = "serviceAccount:${var.project_id}.svc.id.goog[editor-lab/${each.key}-service]"
+  depends_on         = [google_container_cluster.lab]
 
 }
 
@@ -375,5 +392,10 @@ output "runtime_accounts" {
 
 output "registry" {
   value = "${var.region}-docker.pkg.dev/${var.project_id}/editor"
+}
+
+output "vm_public_ip" {
+  description = "Static DNS A-record target; null when the VM environment is disabled."
+  value       = var.environment == "vm" ? google_compute_address.vm[0].address : null
 }
 

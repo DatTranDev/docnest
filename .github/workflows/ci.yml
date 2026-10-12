@@ -28,6 +28,14 @@ jobs:
       - run: npm run build
       - run: npm run build:local
       - run: python testing/checks/validate_deployment.py
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with: { terraform_version: '1.14.0', terraform_wrapper: false }
+      - name: Validate cloud preparation without credentials or provisioning
+        run: |
+          terraform -chdir=infra/gcp init -backend=false -input=false -lockfile=readonly
+          terraform -chdir=infra/gcp fmt -check -recursive
+          terraform -chdir=infra/gcp validate
+          terraform -chdir=infra/gcp test
       - run: python testing/checks/digest_check.py
       - run: python testing/checks/scan_secrets.py
       - run: python tooling/scripts/run.py up

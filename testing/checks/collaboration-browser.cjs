@@ -5,6 +5,8 @@ const { createHash } = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
+const ownerEmail = process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test';
+const recipientEmail = process.env.SMOKE_RECIPIENT_EMAIL || 'smoke-recipient@editor.test';
 const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
 if (!root) throw new Error('Local environment must be initialized first');
 
@@ -69,14 +71,30 @@ async function typeEnd(page, value) {
   await page.keyboard.insertText(value);
 }
 async function enterCollaboration(page, documentId) {
-  const joined = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === `/api/v1/collaboration/${documentId}/join` &&
-      response.request().method() === 'POST',
-  );
+  await page.locator('.cm-content').waitFor();
   const tab = page.getByRole('tab', { name: 'Cùng chỉnh sửa', exact: true });
-  await tab.click();
-  assert.equal((await joined).status(), 200, 'Collaboration join status');
+  const [joined] = await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === `/api/v1/collaboration/${documentId}/join` &&
+        response.request().method() === 'POST',
+    ),
+    tab.click(),
+  ]);
+  assert.equal(joined.status(), 200, 'Collaboration join status');
+  const room = await joined.json();
+  // A join response can arrive before journal replay and client hydration finish.
+  // The first poll at the joined sequence proves the ready client has started syncing.
+  const synced = await page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname === `/api/v1/collaboration/${documentId}/updates` &&
+      response.request().method() === 'GET' &&
+      Number(url.searchParams.get('after')) >= room.sequence &&
+      response.status() === 200
+    );
+  });
+  await synced.finished();
   assert.equal(await tab.getAttribute('aria-selected'), 'true');
 }
 
@@ -84,12 +102,12 @@ async function enterCollaboration(page, documentId) {
   const browser = await chromium.launch({ headless: true });
   let owner, document;
   try {
-    owner = await login(browser, 'smoke-owner@editor.test');
-    const guest = await login(browser, 'smoke-recipient@editor.test');
+    owner = await login(browser, ownerEmail);
+    const guest = await login(browser, recipientEmail);
     const title = `Collaboration smoke ${Date.now()}`;
     document = await api(owner, '/api/v1/documents', 'POST', { title, folderId: null }, 201);
     await api(owner, `/api/v1/documents/${document.id}/permissions`, 'POST', {
-      email: 'smoke-recipient@editor.test',
+      email: recipientEmail,
       role: 'EDITOR',
     });
     await owner.page.reload();
@@ -166,20 +184,38 @@ async function enterCollaboration(page, documentId) {
     }
     await owner.page.getByRole('button', { name: 'Tô nền chữ', exact: true }).click();
     await guest.page.getByRole('button', { name: 'Gạch ngang', exact: true }).click();
+    await guest.page.locator('.cm-content').click();
+    await guest.page.keyboard.press('ControlOrMeta+a');
     await guest.page.getByRole('button', { name: 'Chỉ số dưới', exact: true }).click();
     await owner.context.setOffline(false);
     await guest.context.setOffline(false);
-    for (const user of [owner, guest])
-      await user.page.waitForFunction(() =>
-        [...document.querySelectorAll('.cm-line span')].some((span) => {
-          const css = getComputedStyle(span);
-          return (
-            css.backgroundColor === 'rgb(255, 255, 0)' &&
-            css.textDecorationLine.includes('line-through') &&
-            css.verticalAlign === 'sub'
-          );
-        }),
-      );
+    for (const user of [owner, guest]) {
+      try {
+        await user.page.waitForFunction(() =>
+          [...document.querySelectorAll('.cm-line span')].some((span) => {
+            const css = getComputedStyle(span);
+            return (
+              css.backgroundColor === 'rgb(255, 255, 0)' &&
+              css.textDecorationLine.includes('line-through') &&
+              css.verticalAlign === 'sub'
+            );
+          }),
+        );
+      } catch (error) {
+        const styles = await user.page.evaluate(() =>
+          [...document.querySelectorAll('.cm-line span')].slice(0, 8).map((span) => {
+            const css = getComputedStyle(span);
+            return {
+              background: css.backgroundColor,
+              decoration: css.textDecorationLine,
+              verticalAlign: css.verticalAlign,
+            };
+          }),
+        );
+        console.error('Extended-format CSS diagnostics', JSON.stringify(styles));
+        throw error;
+      }
+    }
     await owner.page.locator('.cm-content').click();
     await owner.page.keyboard.press('ControlOrMeta+End');
     const png = Buffer.from(
