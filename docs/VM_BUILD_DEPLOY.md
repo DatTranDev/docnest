@@ -1,6 +1,7 @@
 # One-button VM build and deployment
 
-The manual **Build & deploy VM** workflow runs the existing complete CI and six-image
+The manual **Build & deploy VM** workflow runs core CI, fresh MySQL bootstrap,
+real-service smoke, migration-only and Worker checks plus the six-image
 build/scan/publication workflow, then updates one already provisioned VM over IAP.
 It creates no VM, disk, bucket or billing link. Use only `main` and protect the
 `cloud-lab` environment. Build-only remains available separately.
@@ -115,7 +116,7 @@ checkout under `/opt/editor`; source bundles of later releases go into private
 Push the intended source commit to `main`. Open **GitHub Actions → Build & deploy
 VM → Run workflow → main → Run workflow**. That is the only recurring action.
 
-The workflow waits for all tests and image scans, validates the artifact from the
+The workflow waits for its core/runtime checks and image scans, validates the artifact from the
 same run/commit, transfers a bounded source archive and six immutable digests, and
 runs the host script as a systemd service. SSH disconnection does not terminate
 the supervised rollout. Concurrent releases queue; the VM also holds an exclusive

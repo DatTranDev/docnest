@@ -31,6 +31,52 @@ def resource(objects, kind, name):
     )
 
 
+def ci_modes():
+    workflow = yaml.load(read(".github/workflows/ci.yml"), Loader=yaml.BaseLoader)
+    inputs = workflow["on"]["workflow_call"]["inputs"]
+    assert inputs["runtime_checks"]["default"] == "false"
+    assert inputs["full_acceptance"]["default"] == "false"
+    assert (
+        workflow["on"]["workflow_dispatch"]["inputs"]["full_acceptance"]["default"]
+        == "false"
+    )
+    steps = {
+        step["run"]: step
+        for step in workflow["jobs"]["application"]["steps"]
+        if "run" in step
+    }
+    for core in (
+        "python tooling/scripts/run.py test",
+        "npm run build",
+        "npm run build:local",
+        "python testing/checks/validate_deployment.py",
+        "python testing/checks/dependency_scan.py",
+        "python testing/checks/scan_secrets.py",
+    ):
+        assert not steps[core].get("if"), "Core gate must run in every mode: " + core
+    for runtime in (
+        "python testing/checks/mysql_bootstrap_check.py",
+        "python tooling/scripts/run.py up",
+        "python testing/checks/migration_only.py",
+        "python tooling/scripts/run.py smoke",
+        "npm run worker-check",
+    ):
+        assert steps[runtime]["if"] == "inputs.runtime_checks || inputs.full_acceptance"
+    browser_steps = [key for key in steps if "-browser.cjs" in key]
+    assert len(browser_steps) == 7
+    for acceptance in (*browser_steps, "python testing/checks/billing_saga_check.py"):
+        assert steps[acceptance]["if"] == "inputs.full_acceptance"
+    assert steps["python tooling/scripts/run.py down"]["if"] == (
+        "always() && (inputs.runtime_checks || inputs.full_acceptance)"
+    )
+    publish = yaml.load(
+        read(".github/workflows/cloud-images.yml"), Loader=yaml.BaseLoader
+    )
+    assert publish["jobs"]["validate"]["uses"] == "./.github/workflows/ci.yml"
+    assert publish["jobs"]["validate"]["with"]["runtime_checks"] == "true"
+    assert publish["jobs"]["images"]["needs"] == "validate"
+
+
 def main():
     render = subprocess.run(
         ["kubectl", "kustomize", str(ROOT / "infra/k8s/overlays/lab")],
@@ -194,6 +240,7 @@ def main():
     assert "workflow_dispatch:" in ci
     assert "init -backend=false -input=false -lockfile=readonly" in ci
     assert "actions/upload-artifact" not in ci
+    ci_modes()
     quality = read("tooling/scripts/run.py")
     for gate in (
         "java_imports.py",
@@ -212,7 +259,7 @@ def main():
     checks.extend(
         [
             "Kafka service ACL/auth configuration, authenticated controller and five independent service principals",
-            "CI enforces formatting/import/type/lint/architecture/tests/build/smoke/Worker without uploading local reports",
+            "CI core gates always run; cloud builds require runtime/migration/smoke/Worker checks; full browser/billing acceptance is opt-in",
             "cloud Compose TLS bind resolves relative to base Compose file",
         ]
     )

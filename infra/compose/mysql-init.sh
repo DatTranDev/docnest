@@ -1,4 +1,6 @@
 #!/bin/bash
+# MySQL sources mode-0644 init files. Keep strict options and variables local.
+(
 set -euo pipefail
 # Generated local credentials are hexadecimal. Reject SQL metacharacters.
 for name in IDENTITY_DB_PASSWORD DOCUMENT_DB_PASSWORD PROCESSING_DB_PASSWORD COLLABORATION_DB_PASSWORD PAYMENT_DB_PASSWORD; do
@@ -22,3 +24,4 @@ CREATE DATABASE IF NOT EXISTS payment_db CHARACTER SET utf8mb4 COLLATE utf8mb4_0
 CREATE USER IF NOT EXISTS 'payment'@'%' IDENTIFIED BY '${PAYMENT_DB_PASSWORD}';
 GRANT ALL PRIVILEGES ON payment_db.* TO 'payment'@'%';
 SQL
+)

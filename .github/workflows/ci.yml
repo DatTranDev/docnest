@@ -3,7 +3,19 @@ on:
   push:
   pull_request:
   workflow_call:
+    inputs:
+      runtime_checks:
+        type: boolean
+        default: false
+      full_acceptance:
+        type: boolean
+        default: false
   workflow_dispatch:
+    inputs:
+      full_acceptance:
+        description: Run the full Docker/browser acceptance suite
+        type: boolean
+        default: false
 permissions: { contents: read }
 concurrency:
   group: validate-${{ github.workflow }}-${{ github.ref }}
@@ -47,18 +59,34 @@ jobs:
       - run: python testing/checks/validate_deployment.py
       - run: python testing/checks/digest_check.py
       - run: python testing/checks/scan_secrets.py
+      - name: Check fresh Linux MySQL bootstrap
+        if: inputs.runtime_checks || inputs.full_acceptance
+        run: python testing/checks/mysql_bootstrap_check.py
       - run: python tooling/scripts/run.py up
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/migration_only.py
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python tooling/scripts/run.py smoke
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/billing_saga_check.py
+        if: inputs.full_acceptance
       - run: npx playwright install --with-deps chromium
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: node testing/checks/local-tools-browser.cjs
+        if: inputs.full_acceptance
       - run: node testing/checks/collaboration-browser.cjs
+        if: inputs.full_acceptance
       - run: node testing/checks/billing-browser.cjs
+        if: inputs.full_acceptance
       - run: node testing/checks/i18n-browser.cjs
+        if: inputs.full_acceptance
       - run: node testing/checks/docsnest-browser.cjs
+        if: inputs.full_acceptance
       - run: node testing/checks/source-files-browser.cjs
+        if: inputs.full_acceptance
       - run: node testing/checks/structure-browser.cjs
+        if: inputs.full_acceptance
       - run: npm run worker-check
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python tooling/scripts/run.py down
-        if: always()
+        if: always() && (inputs.runtime_checks || inputs.full_acceptance)

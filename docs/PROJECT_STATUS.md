@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-10. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
+Last updated: 2026-10-13. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
 
 ## Application
 
@@ -605,3 +605,55 @@ Web/HTTPS, real GCS functional acceptance, Google/Stripe provider acceptance,
 encrypted remote backup/restore and the new GitHub/IAP/systemd workflow remain
 PENDING/DEPLOY_PENDING until actually executed. Performance misses remain open.
 This local task ran no cloud provision, image publication or deployment.
+
+## CI bootstrap repair and lighter routine checks (2026-10-13)
+
+The owner requested fixing CI and reducing routine tests. Read failing GitHub
+run [38404751484](https://github.com/DatTranDev/docnest/actions/runs/38404751484)
+on `f4334f9`: Terraform, quality/contracts/Maven/frontend tests, dependency scans,
+production/static builds and offline deployment checks passed; local Compose
+startup failed because MySQL became unhealthy. A fresh isolated real MySQL
+instance with the init script installed as Linux mode 0644 reproduced
+`MYSQL_ONETIME_PASSWORD: unbound variable`. MySQL sources non-executable init
+scripts; our top-level `set -u` leaked into its entrypoint. Wrapped bootstrap in a
+subshell, preserving strict credential validation and five separate databases.
+The same fresh-server test then passed all five actual database owner logins;
+the disposable container and anonymous volume were removed. Existing application
+volumes and credentials were untouched.
+
+Push/PR and default manual validation keep all core quality/contracts,
+Java/ArchUnit/Testcontainers and frontend tests, scans and production/static
+builds. Six-image local Docker builds/startup, migration-only, smoke and Worker
+checks run for cloud builds through an explicit reusable-workflow input. The
+seven browser suites and billing-saga fault tests run only when manual
+`full_acceptance` is enabled; their source files remain available. Exclusion from
+a routine run does not count as browser/billing acceptance evidence. Static
+workflow contracts guard the defaults, always-on core steps and required cloud
+runtime checks. VM rollout's encrypted backup/migration/health gates and image
+publication's security scans remain enforced.
+
+The first local test/build attempt ran concurrently and exhausted native memory
+in Java and Next's ten build workers. Tests/build are retried sequentially;
+Next build concurrency is capped at two workers to bound local/CI build memory.
+This setting changes build concurrency, not the application runtime or tests.
+
+Executed locally with Python 3.12.14, JDK 21 and Docker:
+
+- `python -X utf8 tooling/scripts/run.py test`: PASS on the sequential retry,
+  including all quality/contracts, **141 Java tests** with zero failures/errors/
+  skips and **58 editor-core + 74 web tests**. Log:
+  `testing/reports/ci-light-test-sequential.log`.
+- `npm run build`: PASS with two actual page/build workers;
+  `ci-light-build-sequential.log`. `npm run build:local`: PASS.
+- Fresh mode-0644 MySQL bootstrap and five owner logins: PASS after the fix,
+  FAIL with the old script's leaked `MYSQL_ONETIME_PASSWORD` shell option.
+- `validate_deployment.py`: PASS for the new CI mode contracts, five actual
+  Compose/Kustomize checks and nine VM rollout tests. Final Next config ESLint,
+  strict TypeScript, Black/Prettier, Bash syntax, secret scan and diff checks: PASS.
+- Full seven-suite browser/billing acceptance and cloud runtime build: NOT_RUN
+  this turn; they require their explicit manual/cloud workflow modes. This is
+  not a new browser/cloud acceptance claim.
+
+New remote CI after pushing this repair is pending actual execution.
+No cloud provisioning, image publication or deployment was requested/executed.
+The previous cloud/provider/restore and performance acceptance gaps remain open.

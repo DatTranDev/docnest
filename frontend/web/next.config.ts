@@ -6,6 +6,7 @@ const config: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: path.resolve(import.meta.dirname, '../..'),
   transpilePackages: ['@ted/editor-core'],
+  experimental: { cpus: 2 },
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {
