@@ -654,6 +654,11 @@ Executed locally with Python 3.12.14, JDK 21 and Docker:
   this turn; they require their explicit manual/cloud workflow modes. This is
   not a new browser/cloud acceptance claim.
 
-New remote CI after pushing this repair is pending actual execution.
+Remote GitHub CI [38409822430](https://github.com/DatTranDev/docnest/actions/runs/38409822430)
+on repair commit `d44e3f84915d44477c894c2cb61b8de1dec8882d`: **PASS**,
+completed 2026-10-13 14:07 UTC. Both Terraform and application jobs succeeded;
+all core tests/scans/builds/static deployment checks passed. The explicit
+Docker/browser exclusions in this push mode behaved as configured. This is
+routine CI evidence, not full browser/cloud runtime/deployment acceptance.
 No cloud provisioning, image publication or deployment was requested/executed.
 The previous cloud/provider/restore and performance acceptance gaps remain open.
