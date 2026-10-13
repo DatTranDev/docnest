@@ -311,6 +311,13 @@ def main():
     )
 
     optional = list(yaml.safe_load_all(read("infra/k8s/ingress.example.yaml")))
+    ingress = resource(optional, "Ingress", "editor-public")
+    assert ingress["metadata"]["annotations"].get(
+        "kubernetes.io/ingress.allow-http"
+    ) not in (
+        "false",
+        False,
+    ), "Initial managed-certificate provisioning needs the HTTP frontend"
     backend = resource(optional, "BackendConfig", "editor-web")
     assert backend["spec"]["timeoutSec"] == 130
     assert backend["spec"]["connectionDraining"]["drainingTimeoutSec"] == 30

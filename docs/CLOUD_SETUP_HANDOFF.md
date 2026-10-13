@@ -4,6 +4,8 @@ Status: **DEPLOY_PENDING**. Configuration has been prepared and locally checked;
 
 For repeat updates to an already configured VM, see [one-time setup and the manual Build & deploy VM workflow](VM_BUILD_DEPLOY.md). It preserves protected configuration, captures an encrypted backup and rolls out the same tested six-image commit. Current execution evidence belongs only in PROJECT_STATUS.md.
 
+For the owner's separate fresh-data Singapore GKE experiment, use [the dedicated lab guide](GKE_SINGAPORE_LAB.md). That temporary cluster/domain/buckets are separate from the existing VM Terraform state; the lab guide explicitly accounts for additive costs and cleanup. This differs from the replacement procedure below, which removes VM compute before switching the managed environment.
+
 Prerequisites: a dedicated project you own, permission to link its billing account, Google Cloud CLI, Terraform1.14+, kubectl/Kustomize, Docker Compose2, a domain/DNS for HTTPS, and completed local validation. Use `docs/PROJECT_STATUS.md` for current local gates. The one-node lab is not highly available. Current scope: **five Java services, five separate MySQL databases, six application images and five migration jobs**. Current Web writes native V6; deploy compatible readers before Web.
 
 ## Values you must configure

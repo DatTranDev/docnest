@@ -70,6 +70,8 @@ Each service keeps its own database and organizes code by feature. HTTP request 
 
 ## Cloud
 
+For a separate fresh-data GKE learning lab in Singapore, follow [the step-by-step GKE lab guide](docs/GKE_SINGAPORE_LAB.md). It keeps the existing VM/data/domain and uses a separate cluster, HTTPS host and buckets. Review the additive node/load-balancer costs before creation; these operator commands have not been executed by Codex.
+
 Push/PR runs quality gates, contracts, Java/frontend tests, dependency/secret scans and production/static builds. It does not rebuild the six Docker images or run the full application/browser suite. For a manual check, open GitHub Actions → **Validate application** → **Run workflow** and select a branch. Leave **full_acceptance** unchecked for the lighter checks; enable it for the full Docker, billing-saga and seven browser acceptance checks. These checks need no Google Cloud credentials.
 
 To publish cloud images from `main`, use **Build cloud images (manual, no deploy)** after configuring the `cloud-lab` environment and Google OIDC as described in [the cloud handoff](docs/CLOUD_SETUP_HANDOFF.md). Its artifact includes the source commit/ref, workflow run and six immutable digests. Publishing images does not update a running VM or GKE application.

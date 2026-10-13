@@ -33,7 +33,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: gce
     networking.gke.io/managed-certificates: editor-tls
-    kubernetes.io/ingress.allow-http: 'false'
+    # Disable HTTP only after the load balancer and managed certificate are ready.
 spec:
   defaultBackend: { service: { name: web, port: { number: 8080 } } }
 ---

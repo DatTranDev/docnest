@@ -91,6 +91,19 @@ class CloudPreparationTest(unittest.TestCase):
         self.assertEqual(config["ALLOWED_ORIGINS"], ORIGIN)
         self.assertEqual(config["STRIPE_PRO_MONTHLY_PRICE"], "price_monthly123")
         self.assertEqual(config["STRIPE_PRO_YEARLY_PRICE"], "price_yearly123")
+        identity = next(
+            obj
+            for obj in self.objects("applications")
+            if obj["metadata"]["name"] == "identity-service"
+        )["spec"]["template"]["spec"]
+        container = identity["containers"][0]
+        jwt_mount = next(m for m in container["volumeMounts"] if m["name"] == "jwt")
+        self.assertEqual(
+            container["args"],
+            ["--editor.jwt.key-path=" + jwt_mount["mountPath"] + "/identity-key.pem"],
+        )
+        jwt_volume = next(v for v in identity["volumes"] if v["name"] == "jwt")
+        self.assertEqual(jwt_volume["secret"]["secretName"], "editor-jwt")
         for group, names in (("applications", NAMES), ("migrations", NAMES[:-1])):
             objects = self.objects(group)
             self.assertEqual(len(objects), len(names))

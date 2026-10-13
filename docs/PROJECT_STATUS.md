@@ -662,3 +662,35 @@ Docker/browser exclusions in this push mode behaved as configured. This is
 routine CI evidence, not full browser/cloud runtime/deployment acceptance.
 No cloud provisioning, image publication or deployment was requested/executed.
 The previous cloud/provider/restore and performance acceptance gaps remain open.
+
+## Fresh-data Singapore GKE learning guide (2026-10-13)
+
+The owner selected a separate GKE learning lab with new data, retaining the
+existing VM/data/domain. Added `docs/GKE_SINGAPORE_LAB.md` with all Cloud Shell
+commands: tested six-image digests, one zonal Standard node, existing scoped
+node/runtime accounts, separate private GCS buckets/CORS, existing numeric
+secret versions, SQL/Kafka/Redis, five migration jobs, backends before Web,
+new HTTPS host/DNS/OAuth origin, required real functional checks, scoped manual
+GKE update workflow prerequisites, and node/LB/disk cleanup. Creating via gcloud
+keeps it outside the current VM Terraform state; changing the existing selector
+to gke would instead plan VM/IP removal. Reviewed official current management
+fee/free-tier, forwarding-rule, disk/network and alerts-only budget sources;
+compute/disk/log/traffic totals require the Singapore calculator/account SKUs.
+The USD300 total budget is unchanged; parallel VM+GKE adds a full node's cost.
+
+Fixed Kubernetes Identity startup to explicitly select `/keys/identity-key.pem`
+from its existing Secret mount; the cloud binary default previously pointed
+to `/run/secrets`. Initial managed-certificate Ingress now leaves HTTP available
+until the external load balancer/certificate are programmed; the guide disables
+HTTP after Active/HTTPS validation, matching Google documentation. Added offline
+rendered mount/argument/Secret checks and an initial Ingress regression guard.
+
+Executed: `validate_deployment.py` PASS (five actual offline Compose/Kustomize
+checks, nine VM tests, deployment contracts); `validate_kit.py` PASS; secret scan
+PASS; Bash syntax-only validation of all 18 guide blocks and AST parsing of
+embedded Python PASS. Black/Prettier and diff checks PASS. Application binaries,
+contracts and migrations were not changed; the preceding repair's full Java/
+frontend/build and remote CI evidence remains recorded above. These checks are
+not GKE runtime proof. New cluster, bucket/Ingress creation, exact account cost
+quote, real GKE/Google/GCS/restore acceptance and deployment remain NOT_RUN /
+DEPLOY_PENDING: this turn prepared local code and operator commands only.
