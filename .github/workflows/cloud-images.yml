@@ -1,6 +1,8 @@
 name: Build cloud images (manual, no deploy)
+run-name: Build cloud images from ${{ github.ref_name }} at ${{ github.sha }}
 on:
   workflow_dispatch:
+  workflow_call:
 permissions: { contents: read, id-token: write }
 jobs:
   validate:
@@ -12,6 +14,20 @@ jobs:
     timeout-minutes: 45
     environment: cloud-lab
     steps:
+      - name: Check cloud build configuration
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+        run: |
+          set -euo pipefail
+          for key in GCP_PROJECT GCP_REGION GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing cloud-lab environment variable: $key"
+              exit 1
+            fi
+          done
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
         with:
@@ -46,12 +62,34 @@ jobs:
             docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$service:$GITHUB_SHA" >> image-digests.txt
           done
           python tooling/scripts/digest_manifest.py --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --input image-digests.txt --output image-digests.json
+      - name: Record built release
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_REF: ${{ github.ref }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          release = {
+              'commit': os.environ['SOURCE_SHA'],
+              'ref': os.environ['SOURCE_REF'],
+              'runUrl': os.environ['RUN_URL'],
+              'images': json.loads(pathlib.Path('image-digests.json').read_text()),
+              'googleClientId': os.environ.get('GOOGLE_CLIENT_ID', ''),
+              'nativeFormatVersion': 6,
+          }
+          pathlib.Path('cloud-release.json').write_text(json.dumps(release, indent=2) + '\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Built and published six scanned images. Download the cloud-image-digests artifact for the commit, source ref and immutable digests.\n')
+          PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cloud-image-digests
           path: |
             image-digests.txt
             image-digests.json
+            cloud-release.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

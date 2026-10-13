@@ -548,3 +548,60 @@ Local validation: Terraform read-only initialization, recursive format check, va
 [Run #38267343375](https://github.com/DatTranDev/docnest/actions/runs/38267343375), commit `95226f7`, passed the Linux Terraform job, full repository quality/tests, audits, builds, configuration checks, stack startup, all migrations, smoke, billing saga, local-tools browser and collaboration browser. It then exposed the previously blocked billing UI harness: paid controls are now hidden when Stripe is disabled and the dialog opens through the account menu. Repaired five browser harnesses against the current UI: language menus, exact Format disclosure, labelled import dialog, editable-title heading text, document IDs instead of preview-enriched accessible names, Download menu/tray, editable first-page header, actual collaboration join/ready polls and desktop visibility of the standalone sign-in link. Actual TXT processing is still checked through authenticated Kafka jobs, while HTML/DOCX/PDF use the current UI; completed job state is polled through authenticated requests before download. Existing recovery, optimistic conflict, read-only ACL, formatting, export bytes, account preferences, focus, polling and mobile assertions remain.
 
 Local real-service validation: `billing-browser.cjs`, `i18n-browser.cjs`, `docsnest-browser.cjs`, `source-files-browser.cjs` and `structure-browser.cjs` all PASS. Dedicated disposable fixture accounts avoid modifying existing users' files; each document-producing harness trashes only its own IDs. Billing/DOCX no-purchase checks temporarily used an ignored Compose override disabling local Stripe, and the original Payment configuration was restored in `finally`. Source-file tests observed expected initial unauthenticated refresh and a recovered signed-CSRF rejection during logout; zero page exceptions and successful logout were asserted. Prettier, lint, deployment rendering (five tests) and `git diff --check` PASS. No application source, API, schema or provider acceptance claim changed. Remote verification of the repaired harnesses remains PENDING until the next exact-commit CI run completes.
+
+## Manual VM build and rollout — 13 October 2026
+
+Added the owner-requested **Build & deploy VM** manual workflow, reusing complete
+CI and the existing six-image scan/publication workflow. Build-only remains
+available. The same-run release manifest records commit/ref, immutable images,
+public Google Client ID and V6 compatibility. The VM deploy identity uses OIDC,
+OS Login and IAP; one-time setup scopes OS administration to the existing VM,
+IAP to its internal IP/SSH port and service-account use to its runtime identity.
+No Google JSON keys, paid resource provisioning or push-triggered deployment are
+added. Preserved and completed the already pending manual build-button changes.
+
+The root host script validates protected config, release/archive bounds and
+current health, holds a deployment lock, pulls before downtime, quiesces all six
+apps/HTTPS, captures five databases/exact GCS generations/stable JWT version,
+encrypts with an external age public recipient and uploads to the private backup
+bucket before migration. It runs five separate migration-only commands, starts
+backend readers before Web and checks public health. Secrets/domain remain on
+the VM; per-release source and digest env overrides do not reset the initial
+checkout. A systemd service survives an SSH disconnect. Previous app recovery
+is automatic only before migrations or when actual captured/current Flyway
+histories match; schema changes, native-format upgrades, SQL restore and Stripe
+reconciliation require operator recovery. Fixed cloud Compose's JWT startup
+path explicitly; the binary cloud profile previously overrode JWT_KEY_PATH and
+looked under /run/secrets despite the installed /data/keys volume.
+
+Executed locally with Python 3.12.14, JDK 21 and real Docker:
+
+- `python -X utf8 tooling/scripts/run.py test`: PASS, including quality/contracts,
+  Maven verification with **141 Java tests** (zero failures/errors/skips), **58
+  editor-core + 74 web tests**, strict types/lint/architecture and gateway/resolver
+  contracts. Log: `testing/reports/vm-deploy-full-test.log`.
+- `npm run build`: PASS, production build; `vm-deploy-build.log`.
+- `validate_deployment.py`: PASS, five actual Compose/Kustomize rendering tests
+  (including explicit Identity key path) and nine new offline VM tests for
+  archive traversal/link rejection, output redaction, backup/migration order,
+  backup/readiness failure recovery and changed-schema fail-closed behavior.
+  These simulated orchestration faults do not certify Google deployment.
+- `cloud_backup_check.py`: eight tests PASS; `cloud_backup_mysql_check.py`: PASS
+  against a disposable actual MySQL 8.4.7 instance, including five-database
+  dump/restore, Payment saga/inbox/outbox, CRDT bytes and exact reference remapping;
+  its disposable container was removed. No remote GCS restore ran.
+- `validate_contracts.py`, `validate_kit.py`, `scan_secrets.py`, Black, Prettier,
+  Bash syntax checks for both setup helpers and `git diff --check`: PASS.
+  Source-size review remains seven existing large files/36 functions; the new
+  rollout code adds no threshold signal. No gate was relaxed.
+
+The owner supplied execution evidence for Singapore project/buckets/registry,
+a VND budget corresponding to approximately USD 300, VM/static IP, five cloud
+migrations and eight healthy backend/infrastructure containers. Independently
+read GitHub run [38364821152](https://github.com/DatTranDev/docnest/actions/runs/38364821152)
+on `7c4110c`: CI, scans and six-image publication succeeded. These are previous
+manual execution results, not validation of this new automated rollout. Public
+Web/HTTPS, real GCS functional acceptance, Google/Stripe provider acceptance,
+encrypted remote backup/restore and the new GitHub/IAP/systemd workflow remain
+PENDING/DEPLOY_PENDING until actually executed. Performance misses remain open.
+This local task ran no cloud provision, image publication or deployment.

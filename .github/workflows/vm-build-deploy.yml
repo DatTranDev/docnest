@@ -1,0 +1,71 @@
+name: Build & deploy VM
+run-name: Build and deploy VM from main at ${{ github.sha }}
+on:
+  workflow_dispatch:
+permissions: { contents: read, actions: read, id-token: write }
+concurrency:
+  group: cloud-lab-vm-rollout
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/cloud-images.yml
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: cloud-lab
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT }}
+      REGION: ${{ vars.GCP_REGION }}
+      ZONE: ${{ vars.GCP_ZONE }}
+      VM: ${{ vars.GCP_VM_INSTANCE }}
+      DEPLOY_ACCOUNT: ${{ vars.GCP_VM_DEPLOY_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate VM configuration
+        run: |
+          python - <<'PY'
+          import os, re
+          for key, pattern in {
+              'PROJECT': r'[a-z][a-z0-9-]{4,61}[a-z0-9]',
+              'REGION': r'[a-z]+-[a-z]+[0-9]+',
+              'ZONE': r'[a-z]+-[a-z]+[0-9]+-[a-z]',
+              'VM': r'[a-z][a-z0-9-]{0,61}[a-z0-9]',
+              'DEPLOY_ACCOUNT': r'[a-z0-9-]+@[a-z0-9-]+\.iam\.gserviceaccount\.com',
+          }.items():
+              if not re.fullmatch(pattern, os.environ.get(key, '')):
+                  raise SystemExit('Missing or invalid cloud-lab variable: '+key)
+          if not os.environ['ZONE'].startswith(os.environ['REGION']+'-'):
+              raise SystemExit('VM zone must belong to the registry region')
+          PY
+      - name: Download this run's scanned image manifest and package source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p .tools/vm-upload
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name cloud-image-digests --dir .tools/vm-upload
+          python tooling/scripts/digest_manifest.py --project "$PROJECT" --region "$REGION" --input .tools/vm-upload/image-digests.json --output .tools/vm-upload/digests.json
+          python - <<'PY'
+          import json, os, pathlib
+          release=json.loads(pathlib.Path('.tools/vm-upload/cloud-release.json').read_text())
+          images=json.loads(pathlib.Path('.tools/vm-upload/digests.json').read_text())
+          if release.get('commit')!=os.environ['GITHUB_SHA'] or release.get('ref')!='refs/heads/main' or release.get('images')!=images:
+              raise SystemExit('Artifact must match this tested main commit and all six digests')
+          PY
+          git archive --format=tar.gz --output=.tools/vm-upload/source.tar.gz "$GITHUB_SHA"
+          cp tooling/scripts/vm_release.py tooling/scripts/digest_manifest.py .tools/vm-upload/
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_VM_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
+      - name: Transfer release over IAP and run supervised VM rollout
+        run: |
+          set -euo pipefail
+          REMOTE_DIR="/tmp/docnest-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          UNIT="docnest-release-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          gcloud compute ssh "$VM" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet --command="mkdir -m 700 $REMOTE_DIR"
+          gcloud compute scp .tools/vm-upload/source.tar.gz .tools/vm-upload/cloud-release.json .tools/vm-upload/vm_release.py .tools/vm-upload/digest_manifest.py "$VM:$REMOTE_DIR/" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet
+          gcloud compute ssh "$VM" --project="$PROJECT" --zone="$ZONE" --tunnel-through-iap --quiet --ssh-flag='-o ServerAliveInterval=30' --ssh-flag='-o ServerAliveCountMax=6' --command="sudo systemd-run --unit=$UNIT --wait --pipe --property=RuntimeMaxSec=45min /usr/bin/python3 $REMOTE_DIR/vm_release.py --archive $REMOTE_DIR/source.tar.gz --manifest $REMOTE_DIR/cloud-release.json --commit $GITHUB_SHA"

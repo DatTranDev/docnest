@@ -2,6 +2,7 @@
 services:
   identity-service:
     image: ${IDENTITY_IMAGE:?Use Artifact Registry image digest}
+    command: ['--editor.jwt.key-path=/data/keys/identity-key.pem']
     environment:
       SPRING_PROFILES_ACTIVE: cloud
       FLYWAY_ENABLED: 'false'

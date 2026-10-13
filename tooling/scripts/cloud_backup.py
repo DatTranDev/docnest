@@ -298,7 +298,7 @@ def backup(args):
         not re.fullmatch(r"[a-z0-9._:/-]+@sha256:[a-f0-9]{64}", value)
         for value in images.values()
     ):
-        raise ValueError("Image manifest requires five immutable registry digests")
+        raise ValueError("Image manifest requires six immutable registry digests")
     secret = re.fullmatch(
         r"projects/([^/]+)/secrets/(editor-jwt)/versions/([0-9]+)",
         args.jwt_secret_version,
@@ -420,7 +420,7 @@ def backup(args):
             {
                 "operation": "BACKUP_CAPTURED",
                 "objects": len(entries),
-                "databases": 3,
+                "databases": len(DBS),
                 "cloudRestore": "NOT_RUN",
             }
         )

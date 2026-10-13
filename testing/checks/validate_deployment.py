@@ -191,6 +191,7 @@ def main():
     assert "npm run worker-check" in ci and "migration_only.py" in ci
     assert "billing_saga_check.py" in ci
     assert "terraform -chdir=infra/gcp test" in ci
+    assert "workflow_dispatch:" in ci
     assert "init -backend=false -input=false -lockfile=readonly" in ci
     assert "actions/upload-artifact" not in ci
     quality = read("tooling/scripts/run.py")
@@ -245,6 +246,8 @@ def main():
     publish = read(".github/workflows/cloud-images.yml")
     assert "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" in publish
     assert "vars.GOOGLE_CLIENT_ID" in publish
+    assert "Check cloud build configuration" in publish
+    assert "cloud-release.json" in publish and "GITHUB_STEP_SUMMARY" in publish
     assert publish.index("python testing/checks/image_secrets.py") < publish.index(
         "docker push"
     )
@@ -272,6 +275,10 @@ def main():
     checks.append("optional GKE BackendConfig aligns timeout/drain/health with gateway")
     subprocess.run(
         [sys.executable, str(ROOT / "testing/checks/cloud_preparation_check.py")],
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, str(ROOT / "testing/checks/vm_release_check.py")],
         check=True,
     )
     checks.append(

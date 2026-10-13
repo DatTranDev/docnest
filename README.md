@@ -70,6 +70,12 @@ Each service keeps its own database and organizes code by feature. HTTP request 
 
 ## Cloud
 
+For a manual build, open GitHub Actions → **Validate application** → **Run workflow**, select a branch, and run it. This reuses the complete CI pipeline, including production/static builds, all six application Docker images and real-service checks; it needs no Google Cloud credentials. The workflow must be present on the default branch for GitHub to expose the button, and the selected branch must contain the manual trigger.
+
+To publish cloud images from `main`, use **Build cloud images (manual, no deploy)** after configuring the `cloud-lab` environment and Google OIDC as described in [the cloud handoff](docs/CLOUD_SETUP_HANDOFF.md). Its artifact includes the source commit/ref, workflow run and six immutable digests. Publishing images does not update a running VM or GKE application.
+
+To build and update an existing VM with one manual action, follow [the one-time VM setup](docs/VM_BUILD_DEPLOY.md), then use **Build & deploy VM** on `main`. It reuses all CI/image scans, takes an encrypted quiesced backup, runs five migrations and checks the backend/Web rollout. It does not provision infrastructure; deployment requires the configured VM identity, backup recipient and existing healthy application.
+
 Cloud templates use placeholders. Configure them by following [docs/CLOUD_SETUP_HANDOFF.md](docs/CLOUD_SETUP_HANDOFF.md), review the cost estimate against the USD 300 learning budget, and only then run its deployment steps. Local validation commands do not deploy or create paid resources.
 
 ## docsnest preferences and Word interchange

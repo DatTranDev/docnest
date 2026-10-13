@@ -3,6 +3,7 @@ on:
   push:
   pull_request:
   workflow_call:
+  workflow_dispatch:
 permissions: { contents: read }
 concurrency:
   group: validate-${{ github.workflow }}-${{ github.ref }}

@@ -181,6 +181,10 @@ class CloudPreparationTest(unittest.TestCase):
         )
         services = json.loads(result.stdout)["services"]
         identity = services["identity-service"]["environment"]
+        self.assertEqual(
+            services["identity-service"]["command"],
+            ["--editor.jwt.key-path=/data/keys/identity-key.pem"],
+        )
         self.assertEqual(identity["ALLOWED_ORIGINS"], ORIGIN)
         self.assertEqual(identity["GOOGLE_CLIENT_ID"], CLIENT)
         self.assertEqual(identity["MAX_USERS"], "100")
