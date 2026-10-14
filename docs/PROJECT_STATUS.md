@@ -751,7 +751,10 @@ Executed locally (Python 3.12.14/JDK21, no cloud credentials/actions):
   was not changed; this turn uses scoped tooling/config tests and quality rather
   than rerunning the preceding full application acceptance as cloud proof.
 
-New remote push CI, same-run image publication/deploy, actual IAM/RBAC, GKE
+Remote push CI [38585052108](https://github.com/DatTranDev/docnest/actions/runs/38585052108)
+on code commit `48f31cf07c7867669db9daa3164850508d85e52a`: **PASS**, completed
+2026-10-14 15:02 UTC, both Terraform preparation and full core application CI
+jobs successful. Same-run image publication/deploy, actual IAM/RBAC, GKE
 backup/restore, DNS/certificate propagation, main-domain functional acceptance
 and VM shutdown remain PENDING/NOT_RUN until executed. This local task did not
 provision paid resources, change billing, publish images or deploy/stop cloud.
