@@ -22,6 +22,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   cloud-preparation:
+    if: inputs.runtime_checks || inputs.full_acceptance
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -51,14 +52,32 @@ jobs:
       - run: python -m pip install -r testing/checks/requirements-implementation.txt
       - run: npm ci
       - run: chmod +x mvnw
+      - name: Basic quality checks
+        if: ${{ !inputs.runtime_checks && !inputs.full_acceptance }}
+        run: python tooling/scripts/run.py quality
+      - name: Java build and unit tests (no Docker)
+        if: ${{ !inputs.runtime_checks && !inputs.full_acceptance }}
+        run: >-
+          ./mvnw -B -ntp verify
+          '-Dtest=!IdentityMySqlTest,!LoginRateLimiterRedisTest,!IdentityBootstrapTest,!DocumentIntegrationTest,!ProcessingMySqlTest,!KafkaSqlFlowTest,!JdbcRoomDaoTest,!JdbcPaymentDaoTest'
+          -Dsurefire.failIfNoSpecifiedTests=false
+      - name: Frontend unit tests
+        if: ${{ !inputs.runtime_checks && !inputs.full_acceptance }}
+        run: npm test
       - run: python tooling/scripts/run.py test
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: npm audit --audit-level=high
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/dependency_scan.py
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: npm run build
       - run: npm run build:local
       - run: python testing/checks/validate_deployment.py
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/digest_check.py
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/scan_secrets.py
+        if: inputs.runtime_checks || inputs.full_acceptance
       - name: Check fresh Linux MySQL bootstrap
         if: inputs.runtime_checks || inputs.full_acceptance
         run: python testing/checks/mysql_bootstrap_check.py

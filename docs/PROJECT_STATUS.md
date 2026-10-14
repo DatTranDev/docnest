@@ -808,3 +808,22 @@ PASS on 2026-10-14, both application and cloud-preparation jobs successful.
 Normal core application tests/audits/builds and offline deployment/Terraform
 checks ran on GitHub. Manual cloud publication/deployment was not dispatched;
 all real GKE, DNS, backup-restore and VM-removal gates above remain pending.
+
+## Basic push/PR CI (2026-10-14)
+
+At the owner's request, routine CI now runs quality, a Docker-free Maven verify with eight explicit container-backed test-class exclusions, frontend unit tests and both production/static builds. Real MySQL/Kafka/Redis tests, contract validation, dependency/secret scans, digest/deployment checks and Terraform remain in the runtime/full-acceptance modes requested by cloud builds or manual full acceptance. No tests or check implementations were deleted, and no cloud action was executed. README and the deployment-mode assertions describe this scope.
+
+GitHub job 115971170252 failed on the packed/dense range property test's 5-second timeout after Maven completed. That one test now has a 30-second timeout, retaining the same seed, 100 cases and assertions.
+
+Executed local validation:
+
+- JDK 21 Maven verify with the workflow's eight exclusions: PASS; 98 tests, zero failures/errors/skips; 64 seconds with existing local caches. This is unit/architecture evidence, not real-service acceptance.
+- `npm test`: PASS; 58 editor-core + 74 web tests. Targeted rerun of compact-storage after the timeout change: PASS, five tests.
+- `python testing/checks/java_imports.py`, POM formatting, Black 26.5.1 check (41 files using bundled Python 3.12.14), `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run architecture`: PASS.
+- Node gateway/lint-glob tests: PASS, 14 tests; frontend-boundary tests: PASS, five tests.
+- `npm run build`, `npm run build:local`: PASS. Existing Vite bundling warnings remain.
+- actionlint 1.7.12 for ci.yml, `ci_modes()` deployment assertions, `git diff --check`: PASS.
+- Source-size report: reviewed; this change adds no production responsibilities. Existing informational oversized-source signals remain.
+- Remote CI duration after this change, full Docker/browser acceptance and cloud validation: NOT_RUN; local-only scope. The new GitHub runtime has not been measured.
+
+Initial local command attempts used unavailable Python paths, PowerShell parsed an unquoted Maven property, and the Java AST scan picked Java 17 from PATH. Corrected to bundled Python 3.12.14, quoted Maven properties and JDK 21 on PATH; final checks above follow those corrections.

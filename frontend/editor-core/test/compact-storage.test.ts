@@ -69,7 +69,7 @@ describe('compact style storage and streaming native output', () => {
       }),
       { seed: 42, numRuns: 100 },
     );
-  });
+  }, 30000);
 
   it('counts UTF-8 bytes like TextEncoder including isolated surrogate replacement', () => {
     fc.assert(

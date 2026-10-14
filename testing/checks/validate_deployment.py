@@ -46,15 +46,40 @@ def ci_modes():
         if "run" in step
     }
     for core in (
-        "python tooling/scripts/run.py test",
+        "python tooling/scripts/run.py quality",
+        "npm test",
         "npm run build",
         "npm run build:local",
-        "python testing/checks/validate_deployment.py",
-        "python testing/checks/dependency_scan.py",
-        "python testing/checks/scan_secrets.py",
     ):
-        assert not steps[core].get("if"), "Core gate must run in every mode: " + core
+        if core in ("python tooling/scripts/run.py quality", "npm test"):
+            assert (
+                steps[core]["if"]
+                == "${{ !inputs.runtime_checks && !inputs.full_acceptance }}"
+            )
+        else:
+            assert not steps[core].get("if"), "Build must run in every mode: " + core
+    assert workflow["jobs"]["cloud-preparation"]["if"] == (
+        "inputs.runtime_checks || inputs.full_acceptance"
+    )
+    basic_java = next(
+        step
+        for step in steps.values()
+        if step.get("name") == "Java build and unit tests (no Docker)"
+    )
+    assert (
+        basic_java["if"] == "${{ !inputs.runtime_checks && !inputs.full_acceptance }}"
+    )
+    assert (
+        "verify" in basic_java["run"]
+        and "-Dtest=!IdentityMySqlTest" in basic_java["run"]
+    )
     for runtime in (
+        "python tooling/scripts/run.py test",
+        "npm audit --audit-level=high",
+        "python testing/checks/dependency_scan.py",
+        "python testing/checks/validate_deployment.py",
+        "python testing/checks/digest_check.py",
+        "python testing/checks/scan_secrets.py",
         "python testing/checks/mysql_bootstrap_check.py",
         "python tooling/scripts/run.py up",
         "python testing/checks/migration_only.py",
