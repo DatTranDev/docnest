@@ -1,0 +1,27 @@
+name: Build & deploy GKE
+run-name: Build and deploy GKE from main at ${{ github.sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      backup_reference:
+        description: Reviewed quiesced encrypted GKE backup gs://.../archive.age or .gpg
+        type: string
+        required: true
+permissions: { contents: read, id-token: write }
+concurrency:
+  group: cloud-gke-build-rollout
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/cloud-images.yml
+    with:
+      environment_name: cloud-gke
+  deploy:
+    needs: build
+    uses: ./.github/workflows/cloud-deploy.yml
+    with:
+      environment_name: cloud-gke
+      image_digests: ${{ needs.build.outputs.image_digests }}
+      release_json: ${{ needs.build.outputs.release_json }}
+      backup_reference: ${{ inputs.backup_reference }}

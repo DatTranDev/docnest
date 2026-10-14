@@ -118,6 +118,27 @@ class CloudPreparationTest(unittest.TestCase):
         self.assertEqual(config["JWT_ALLOW_KEY_GENERATION"], "false")
         self.assertEqual(config["FLYWAY_ENABLED"], "false")
 
+    def test_public_config_change_updates_all_pod_templates_without_changing_images(
+        self,
+    ):
+        self.render()
+        before = self.objects("applications")
+        self.render()
+        self.assertEqual(before, self.objects("applications"))
+        self.render("--max-users", "20")
+        after = self.objects("applications")
+        key = "docsnest.dattrandev.id.vn/config-sha256"
+        for old, new in zip(before, after, strict=True):
+            old_template, new_template = (obj["spec"]["template"] for obj in (old, new))
+            self.assertNotEqual(
+                old_template["metadata"]["annotations"][key],
+                new_template["metadata"]["annotations"][key],
+            )
+            self.assertEqual(
+                old_template["spec"]["containers"][0]["image"],
+                new_template["spec"]["containers"][0]["image"],
+            )
+
     def test_optional_google_and_stripe_remain_disabled(self):
         self.render()
         config = next(

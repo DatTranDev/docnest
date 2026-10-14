@@ -268,7 +268,12 @@ def main():
     assert (
         "workflow_dispatch:" in deploy and "github.ref == 'refs/heads/main'" in deploy
     )
-    assert "environment: cloud-lab" in deploy
+    assert "environment: ${{ inputs.environment_name }}" in deploy
+    assert "options: [cloud-lab, cloud-gke]" in deploy
+    assert "Verify reviewed encrypted backup exists before rollout" in deploy
+    assert deploy.index("gcloud storage objects describe") < deploy.index(
+        "gcloud container clusters get-credentials"
+    )
     assert (
         deploy.index("kubectl create --dry-run=server")
         < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
@@ -333,6 +338,10 @@ def main():
     )
     subprocess.run(
         [sys.executable, str(ROOT / "testing/checks/vm_release_check.py")],
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, str(ROOT / "testing/checks/gke_release_check.py")],
         check=True,
     )
     checks.append(

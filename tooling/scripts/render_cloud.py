@@ -1,6 +1,6 @@
 """Render ordered deployment files with explicit identifiers and immutable digests; no apply."""
 
-import argparse, json, pathlib, re, subprocess, yaml
+import argparse, hashlib, json, pathlib, re, subprocess, yaml
 from urllib.parse import urlsplit
 from digest_manifest import NAMES, validate_manifest
 
@@ -103,6 +103,19 @@ for name in names[:-1]:
             yaml.safe_load((root / f"infra/k8s/base/migrate-{name}.yaml").read_text())
         )
     )
+config = next(
+    obj["data"]
+    for obj in groups["bootstrap"]
+    if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "editor-config"
+)
+config_hash = hashlib.sha256(
+    json.dumps(config, sort_keys=True, separators=(",", ":")).encode("utf-8")
+).hexdigest()
+for obj in groups["applications"]:
+    metadata = obj["spec"]["template"].setdefault("metadata", {})
+    metadata.setdefault("annotations", {})[
+        "docsnest.dattrandev.id.vn/config-sha256"
+    ] = config_hash
 out = pathlib.Path(a.output)
 out.mkdir(parents=True, exist_ok=True)
 for name, objects in groups.items():

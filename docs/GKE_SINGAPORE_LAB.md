@@ -7,6 +7,10 @@ Lab mới dùng cluster `docnest-k8s-lab`, namespace `editor-lab`, domain
 `k8s.docsnest.dattrandev.id.vn` và hai bucket riêng. Database bắt đầu trống.
 VM `editor-lab`, domain hiện tại và các bucket cũ được giữ nguyên.
 
+Để chuyển domain chính và dừng VM sau khi lab hoạt động, dùng
+[GKE_CUTOVER.md](GKE_CUTOVER.md). GitHub dùng environment riêng **cloud-gke**:
+tạo/copy Variables ở bước 2 của tài liệu cutover trước khi chạy build cloud.
+
 **Giữ `environment = "vm"` trong Terraform hiện tại.** Đổi sang `gke` sẽ lên kế
 hoạch xóa VM và IP của VM. Cluster thử nghiệm này được tạo riêng bằng gcloud,
 không do Terraform hiện tại quản lý; muốn đưa nó vào Terraform sau này phải
@@ -79,7 +83,7 @@ kiểm tra nó thuộc đúng lab trước khi dùng lại; không xóa dữ li�
 ## 2. Chuẩn bị sáu image đã được scan
 
 Trên GitHub: **Actions → Build cloud images (manual, no deploy) → Run workflow →
-main**. Đợi workflow xanh, xem commit SHA trong artifact `cloud-image-digests`.
+main → environment_name=cloud-gke**. Đợi workflow xanh, xem commit SHA trong artifact `cloud-image-digests`.
 Dùng SHA của run đó, không tự lấy latest hay SHA của một run chưa publish.
 
 ```bash
@@ -372,53 +376,20 @@ kiểm tra events, requests, limits và allocatable trước.
 
 ## 11. Cập nhật về sau bằng GitHub
 
-**Build & deploy VM** vẫn cập nhật VM. Với GKE, workflow hiện có là **Deploy
-reviewed GKE digests (manual)**; nó cập nhật bootstrap đã tồn tại, không tạo
-cluster/secrets/Ingress và không tự chuyển data VM.
+Dùng [GKE_CUTOVER.md](GKE_CUTOVER.md) bước 2–3 để tạo environment riêng
+**cloud-gke**, backup bucket riêng và chạy setup_gke_deploy.sh cho scoped IAM/RBAC.
+**Build & deploy VM** vẫn dùng cloud-lab; không dùng nó để cập nhật GKE.
 
-Dùng một session operator đã chọn đúng context lab, tạo SA deploy nếu chưa có:
+Sau bootstrap lần đầu, [bước 8–9 của tài liệu cutover](GKE_CUTOVER.md) chỉ rõ
+backup quiesced/encrypted và nút **Build & deploy GKE → main**. Nút này nối build,
+scan, publication và same-run digest deployment; vẫn yêu cầu backup reference
+thật. Nó không tạo cluster/secrets/Ingress, đổi DNS hay đọc SQL/JWT bằng CI.
 
-```bash
-gcloud iam service-accounts create editor-deploy --project="$PROJECT"
-gcloud projects add-iam-policy-binding "$PROJECT" \
-  --member="serviceAccount:editor-deploy@$PROJECT.iam.gserviceaccount.com" \
-  --role=roles/container.clusterViewer
-PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
-gcloud iam service-accounts add-iam-policy-binding \
-  "editor-deploy@$PROJECT.iam.gserviceaccount.com" --project="$PROJECT" \
-  --role=roles/iam.workloadIdentityUser \
-  --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/editor-ci/attribute.repository/DatTranDev/docnest"
-sed "s/YOUR_PROJECT/$PROJECT/g" infra/k8s/deploy-rbac.example.yaml > "$TASK_DIR/deploy-rbac.yaml"
-kubectl apply --dry-run=server -f "$TASK_DIR/deploy-rbac.yaml"
-kubectl apply -f "$TASK_DIR/deploy-rbac.yaml"
-```
-
-Nếu SA đã tồn tại thì kiểm tra/reuse, không tạo tên khác hoặc grant admin cho CI.
-Trong GitHub **Settings → Environments → cloud-lab → Variables**, dùng:
-
-| Variable                   | Giá trị cho GKE lab                                |
-| -------------------------- | -------------------------------------------------- |
-| GKE_CLUSTER                | docnest-k8s-lab                                    |
-| GCP_ZONE                   | asia-southeast1-a                                  |
-| GCP_DEPLOY_SERVICE_ACCOUNT | editor-deploy@aitripmaster.iam.gserviceaccount.com |
-| WEB_ORIGIN                 | https://k8s.docsnest.dattrandev.id.vn              |
-| GCS_SNAPSHOTS_BUCKET       | aitripmaster-docnest-k8s-snapshots                 |
-| GCS_RESULTS_BUCKET         | aitripmaster-docnest-k8s-results                   |
-| GOOGLE_CLIENT_ID           | Cùng ID với Web build và OAuth origin lab          |
-| MAX_USERS                  | 100                                                |
-
-Giữ project/region/WIF/CI account Singapore đã setup trước. Stripe Prices rỗng.
-TRUSTED_PROXY_CIDRS để rỗng dùng default an toàn; nếu cần client IP thật thì làm
-đúng bước GFE/IP review trong [cloud handoff](CLOUD_SETUP_HANDOFF.md), lưu giá trị
-vào workflow vars và không tin toàn bộ subnet tùy ý. VM workflow dùng protected
-host config của VM; các biến GKE này không chuyển database VM.
-
-Mỗi lần cập nhật GKE: build/scan/publish sáu image, lấy `digests.json`, lấy backup
-quiesced/encrypted của lab theo [quy trình GKE backup](CLOUD_SETUP_HANDOFF.md),
-rồi **Deploy reviewed GKE digests → Run workflow**, dán JSON và reference backup
-thật. Không điền reference giả để vượt bước. Backup/restore và rollout workflow
-GKE này chưa được Codex chạy trên cloud. Hai hành động GKE hiện chưa gộp thành
-một nút Build & deploy GKE.
+Nếu chỉ muốn publish images, chọn **Build cloud images** với
+**environment_name=cloud-gke**. Raw reviewed-digest deployment còn có trong
+**Deploy reviewed GKE digests**, cũng chọn cloud-gke và backup reference đã review.
+Giữ app paused sau backup đến khi rollout hoàn tất trong learning maintenance.
+Không dùng reference giả và không gọi static checks là cloud restore proof.
 
 ## 12. Sau buổi học: dừng tiền node hoặc xóa lab
 

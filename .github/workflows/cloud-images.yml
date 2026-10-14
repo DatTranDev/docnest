@@ -2,7 +2,22 @@ name: Build cloud images (manual, no deploy)
 run-name: Build cloud images from ${{ github.ref_name }} at ${{ github.sha }}
 on:
   workflow_dispatch:
+    inputs:
+      environment_name:
+        description: Protected target configuration
+        type: choice
+        options: [cloud-lab, cloud-gke]
+        default: cloud-lab
   workflow_call:
+    inputs:
+      environment_name:
+        type: string
+        default: cloud-lab
+    outputs:
+      image_digests:
+        value: ${{ jobs.images.outputs.image_digests }}
+      release_json:
+        value: ${{ jobs.images.outputs.release_json }}
 permissions: { contents: read, id-token: write }
 jobs:
   validate:
@@ -11,10 +26,13 @@ jobs:
       runtime_checks: true
   images:
     needs: validate
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (inputs.environment_name == 'cloud-lab' || inputs.environment_name == 'cloud-gke')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    environment: cloud-lab
+    environment: ${{ inputs.environment_name }}
+    outputs:
+      image_digests: ${{ steps.release.outputs.image_digests }}
+      release_json: ${{ steps.release.outputs.release_json }}
     steps:
       - name: Check cloud build configuration
         env:
@@ -65,6 +83,7 @@ jobs:
           done
           python tooling/scripts/digest_manifest.py --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --input image-digests.txt --output image-digests.json
       - name: Record built release
+        id: release
         env:
           SOURCE_SHA: ${{ github.sha }}
           SOURCE_REF: ${{ github.ref }}
@@ -82,6 +101,9 @@ jobs:
               'nativeFormatVersion': 6,
           }
           pathlib.Path('cloud-release.json').write_text(json.dumps(release, indent=2) + '\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('image_digests='+json.dumps(release['images'], separators=(',', ':'))+'\n')
+              output.write('release_json='+json.dumps(release, separators=(',', ':'))+'\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
               summary.write('Built and published six scanned images. Download the cloud-image-digests artifact for the commit, source ref and immutable digests.\n')
           PY

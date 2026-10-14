@@ -2,6 +2,11 @@ name: Deploy reviewed GKE digests (manual)
 on:
   workflow_dispatch:
     inputs:
+      environment_name:
+        description: Protected target configuration
+        type: choice
+        options: [cloud-lab, cloud-gke]
+        default: cloud-lab
       image_digests:
         description: Six-image JSON from the tested cloud-images artifact
         type: string
@@ -10,14 +15,31 @@ on:
         description: Reviewed encrypted backup reference taken before this rollout
         type: string
         required: true
+  workflow_call:
+    inputs:
+      environment_name:
+        type: string
+        default: cloud-gke
+      image_digests:
+        type: string
+        required: true
+      release_json:
+        type: string
+        required: true
+      backup_reference:
+        type: string
+        required: true
+      require_release:
+        type: boolean
+        default: true
 permissions: { contents: read, id-token: write }
 concurrency: { group: cloud-lab-deployment, cancel-in-progress: false }
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main'
-    environment: cloud-lab
+    if: github.ref == 'refs/heads/main' && (inputs.environment_name == 'cloud-lab' || inputs.environment_name == 'cloud-gke')
+    environment: ${{ inputs.environment_name }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     env:
       PROJECT: ${{ vars.GCP_PROJECT }}
       REGION: ${{ vars.GCP_REGION }}
@@ -33,6 +55,9 @@ jobs:
       STRIPE_PRO_YEARLY_PRICE: ${{ vars.STRIPE_PRO_YEARLY_PRICE }}
       DIGEST_JSON: ${{ inputs.image_digests }}
       BACKUP_REFERENCE: ${{ inputs.backup_reference }}
+      BACKUPS: ${{ vars.GCS_BACKUPS_BUCKET }}
+      RELEASE_JSON: ${{ inputs.release_json }}
+      REQUIRE_RELEASE: ${{ inputs.require_release && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -43,17 +68,23 @@ jobs:
           python -m pip install -r testing/checks/requirements-implementation.txt
           python - <<'PY'
           import os, pathlib
-          for key in ('PROJECT','REGION','ZONE','CLUSTER','ORIGIN','SNAPSHOTS','RESULTS','BACKUP_REFERENCE'):
+          for key in ('PROJECT','REGION','ZONE','CLUSTER','ORIGIN','SNAPSHOTS','RESULTS','BACKUP_REFERENCE','BACKUPS'):
               if not os.environ.get(key): raise SystemExit('Missing configuration: '+key)
           pathlib.Path('reviewed-digests.json').write_text(os.environ['DIGEST_JSON'])
           PY
           python tooling/scripts/digest_manifest.py --project "$PROJECT" --region "$REGION" --input reviewed-digests.json --output digests.json
+          python tooling/scripts/gke_release_input.py
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
         with: { install_components: gke-gcloud-auth-plugin }
+      - name: Verify reviewed encrypted backup exists before rollout
+        run: |
+          set -euo pipefail
+          BACKUP_SIZE=$(gcloud storage objects describe "$BACKUP_REFERENCE" --project="$PROJECT" --format='value(size)')
+          test "$BACKUP_SIZE" -gt 0
       - name: Render, server validate, migrate, and deploy by digest
         run: |
           set -euo pipefail
@@ -89,6 +120,7 @@ jobs:
             kubectl -n editor-lab get deployment "$service" -o jsonpath='{.metadata.name}{" "}{.spec.template.spec.containers[0].image}{"\n"}' >> deployment-evidence/previous-digests.txt
           done
           cp digests.json deployment-evidence/reviewed-digests.json
+          printf '%s\n' "$BACKUP_REFERENCE" > deployment-evidence/backup-reference.txt
           # Validate new Jobs under temporary names: existing Job templates are immutable.
           python - <<'PY'
           import pathlib, yaml

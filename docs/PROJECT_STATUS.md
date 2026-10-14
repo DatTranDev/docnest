@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-13. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
+Last updated: 2026-10-14. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
 
 ## Application
 
@@ -694,3 +694,64 @@ frontend/build and remote CI evidence remains recorded above. These checks are
 not GKE runtime proof. New cluster, bucket/Ingress creation, exact account cost
 quote, real GKE/Google/GCS/restore acceptance and deployment remain NOT_RUN /
 DEPLOY_PENDING: this turn prepared local code and operator commands only.
+
+## GKE build chain and VM cutover preparation (2026-10-14)
+
+The owner explicitly requested pushing the necessary GKE build changes and
+commands to stop the VM and use GKE for the main domain. Preserved the accepted
+fresh-data GKE choice; the old VM databases/volumes/buckets remain retained for
+rollback. No automatic VM-to-GKE data import or Terraform environment switch
+was implemented. Added the complete operator sequence in GKE_CUTOVER.md and
+updated the lab, handoff and README links.
+
+Added manual **Build & deploy GKE**, chaining the existing reusable CI/image
+build/scan/publication workflow into reusable reviewed GKE rollout. The new
+protected environment is **cloud-gke**; VM defaults stay **cloud-lab**. Producer
+outputs carry the six immutable digests and release metadata into the same
+run. Deployment rejects wrong commit/ref, V6/client/digest mismatch, plaintext/
+foreign-bucket/signed backup references and missing combined-build metadata.
+After OIDC, it checks the configured encrypted backup object exists and has
+positive size before cluster mutations. That check is not archive authenticity
+or restore proof. The workflow keeps server dry-run, five migrate-only Jobs,
+backend-before-Web readiness and public health. Bootstrap, operator quiesced
+backup capture, DNS/cert changes and VM shutdown are explicit actions.
+
+Scoped setup_gke_deploy.sh reuses/creates the existing deploy identity, binds
+repository WIF and existing namespace RBAC, and grants Object Viewer on only the
+selected backup bucket. It grants no direct Secret get/list, registry write,
+VM/IAP or Terraform administration. Namespace Job create remains a strong
+capability and requires protected main/environment controls. The operator guide
+keeps app writes paused from backup through build/deploy, handles the existing
+lab and new main certificates, verifies the actual GKE IP/TLS/login/GCS behavior
+before stopping VM services/compute, and describes old-data rollback and remaining
+disk/IP charges. Budget USD300 total is unchanged.
+
+Rendered GKE Pod templates now carry the public editor-config SHA256. Changes
+to origin/provider/quota configuration therefore replace Pods even if image
+digests are identical. Secrets are not hashed into this public annotation.
+Actual offline rendering tests prove stable templates for unchanged input and
+changed templates for all six apps with unchanged images when quota changes.
+
+Executed locally (Python 3.12.14/JDK21, no cloud credentials/actions):
+
+- validate_deployment.py: PASS; **six actual offline Compose/Kustomize tests**,
+  **nine VM rollout tests**, **six new GKE release/workflow tests**, and existing
+  deployment/security/migration contracts. No skipped test substituted for a
+  real-cloud gate.
+- tooling/scripts/run.py quality: PASS, Black, Java imports/POM/Spotless,
+  Prettier, frontend lint/type/boundaries, gateway/resolver tests and source-size
+  review. Log: testing/reports/gke-cutover-quality.log. Existing source-size
+  signals remain seven files/36 functions.
+- actionlint **1.7.12**: PASS for all GitHub workflows (official release ZIP
+  checked against its published SHA256). Bash and embedded-Python syntax checks
+  for **89 guide/workflow blocks** plus the setup shell helper: PASS; those
+  commands were parsed only, never executed against Google Cloud.
+- validate_kit.py, secret scan, final Black/Prettier and diff checks: PASS.
+  Java/application/SQL/API/native-format source
+  was not changed; this turn uses scoped tooling/config tests and quality rather
+  than rerunning the preceding full application acceptance as cloud proof.
+
+New remote push CI, same-run image publication/deploy, actual IAM/RBAC, GKE
+backup/restore, DNS/certificate propagation, main-domain functional acceptance
+and VM shutdown remain PENDING/NOT_RUN until executed. This local task did not
+provision paid resources, change billing, publish images or deploy/stop cloud.
