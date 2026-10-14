@@ -70,6 +70,35 @@ Tạo/copy **Variables**, không đưa password/JWT vào các biến này:
 | MAX_USERS                                          | 100                                                                                     |
 | STRIPE_PRO_MONTHLY_PRICE / STRIPE_PRO_YEARLY_PRICE | Để rỗng cho lab                                                                         |
 
+Nếu build báo `Missing cloud-gke environment variable: GCP_PROJECT`, tạo các
+**Environment Variables** bằng GitHub CLI trong Cloud Shell. Kiểm tra environment
+cloud-gke tồn tại và chỉ cho deploy branch main ở Settings trước khi rerun.
+
+```bash
+gh --version
+gh auth status --hostname github.com || gh auth login --hostname github.com --git-protocol https --web
+export DOCNEST_REPO=DatTranDev/docnest
+gh variable set GCP_PROJECT --repo "$DOCNEST_REPO" --env cloud-gke --body aitripmaster
+gh variable set GCP_REGION --repo "$DOCNEST_REPO" --env cloud-gke --body asia-southeast1
+gh variable set GCP_WIF_PROVIDER --repo "$DOCNEST_REPO" --env cloud-gke \
+  --body projects/170229775963/locations/global/workloadIdentityPools/editor-ci/providers/github
+gh variable set GCP_CI_SERVICE_ACCOUNT --repo "$DOCNEST_REPO" --env cloud-gke \
+  --body editor-ci@aitripmaster.iam.gserviceaccount.com
+gh variable set GOOGLE_CLIENT_ID --repo "$DOCNEST_REPO" --env cloud-gke \
+  < "$HOME/.docnest-secrets/google-client-id.txt"
+gh variable list --repo "$DOCNEST_REPO" --env cloud-gke
+```
+
+Nếu `gh` chưa có, cài GitHub CLI trước. Nếu file Client ID không còn, copy đúng
+GOOGLE_CLIENT_ID từ environment cloud-lab vào Variables cloud-gke; không build
+Web với ID khác runtime. Năm biến trên chỉ đủ cho publish images; cấu hình đầy
+đủ Variables trong bảng trước **Build & deploy GKE**.
+
+Sau khi Variables đã đúng, dùng **Re-run failed jobs** trên run build bị lỗi
+config. CI validate đã PASS được giữ lại; chỉ job images chạy lại. Không rerun
+run CI cũ có lỗi timeout nếu commit mới đã sửa. Đặt đúng environment cloud-gke,
+không nạp password/JWT vào các biến public này.
+
 Lần đầu: **Build cloud images (manual, no deploy) → main →
 environment_name=cloud-gke**. Đợi scan/publish PASS, dùng đúng commit/digests
 của run đó cho bootstrap. **Build & deploy GKE** cập nhật cluster đã bootstrap:

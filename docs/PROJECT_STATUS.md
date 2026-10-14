@@ -827,3 +827,28 @@ Executed local validation:
 - Remote CI duration after this change, full Docker/browser acceptance and cloud validation: NOT_RUN; local-only scope. The new GitHub runtime has not been measured.
 
 Initial local command attempts used unavailable Python paths, PowerShell parsed an unquoted Maven property, and the Java AST scan picked Java 17 from PATH. Corrected to bundled Python 3.12.14, quoted Maven properties and JDK 21 on PATH; final checks above follow those corrections.
+
+## CI timeout and GKE build configuration follow-up (2026-10-15)
+
+Read the owner-linked job 115971170252 in run 38598455560: the old e970237
+commit passed Maven, then its packed/dense range property test exceeded the
+5-second timeout (about 6.4 seconds). Commit 1953532 already raises only that
+test's timeout to 30 seconds with its seed, 100 cases and assertions retained.
+[Routine CI run #38601505135](https://github.com/DatTranDev/docnest/actions/runs/38601505135)
+on that commit completed successfully; cloud-preparation was intentionally
+skipped in the basic push mode, not a real cloud acceptance claim.
+
+The later manual image build
+[run #38602388601](https://github.com/DatTranDev/docnest/actions/runs/38602388601)
+on the same commit passed both validate/application (including required cloud
+runtime checks) and validate/cloud-preparation, then images job 115991166798
+failed before authentication/build/publish: `GCP_PROJECT`, `GCP_REGION`,
+`GCP_WIF_PROVIDER` and `GCP_CI_SERVICE_ACCOUNT` were all empty in cloud-gke.
+This is missing GitHub environment configuration, not another timeout failure.
+Added explicit public-variable GitHub CLI commands and failed-job rerun guidance
+to GKE_CUTOVER.md. No environment variables, credentials or cloud resources
+were changed by Codex and no image build/publish was dispatched.
+
+Documentation Prettier, contract/document checks and Bash syntax parsing PASS.
+Actual cloud-gke variable setup and successful image publication remain
+PENDING until the operator executes them.
