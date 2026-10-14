@@ -1,12 +1,17 @@
-# Chuyển từ VM sang GKE với dữ liệu mới
+# Chuyển hoàn toàn sang GKE Singapore và xóa VM cũ
 
 Các lệnh chạy trong **Cloud Shell**. Codex chỉ chuẩn bị/push source; chưa tạo
-resource, publish image, đổi DNS hay dừng VM. Giữ lựa chọn dữ liệu mới: database
-GKE và bucket riêng; dữ liệu VM được giữ để quay lại, không tự import sang GKE.
+resource, publish image, đổi DNS hay xóa VM. Giữ lựa chọn dữ liệu mới: database
+GKE và bucket riêng, không import dữ liệu VM. Sau acceptance, xóa VM, boot disk
+và IP cũ; dữ liệu database trên boot disk VM sẽ mất, không còn rollback VM.
 
-Giữ **environment = "vm"** trong Terraform hiện tại. Đổi selector sang gke/none
-sẽ plan xóa VM/IP. Cluster tạo riêng bằng gcloud; stop VM giữ state/disk. Import
-GKE hoặc xóa hẳn VM cần một kế hoạch riêng. Budget USD300 tổng không thay đổi.
+Trong bootstrap giữ **environment = "vm"**; ở bước 7 xóa VM bằng gcloud rồi
+đặt **environment = "none"** và refresh-only state. `none` chỉ áp dụng cho
+Terraform hạ tầng dùng chung; app vẫn chạy hoàn toàn trên GKE. Cluster
+`docnest-k8s-lab` được quản lý bằng gcloud/Kubernetes, chưa nằm trong state này.
+Đổi thẳng selector sang `gke` sẽ tạo cluster Terraform `editor-lab` thứ hai:
+không làm vậy. Không chạy terraform destroy. Budget tổng tương đương USD300 và
+cấu hình VND/start-date đã sửa trong Cloud Shell được giữ nguyên.
 
 ## 1. Kéo source và chọn Singapore
 
@@ -42,7 +47,9 @@ learning lab, không HA.
 ## 2. Tạo GitHub environment cloud-gke trước build
 
 GitHub → Settings → Environments → New environment → **cloud-gke**.
-Giới hạn deployment branch main; giữ environment cloud-lab của VM.
+Giới hạn deployment branch main. Tất cả workflow cloud trên main chỉ nhận
+**cloud-gke**; workflow VM đã được bỏ. Copy Client ID/biến dùng chung trước khi
+xóa environment cloud-lab ở bước 10.
 
 Tạo/copy **Variables**, không đưa password/JWT vào các biến này:
 
@@ -66,7 +73,8 @@ Tạo/copy **Variables**, không đưa password/JWT vào các biến này:
 Lần đầu: **Build cloud images (manual, no deploy) → main →
 environment_name=cloud-gke**. Đợi scan/publish PASS, dùng đúng commit/digests
 của run đó cho bootstrap. **Build & deploy GKE** cập nhật cluster đã bootstrap:
-nó không tự tạo cluster, Secrets hay Ingress.
+nó không tự tạo cluster, Secrets hay Ingress. Nếu GitHub vẫn hiện workflow VM,
+đó là lịch sử run cũ; không chạy lại run VM.
 
 ## 3. Bucket backup và quyền deploy — một lần
 
@@ -213,10 +221,48 @@ kubectl -n editor-lab annotate ingress editor-public \
 
 [Trình tự HTTP/certificate](https://docs.cloud.google.com/kubernetes-engine/docs/how-to/secure-traffic-management).
 
-## 7. Dừng VM — chỉ sau bước 6 thành công
+## 7. Xóa VM, boot disk và IP cũ — chỉ sau bước 6 thành công
 
-Dừng đúng Compose project, Web/backend trước rồi MySQL/Kafka/Redis. Giữ volume,
-không docker down -v. Các lệnh dưới đây thực sự làm app VM offline.
+Đã chọn bỏ VM hoàn toàn: lệnh xóa boot disk cũng xóa năm database/volume Docker
+trên VM. Kiểm tra login/create/save/reopen/share/export trên GKE trước bước này.
+Không xóa VM tên `gke-*`: đó là node đang chạy Kubernetes.
+
+Kiểm tra lại DNS/TLS/readiness và đúng VM/IP/disk trước khi xóa:
+
+```bash
+gcloud container clusters get-credentials "$CLUSTER" --project="$PROJECT" --zone="$ZONE"
+test "$(kubectl config current-context)" = "gke_${PROJECT}_${ZONE}_${CLUSTER}"
+export GKE_IP=$(gcloud compute addresses describe docnest-k8s-lab-web \
+  --project="$PROJECT" --global --format='value(address)')
+test "$(dig +short "$MAIN_DOMAIN" A)" = "$GKE_IP"
+test "$(kubectl -n editor-lab get managedcertificate editor-tls-main \
+  -o jsonpath='{.status.certificateStatus}')" = Active
+curl --fail --silent --show-error \
+  --resolve "$MAIN_DOMAIN:443:$GKE_IP" "$MAIN_ORIGIN/healthz"
+for service in identity-service document-service processing-service collaboration-service payment-service web; do
+  kubectl -n editor-lab rollout status deployment/"$service" --timeout=300s
+done
+gcloud compute instances describe editor-lab --project="$PROJECT" --zone="$ZONE" \
+  --format=json > "$TASK_DIR/retiring-vm.json"
+gcloud compute addresses describe editor-lab-web --project="$PROJECT" --region="$REGION" \
+  --format=json > "$TASK_DIR/retiring-ip.json"
+"$PYTHON" - <<'PY'
+import json, os, pathlib
+root = pathlib.Path(os.environ['TASK_DIR'])
+vm = json.loads((root / 'retiring-vm.json').read_text())
+ip = json.loads((root / 'retiring-ip.json').read_text())
+assert vm['name'] == 'editor-lab' and vm['zone'].endswith('/zones/asia-southeast1-a')
+assert len(vm['disks']) == 1 and vm['disks'][0]['boot'] is True
+assert vm['disks'][0]['source'].endswith('/disks/editor-lab')
+assert ip['name'] == 'editor-lab-web' and ip['address'] == '34.87.46.187'
+assert os.environ['GKE_IP'] != ip['address']
+print('Verified old editor-lab VM/boot disk/regional IP; GKE IP is different.')
+PY
+```
+
+Mọi kiểm tra phải thành công; nếu fail thì dừng ở đây. Với VM còn RUNNING,
+dừng đúng project Compose để SQL/Kafka đóng trước khi delete. Nếu VM đã stopped,
+bỏ đoạn SSH, chạy lệnh delete bên dưới.
 
 ```bash
 gcloud compute ssh editor-lab --project="$PROJECT" --zone="$ZONE" \
@@ -227,14 +273,66 @@ for service in https web identity-service document-service processing-service co
     --filter "label=com.docker.compose.service=$service" | xargs -r sudo docker stop -t 60
 done
 '
-gcloud compute instances stop editor-lab --project="$PROJECT" --zone="$ZONE"
-gcloud compute instances describe editor-lab --project="$PROJECT" --zone="$ZONE" \
-  --format='value(status)'
 ```
 
-Kết quả **TERMINATED** là stopped của GCE, không phải xóa VM. Từ đây dùng workflow
-GKE. VM compute dừng; boot disk và reserved IP giữ rollback vẫn có phí. Không
-chạy Build & deploy VM khi VM ngừng. [Stop/start VM](https://docs.cloud.google.com/compute/docs/instances/stop-start-instance).
+Chỉ xóa VM cũ đã kiểm tra, không dùng wildcard:
+
+```bash
+(
+set -euo pipefail
+test "$(kubectl config current-context)" = "gke_${PROJECT}_${ZONE}_${CLUSTER}"
+test "$(dig +short "$MAIN_DOMAIN" A)" = "$GKE_IP"
+test "$(kubectl -n editor-lab get managedcertificate editor-tls-main \
+  -o jsonpath='{.status.certificateStatus}')" = Active
+curl --fail --silent --show-error \
+  --resolve "$MAIN_DOMAIN:443:$GKE_IP" "$MAIN_ORIGIN/healthz"
+for service in identity-service document-service processing-service collaboration-service payment-service web; do
+  kubectl -n editor-lab rollout status deployment/"$service" --timeout=300s
+done
+gcloud compute instances update editor-lab --project="$PROJECT" --zone="$ZONE" \
+  --no-deletion-protection
+gcloud compute instances delete editor-lab --project="$PROJECT" --zone="$ZONE" \
+  --delete-disks=boot
+gcloud compute addresses delete editor-lab-web --project="$PROJECT" --region="$REGION"
+)
+```
+
+[Tắt deletion protection](https://docs.cloud.google.com/sdk/gcloud/reference/compute/instances/update),
+[xóa instance kèm boot disk](https://docs.cloud.google.com/sdk/gcloud/reference/compute/instances/delete),
+[release đúng regional IP](https://docs.cloud.google.com/sdk/gcloud/reference/compute/addresses/delete).
+Không xóa global IP `docnest-k8s-lab-web`, VPC/subnet, registry, JWT/password
+Secrets hoặc runtime/node accounts: GKE đang dùng chúng. Bucket cũ được giữ
+riêng, chưa xóa object; storage cũ vẫn có thể phát sinh phí.
+
+Sau khi ba resource VM/disk/IP đã bị xóa, đồng bộ Terraform mà không provision:
+
+```bash
+cd ~/docnest
+cp infra/gcp/terraform.tfvars "$TASK_DIR/terraform-before-vm-retirement.tfvars"
+"$PYTHON" - <<'PY'
+import pathlib, re
+path = pathlib.Path('infra/gcp/terraform.tfvars')
+text, count = re.subn(r'(?m)^[ \t]*environment[ \t]*=[ \t]*"(?:vm|none)"[ \t]*$',
+                      'environment = "none"', path.read_text())
+assert count == 1, 'Expected exactly one vm/none environment; review tfvars manually.'
+path.write_text(text)
+PY
+"$HOME/.local/bin/terraform" -chdir=infra/gcp init
+"$HOME/.local/bin/terraform" -chdir=infra/gcp plan -refresh-only \
+  -out=retired-vm-refresh.plan
+"$HOME/.local/bin/terraform" -chdir=infra/gcp apply retired-vm-refresh.plan
+"$HOME/.local/bin/terraform" -chdir=infra/gcp state list
+```
+
+Đọc plan trước apply: đây phải là refresh-only sau khi cloud resource đã xóa,
+không phải plan destroy/create. State list không còn `google_compute_instance.vm[0]`
+và `google_compute_address.vm[0]`. Nếu Terraform lỗi kết nối API thì retry plan;
+không dùng state rm để bỏ resource chưa kiểm tra đã xóa. Giữ file budget VND
+và budget_start_date cũ, không apply lại plan VM cũ. Import GKE vào Terraform
+cần review riêng; không chạy full apply với selector `gke` hiện tại.
+
+[Refresh-only](https://developer.hashicorp.com/terraform/cli/commands/apply)
+cập nhật state theo thay đổi ngoài Terraform mà không tạo/xóa cloud resource.
 
 ## 8. Backup GKE trước mỗi Build & deploy GKE
 
@@ -314,30 +412,37 @@ GitHub → **Actions → Build & deploy GKE → Run workflow → main**, điền
 Workflow dùng **cloud-gke**, same-run commit/main/V6/Google Client ID/sáu digest
 checks, reference phải là encrypted object trong bucket cấu hình và tồn tại/
 size >0, server dry-run, năm migrations, backend trước Web và public health.
-Không đổi DNS/dừng VM, tạo cluster/Secrets hay đọc SQL/JWT bằng deploy account.
+Không đổi DNS, tạo cluster/Secrets hay đọc SQL/JWT bằng deploy account.
 
 Nếu fail trước mutations, kiểm tra lỗi rồi operator có thể resume app cũ,
 backend trước Web. Nếu migrations/config/images đã đổi, review Flyway/history/
 backup trước recovery; không tự rollback DDL/scale app cũ một cách mù quáng.
 Real GKE/backup restore vẫn DEPLOY_PENDING cho đến khi operator thực thi.
 
-## 10. Quay lại VM trong thời gian rollback
+## 10. Xác nhận runtime chỉ còn GKE và bỏ environment VM
 
 ```bash
-gcloud compute instances start editor-lab --project="$PROJECT" --zone="$ZONE"
-gcloud compute ssh editor-lab --project="$PROJECT" --zone="$ZONE" \
-  --tunnel-through-iap --command='
-set -e
-for service in mysql kafka redis identity-service document-service processing-service collaboration-service payment-service web https; do
-  sudo docker ps -aq --filter label=com.docker.compose.project=text-editor \
-    --filter "label=com.docker.compose.service=$service" | xargs -r sudo docker start
-done
-sudo docker ps --format "table {{.Names}}\t{{.Status}}"
-'
+gcloud compute instances list --project="$PROJECT" --filter='name=editor-lab' \
+  --format='table(name,zone,status)'
+gcloud compute disks list --project="$PROJECT" --filter='name=editor-lab' \
+  --format='table(name,zone,status)'
+gcloud compute addresses list --project="$PROJECT" --filter='name=editor-lab-web' \
+  --format='table(name,address,region,status)'
+gcloud container clusters list --project="$PROJECT" \
+  --format='table(name,location,status,currentNodeCount)'
+kubectl -n editor-lab get deployments,statefulsets,pods,pvc,ingress
+curl --fail --silent --show-error "$MAIN_ORIGIN/healthz"
 ```
 
-Container bị stop tay không tự start bằng restart policy, nên cần docker start.
-Đợi mọi container healthy và HTTPS VM đúng domain rồi đổi A record docsnest
-về **34.87.46.187**. Đóng write GKE trước rollback. VM chứa dữ liệu VM cũ,
-không chứa write mới trên GKE; đây không phải đồng bộ hai database.
-Giữ disk/IP cho rollback; muốn xóa hẳn phải review retention/restore/state riêng.
+Ba bảng VM/disk/IP cũ phải rỗng; cluster `docnest-k8s-lab` RUNNING, tám backend/
+infra workload và Web Ready. Node GKE vẫn là Compute Engine VM bên dưới và có
+phí node: không xóa node bằng compute instances delete.
+
+GitHub → Settings → Environments → **cloud-lab** → Delete environment, sau khi
+đã copy Google Client ID và biến dùng chung sang cloud-gke. Giữ cloud-gke và
+WIF/editor-ci/editor-deploy. Run mới chỉ dùng **Build & deploy GKE** trên main;
+run VM cũ trong Actions là lịch sử, không rerun. Recovery về sau dùng backup GKE
+và digest trước đó sau review schema; VM đã xóa không còn đường start/rollback.
+
+GKE cluster/certificate/functional acceptance, backup restore và việc xóa VM
+vẫn **DEPLOY_PENDING/NOT_RUN** cho tới khi operator thực thi trên Google Cloud.

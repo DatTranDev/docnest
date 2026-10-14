@@ -5,9 +5,11 @@ operator; Codex chưa tạo cluster, bucket, load balancer hay deploy cloud.
 
 Lab mới dùng cluster `docnest-k8s-lab`, namespace `editor-lab`, domain
 `k8s.docsnest.dattrandev.id.vn` và hai bucket riêng. Database bắt đầu trống.
-VM `editor-lab`, domain hiện tại và các bucket cũ được giữ nguyên.
+Quyết định mới nhất: **GKE là runtime duy nhất**. VM `editor-lab` chỉ giữ trong
+giai đoạn bootstrap/cutover; sau khi domain chính trên GKE hoạt động, xóa VM,
+boot disk và IP VM theo [GKE_CUTOVER.md](GKE_CUTOVER.md). Dữ liệu GKE là dữ liệu mới.
 
-Để chuyển domain chính và dừng VM sau khi lab hoạt động, dùng
+Để chuyển domain chính và xóa VM sau khi lab hoạt động, dùng
 [GKE_CUTOVER.md](GKE_CUTOVER.md). GitHub dùng environment riêng **cloud-gke**:
 tạo/copy Variables ở bước 2 của tài liệu cutover trước khi chạy build cloud.
 
@@ -378,7 +380,7 @@ kiểm tra events, requests, limits và allocatable trước.
 
 Dùng [GKE_CUTOVER.md](GKE_CUTOVER.md) bước 2–3 để tạo environment riêng
 **cloud-gke**, backup bucket riêng và chạy setup_gke_deploy.sh cho scoped IAM/RBAC.
-**Build & deploy VM** vẫn dùng cloud-lab; không dùng nó để cập nhật GKE.
+Workflow VM đã được bỏ; tất cả workflow cloud hiện tại chỉ nhận **cloud-gke**.
 
 Sau bootstrap lần đầu, [bước 8–9 của tài liệu cutover](GKE_CUTOVER.md) chỉ rõ
 backup quiesced/encrypted và nút **Build & deploy GKE → main**. Nút này nối build,

@@ -1,5 +1,11 @@
 # One-button VM build and deployment
 
+**Retired on 2026-10-14:** the owner selected GKE as the only cloud runtime.
+The VM workflow has been removed from `main`; the instructions below are a
+historical recovery reference, not the current setup. Use
+[GKE_CUTOVER.md](GKE_CUTOVER.md) for bootstrap, domain cutover, VM/disk/IP deletion
+and the active **Build & deploy GKE** workflow. Do not run VM setup for this cutover.
+
 The manual **Build & deploy VM** workflow runs core CI, fresh MySQL bootstrap,
 real-service smoke, migration-only and Worker checks plus the six-image
 build/scan/publication workflow, then updates one already provisioned VM over IAP.

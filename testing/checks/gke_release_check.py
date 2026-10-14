@@ -116,12 +116,38 @@ class GkeReleaseTest(unittest.TestCase):
         )
         self.assertEqual(
             publish["on"]["workflow_call"]["inputs"]["environment_name"]["default"],
-            "cloud-lab",
+            "cloud-gke",
         )
         self.assertEqual(
             set(publish["on"]["workflow_call"]["outputs"]),
             {"image_digests", "release_json"},
         )
+
+    def test_active_cloud_workflows_reject_retired_vm_environment(self):
+        self.assertFalse((ROOT / ".github/workflows/vm-build-deploy.yml").exists())
+        for name, job in (
+            ("cloud-images.yml", "images"),
+            ("cloud-deploy.yml", "deploy"),
+        ):
+            workflow = yaml.load(
+                (ROOT / ".github/workflows" / name).read_text(), Loader=yaml.BaseLoader
+            )
+            with self.subTest(workflow=name):
+                dispatch = workflow["on"]["workflow_dispatch"]["inputs"][
+                    "environment_name"
+                ]
+                self.assertEqual(dispatch["options"], ["cloud-gke"])
+                self.assertEqual(dispatch["default"], "cloud-gke")
+                self.assertEqual(
+                    workflow["on"]["workflow_call"]["inputs"]["environment_name"][
+                        "default"
+                    ],
+                    "cloud-gke",
+                )
+                self.assertEqual(
+                    workflow["jobs"][job]["if"],
+                    "github.ref == 'refs/heads/main' && inputs.environment_name == 'cloud-gke'",
+                )
 
 
 if __name__ == "__main__":

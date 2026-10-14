@@ -269,7 +269,7 @@ def main():
         "workflow_dispatch:" in deploy and "github.ref == 'refs/heads/main'" in deploy
     )
     assert "environment: ${{ inputs.environment_name }}" in deploy
-    assert "options: [cloud-lab, cloud-gke]" in deploy
+    assert "options: [cloud-gke]" in deploy
     assert "Verify reviewed encrypted backup exists before rollout" in deploy
     assert deploy.index("gcloud storage objects describe") < deploy.index(
         "gcloud container clusters get-credentials"

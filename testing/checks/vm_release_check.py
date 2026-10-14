@@ -9,8 +9,6 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import yaml
-
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
 import vm_release
@@ -172,19 +170,6 @@ class VmReleaseTest(unittest.TestCase):
                 vm_release.execute(["some-command"])
         self.assertNotIn("secret", str(error.exception))
         self.assertNotIn("private-key", str(error.exception))
-
-    def test_workflow_is_manual_serialized_and_reuses_scanned_build(self):
-        workflow = yaml.load(
-            (ROOT / ".github/workflows/vm-build-deploy.yml").read_text(),
-            Loader=yaml.BaseLoader,
-        )
-        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
-        self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
-        self.assertEqual(
-            workflow["jobs"]["build"]["uses"], "./.github/workflows/cloud-images.yml"
-        )
-        self.assertEqual(workflow["jobs"]["deploy"]["needs"], "build")
-        self.assertEqual(workflow["jobs"]["deploy"]["environment"], "cloud-lab")
 
 
 if __name__ == "__main__":

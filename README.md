@@ -56,7 +56,7 @@ The workspace offers grid/list views, text previews, title search in the current
 | `backend/`       | Identity, Document, Processing, Collaboration and Payment services; shared Java code and SQL migrations |
 | `frontend/`      | Next.js application and framework-independent editor core                                               |
 | `infra/compose/` | Local Docker stack, Dockerfiles and MySQL/Kafka setup                                                   |
-| `infra/gcp/`     | Terraform and VM deployment templates                                                                   |
+| `infra/gcp/`     | Shared Terraform infrastructure and retained legacy VM recovery templates                               |
 | `infra/k8s/`     | Kubernetes manifests and lab overlay                                                                    |
 | `testing/`       | Cross-service checks and benchmarks                                                                     |
 | `tooling/`       | Local build, test, run and deployment scripts                                                           |
@@ -70,15 +70,15 @@ Each service keeps its own database and organizes code by feature. HTTP request 
 
 ## Cloud
 
-For a separate fresh-data GKE learning lab in Singapore, follow [the step-by-step GKE lab guide](docs/GKE_SINGAPORE_LAB.md). It keeps the existing VM/data/domain and uses a separate cluster, HTTPS host and buckets. Review the additive node/load-balancer costs before creation; these operator commands have not been executed by Codex.
+The selected cloud runtime is **GKE in Singapore with fresh databases and dedicated buckets**. Follow [the first-time GKE bootstrap](docs/GKE_SINGAPORE_LAB.md), then [the main-domain cutover and VM removal](docs/GKE_CUTOVER.md). The old VM serves only during cutover and is deleted with its boot disk and regional static IP after GKE acceptance. These operator commands have not been executed by Codex.
 
-To move the main domain to that GKE application and stop VM compute, follow [GKE cutover and repeat build/deploy](docs/GKE_CUTOVER.md). **Build & deploy GKE** uses a separate protected `cloud-gke` environment, builds/scans six images and deploys the same-run immutable release to an existing bootstrapped cluster after checking the operator's encrypted backup reference. First-time bootstrap, backup capture, DNS and VM stop remain explicit operator steps. The previous VM data is retained; it is not automatically copied to the fresh GKE database.
+**Build & deploy GKE** uses the protected `cloud-gke` environment, builds/scans six images and deploys the same-run immutable release to an existing bootstrapped cluster after checking the operator's encrypted backup reference. First-time bootstrap, backup capture, DNS and VM deletion remain explicit operator steps. VM database data is discarded when its boot disk is deleted; it is not copied to GKE. The historical Terraform selector remains available for recovery, but the current cutover sets it to `none` for shared infrastructure only; the separately created cluster is managed through `gcloud`/Kubernetes.
 
 Push/PR runs quality gates, contracts, Java/frontend tests, dependency/secret scans and production/static builds. It does not rebuild the six Docker images or run the full application/browser suite. For a manual check, open GitHub Actions → **Validate application** → **Run workflow** and select a branch. Leave **full_acceptance** unchecked for the lighter checks; enable it for the full Docker, billing-saga and seven browser acceptance checks. These checks need no Google Cloud credentials.
 
-To publish cloud images from `main`, use **Build cloud images (manual, no deploy)** after configuring the `cloud-lab` environment and Google OIDC as described in [the cloud handoff](docs/CLOUD_SETUP_HANDOFF.md). Its artifact includes the source commit/ref, workflow run and six immutable digests. Publishing images does not update a running VM or GKE application.
+To publish cloud images from `main`, use **Build cloud images (manual, no deploy)** after configuring `cloud-gke` and Google OIDC as described in [the GKE cutover](docs/GKE_CUTOVER.md). Its artifact includes the source commit/ref, workflow run and six immutable digests. Publishing images does not update the running GKE application.
 
-To build and update an existing VM with one manual action, follow [the one-time VM setup](docs/VM_BUILD_DEPLOY.md), then use **Build & deploy VM** on `main`. Cloud builds add fresh MySQL bootstrap, real-service smoke, migration-only and Worker checks to the normal CI/image scans. The full billing/browser suite is available through **Validate application**. VM rollout takes an encrypted quiesced backup, runs five migrations and checks the backend/Web rollout. It does not provision infrastructure; deployment requires the configured VM identity, backup recipient and existing healthy application.
+The VM deployment workflow has been retired. [The old VM guide](docs/VM_BUILD_DEPLOY.md) and recovery helpers remain historical references. Cloud builds retain fresh MySQL bootstrap, real-service smoke, migration-only and Worker checks alongside normal CI/image scans. The full billing/browser suite remains available through **Validate application**.
 
 Cloud templates use placeholders. Configure them by following [docs/CLOUD_SETUP_HANDOFF.md](docs/CLOUD_SETUP_HANDOFF.md), review the cost estimate against the USD 300 learning budget, and only then run its deployment steps. Local validation commands do not deploy or create paid resources.
 

@@ -758,3 +758,46 @@ jobs successful. Same-run image publication/deploy, actual IAM/RBAC, GKE
 backup/restore, DNS/certificate propagation, main-domain functional acceptance
 and VM shutdown remain PENDING/NOT_RUN until executed. This local task did not
 provision paid resources, change billing, publish images or deploy/stop cloud.
+
+## GKE as the only cloud runtime (2026-10-14)
+
+The owner now explicitly requests removal of the old VM, superseding the
+earlier retained-VM rollback plan. Removed the manual VM workflow from main;
+cloud-images and cloud-deploy dispatch/default/reusable-call guards accept only
+the protected cloud-gke environment. Build & deploy GKE retains same-run
+immutable release binding, image scans, quiesced encrypted backup reference
+validation and existence checks, migration jobs, backend-before-Web readiness
+and public health gates. No application, schema or event contract changed.
+
+GKE_CUTOVER.md now includes DNS/TLS/readiness and exact VM/disk/IP inspection
+before graceful Compose shutdown and deletion of editor-lab, its single boot
+disk and regional address editor-lab-web. It explicitly discards VM database
+data, retains shared infrastructure/Secrets and describes storage costs that
+can remain. A refresh-only plan after deletion removes stale VM state while
+environment=none prevents Terraform recreating the old VM; the separate
+docnest-k8s-lab cluster remains managed through gcloud/Kubernetes. Switching
+this existing Terraform selector to gke would provision another editor-lab
+cluster and is not part of the selected cutover. README/current cloud guides
+point to GKE; the old VM guide/helpers remain historical recovery references.
+
+Local execution:
+
+- Deployment validation PASS: six actual offline Compose/Kustomize tests,
+  eight retained legacy recovery/security tests, seven GKE release/workflow
+  tests. The removed VM-workflow-presence assertion is replaced by a regression
+  asserting no active VM workflow and strict cloud-gke guards/defaults.
+- Repository quality PASS: Black, explicit Java imports, POM formatting,
+  Prettier, frontend boundaries, strict types, ESLint, 19 actual gateway/boundary/
+  lint-glob tests, source-size reporting and Maven Spotless.
+- Terraform format/validate and all five mock-provider plans PASS; no Google
+  resource was contacted or provisioned by these mocked plans.
+- Actionlint 1.7.12 PASS (external shellcheck/pyflakes unavailable); Git Bash
+  syntax validation of 34 guide Bash blocks and AST parsing of 11 embedded
+  Python blocks PASS. These commands were parsed, not executed on Google.
+- Contract/document validation and deliverable secret scan PASS.
+
+Full application tests/build for this unchanged application will run in the
+normal CI after the authorized push; remote CI for this commit is PENDING.
+Paid GKE provisioning, image publication, IAM/environment setup, DNS/TLS,
+functional acceptance, backup restore and old VM/disk/IP deletion remain
+NOT_RUN/DEPLOY_PENDING. The existing total learning budget is unchanged.

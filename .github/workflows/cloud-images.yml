@@ -6,13 +6,13 @@ on:
       environment_name:
         description: Protected target configuration
         type: choice
-        options: [cloud-lab, cloud-gke]
-        default: cloud-lab
+        options: [cloud-gke]
+        default: cloud-gke
   workflow_call:
     inputs:
       environment_name:
         type: string
-        default: cloud-lab
+        default: cloud-gke
     outputs:
       image_digests:
         value: ${{ jobs.images.outputs.image_digests }}
@@ -26,7 +26,7 @@ jobs:
       runtime_checks: true
   images:
     needs: validate
-    if: github.ref == 'refs/heads/main' && (inputs.environment_name == 'cloud-lab' || inputs.environment_name == 'cloud-gke')
+    if: github.ref == 'refs/heads/main' && inputs.environment_name == 'cloud-gke'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: ${{ inputs.environment_name }}
@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           for key in GCP_PROJECT GCP_REGION GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT; do
             if [ -z "${!key}" ]; then
-              echo "::error::Missing cloud-lab environment variable: $key"
+              echo "::error::Missing cloud-gke environment variable: $key"
               exit 1
             fi
           done

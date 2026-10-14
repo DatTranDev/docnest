@@ -5,8 +5,8 @@ on:
       environment_name:
         description: Protected target configuration
         type: choice
-        options: [cloud-lab, cloud-gke]
-        default: cloud-lab
+        options: [cloud-gke]
+        default: cloud-gke
       image_digests:
         description: Six-image JSON from the tested cloud-images artifact
         type: string
@@ -33,10 +33,10 @@ on:
         type: boolean
         default: true
 permissions: { contents: read, id-token: write }
-concurrency: { group: cloud-lab-deployment, cancel-in-progress: false }
+concurrency: { group: cloud-gke-deployment, cancel-in-progress: false }
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/main' && (inputs.environment_name == 'cloud-lab' || inputs.environment_name == 'cloud-gke')
+    if: github.ref == 'refs/heads/main' && inputs.environment_name == 'cloud-gke'
     environment: ${{ inputs.environment_name }}
     runs-on: ubuntu-24.04
     timeout-minutes: 35
