@@ -261,9 +261,15 @@ kubectl apply -f "$TASK_DIR/render/infrastructure.yaml"
 kubectl -n editor-lab rollout status statefulset/mysql --timeout=600s
 kubectl -n editor-lab rollout status statefulset/kafka --timeout=600s
 kubectl -n editor-lab rollout status deployment/redis --timeout=300s
-kubectl -n editor-lab exec kafka-0 -- bash -s < infra/k8s/create-topics.sh
+kubectl -n editor-lab exec kafka-0 -c kafka -- \
+  bash /opt/editor-kafka/kafka-init-acls.sh
 kubectl -n editor-lab get pods,pvc
 ```
+
+Chờ script in `Kafka topics and service ACLs configured.` trước khi chạy migrations.
+Lệnh này gọi trực tiếp script đã mount trong Pod. Với cách truyền script từ máy
+local bằng `bash -s < ...`, `kubectl exec` cần `-i` để chuyển stdin; thiếu `-i`
+có thể trả exit code 0 dù script chưa chạy. Script khởi tạo có thể chạy lại.
 
 Nếu rollout fail, dùng `kubectl -n editor-lab get events --sort-by=.lastTimestamp`
 và `kubectl -n editor-lab describe pod POD_NAME`. Không chia sẻ log chứa dữ liệu
@@ -329,7 +335,8 @@ kubectl apply --dry-run=server -f "$TASK_DIR/kafka-repair.yaml"
 kubectl apply -f "$TASK_DIR/kafka-repair.yaml"
 kubectl -n editor-lab delete pod kafka-0
 kubectl -n editor-lab rollout status statefulset/kafka --timeout=600s
-kubectl -n editor-lab exec kafka-0 -- bash -s < infra/k8s/create-topics.sh
+kubectl -n editor-lab exec kafka-0 -c kafka -- \
+  bash /opt/editor-kafka/kafka-init-acls.sh
 )
 ```
 

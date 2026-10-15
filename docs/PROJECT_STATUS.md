@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-14. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
+Last updated: 2026-10-16. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
 
 ## Application
 
@@ -900,3 +900,26 @@ Additional guide verification PASS: 19 Bash blocks parse with Git Bash and six
 embedded Python blocks parse as AST. Executed the guide's cached-render repair
 against real temporary YAML files: only Kafka Service/StatefulSet change, other
 public configuration and the original volumeClaimTemplates remain identical.
+
+## GKE infrastructure readiness and ACL command correction (2026-10-16)
+
+The owner's latest Cloud Shell output reports Kafka, MySQL and Redis each
+1/1 Running and both existing PVCs Bound. Kafka still shows eight historical
+restarts; this is readiness evidence, not proof of sustained stability. DNS
+resolution resumed after the operator applied the narrow allow-gke-dns-debug
+egress policy permitting UDP/TCP 53 to the DNS Service and observed DNS Pod IP.
+The precise networking cause remains unconfirmed. Preserve this working policy
+until a durable replacement is validated; its observed DNS Pod IP is ephemeral.
+
+The earlier guide invoked kubectl exec with redirected input but omitted -i.
+Consequently a successful empty bash invocation did not prove topics/ACLs were
+initialized. Both guide commands now directly execute the existing mounted
+/opt/editor-kafka/kafka-init-acls.sh in the kafka container and require its final
+confirmation message. Real topics/ACL initialization, five migration jobs,
+application rollout and browser/TLS/GCS acceptance remain DEPLOY_PENDING.
+This documentation correction requires no application image rebuild.
+
+Executed: validate_deployment.py PASS (eight cloud preparation tests, eight
+legacy recovery tests and seven GKE release tests); all 19 guide Bash blocks
+parse with Git Bash; documentation Prettier and git diff checks PASS. Live ACL
+initialization and migrations NOT_RUN locally: no connected GKE operator session.
