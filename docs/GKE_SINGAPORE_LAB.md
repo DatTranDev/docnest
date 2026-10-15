@@ -269,6 +269,77 @@ Nếu rollout fail, dùng `kubectl -n editor-lab get events --sort-by=.lastTimes
 và `kubectl -n editor-lab describe pod POD_NAME`. Không chia sẻ log chứa dữ liệu
 private/credentials. Không tiếp tục migrations khi infrastructure chưa Ready.
 
+### Nếu Kafka không Ready hoặc liên tục restart
+
+`rollout status` chỉ chờ trạng thái Ready; timeout không cho biết nguyên nhân.
+Lấy trạng thái và log lần crash trước khi restart Pod:
+
+```bash
+kubectl -n editor-lab get pod kafka-0
+kubectl -n editor-lab get events --field-selector involvedObject.name=kafka-0 \
+  --sort-by=.lastTimestamp
+kubectl -n editor-lab logs kafka-0 --previous --tail=100
+```
+
+Log `Found directory .../lost+found ... is not in the form of topic-partition`
+cho biết Kafka đã quét thư mục recovery ext4 như dữ liệu topic. Init container
+hiện tại dùng đúng image Kafka và UID 1000 để rmdir thư mục này **chỉ khi rỗng**.
+Nếu có file recovery, entry bất thường hoặc thiếu quyền, init dừng để operator
+review; không xóa đệ quy, đổi log directory hay format/reset Kafka metadata.
+
+Manifest cũ còn có lỗi đường kết nối: controller dùng `kafka:9093`, nhưng Service
+chỉ có 9092; endpoint còn bị lọc tới khi Pod Ready. Probe có thể truy cập lại
+advertised broker qua chính Service đó. Manifest hiện tại mở đủ hai port TCP
+trong ClusterIP và publish endpoint trước readiness để broker bootstrap;
+SASL/ACL, probe, PVC, cluster ID, log directory và image vẫn giữ nguyên.
+[Ý nghĩa publishNotReadyAddresses](https://kubernetes.io/docs/reference/kubernetes-api/core/service-v1/).
+
+Với cluster đã apply manifest cũ, cập nhật riêng Kafka Service/StatefulSet và
+hai bản render lưu trong Cloud Shell. Không cần build lại image:
+
+```bash
+cd ~/docnest
+git pull --ff-only
+export TASK_DIR="$HOME/.docnest-k8s-lab"
+export PYTHON="$TASK_DIR/venv/bin/python"
+
+(
+set -euo pipefail
+test "$(kubectl config current-context)" = gke_aitripmaster_asia-southeast1-a_docnest-k8s-lab
+"$PYTHON" - <<'PY'
+import os, pathlib, yaml
+root = pathlib.Path(os.environ['TASK_DIR'])
+updates = list(yaml.safe_load_all(pathlib.Path('infra/k8s/base/kafka.yaml').read_text()))
+for obj in updates:
+    obj['metadata']['namespace'] = 'editor-lab'
+(root / 'kafka-repair.yaml').write_text(yaml.safe_dump_all(updates, sort_keys=False))
+for group, kind in [('bootstrap', 'Service'), ('infrastructure', 'StatefulSet')]:
+    cached = root / 'render' / (group + '.yaml')
+    if cached.is_file():
+        objects = list(yaml.safe_load_all(cached.read_text()))
+        matches = [i for i, obj in enumerate(objects)
+                   if obj['kind'] == kind and obj['metadata']['name'] == 'kafka']
+        if len(matches) != 1:
+            raise SystemExit('Expected one Kafka resource in cached ' + group)
+        objects[matches[0]] = next(obj for obj in updates if obj['kind'] == kind)
+        cached.write_text(yaml.safe_dump_all(objects, sort_keys=False))
+print('Prepared Kafka repair and synchronized cached render.')
+PY
+kubectl apply --dry-run=server -f "$TASK_DIR/kafka-repair.yaml"
+kubectl apply -f "$TASK_DIR/kafka-repair.yaml"
+kubectl -n editor-lab delete pod kafka-0
+kubectl -n editor-lab rollout status statefulset/kafka --timeout=600s
+kubectl -n editor-lab exec kafka-0 -- bash -s < infra/k8s/create-topics.sh
+)
+```
+
+Delete ở đây chỉ restart Pod; StatefulSet gắn lại PVC hiện có. Không xóa PVC,
+volume, Secrets hay metadata để vượt lỗi. Nếu vẫn CrashLoop, kiểm tra exit
+reason/log; lỗi OOM, volume permissions hoặc storage cần xử lý theo bằng chứng,
+không tự tăng timeout/node. Với `UnknownHostException`, kiểm tra cả service DNS
+từ Redis và Pod DNS configuration; không coi sửa manifest là bằng chứng DNS
+live đã hoạt động. Chỉ chạy migrations khi Kafka Ready và ACL init PASS.
+
 ## 7. Chạy năm migration jobs trước app
 
 ```bash

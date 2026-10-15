@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -138,6 +139,103 @@ class CloudPreparationTest(unittest.TestCase):
                 old_template["spec"]["containers"][0]["image"],
                 new_template["spec"]["containers"][0]["image"],
             )
+
+    def test_kafka_controller_and_advertised_endpoints_route_before_readiness(self):
+        self.render()
+        broker = next(
+            obj
+            for obj in self.objects("infrastructure")
+            if obj["metadata"]["name"] == "kafka"
+        )
+        template = broker["spec"]["template"]
+        container = template["spec"]["containers"][0]
+        environment = {item["name"]: item.get("value") for item in container["env"]}
+        services = {
+            obj["metadata"]["name"]: obj["spec"]
+            for obj in self.objects("bootstrap")
+            if obj["kind"] == "Service"
+        }
+        controller = environment["KAFKA_CONTROLLER_QUORUM_VOTERS"].split("@", 1)[1]
+        advertised = environment["KAFKA_ADVERTISED_LISTENERS"].split("://", 1)[1]
+        pod_ports = {item["containerPort"] for item in container["ports"]}
+        for endpoint in (controller, advertised):
+            with self.subTest(endpoint=endpoint):
+                host, port = endpoint.rsplit(":", 1)
+                service = services[host]
+                self.assertEqual(service.get("type", "ClusterIP"), "ClusterIP")
+                for key, value in service["selector"].items():
+                    self.assertEqual(template["metadata"]["labels"][key], value)
+                ports = {item["port"]: item for item in service["ports"]}
+                self.assertIn(int(port), ports, "Kafka endpoint has no Service port")
+                route = ports[int(port)]
+                self.assertEqual(route.get("protocol", "TCP"), "TCP")
+                self.assertIn(route.get("targetPort", int(port)), pod_ports)
+                self.assertTrue(
+                    service.get("publishNotReadyAddresses"),
+                    "Kafka bootstrap must not wait for its own readiness probe",
+                )
+        port_names = [item.get("name") for item in services["kafka"]["ports"]]
+        self.assertTrue(all(port_names))
+        self.assertEqual(len(port_names), len(set(port_names)))
+
+    def test_kafka_volume_init_preserves_data_and_refuses_recovered_files(self):
+        self.render()
+        broker = next(
+            obj
+            for obj in self.objects("infrastructure")
+            if obj["metadata"]["name"] == "kafka"
+        )
+        pod = broker["spec"]["template"]["spec"]
+        initialize = pod["initContainers"][0]
+        self.assertEqual(initialize["image"], pod["containers"][0]["image"])
+        self.assertIn(
+            initialize["volumeMounts"][0], pod["containers"][0]["volumeMounts"]
+        )
+        self.assertEqual(
+            initialize["args"][1], initialize["volumeMounts"][0]["mountPath"]
+        )
+        command = initialize["command"].copy()
+        if os.name == "nt":
+            command[0] = str(
+                Path(shutil.which("git")).resolve().parents[1] / "bin/bash.exe"
+            )
+        for kind in ("missing", "empty", "recovered", "file"):
+            with self.subTest(kind=kind):
+                volume = self.directory / kind
+                volume.mkdir()
+                metadata = volume / "meta.properties"
+                metadata.write_bytes(b"test-cluster-metadata")
+                segment = volume / "__cluster_metadata-0" / "segment.log"
+                segment.parent.mkdir()
+                segment.write_bytes(b"existing-kafka-records")
+                recovery = volume / "lost+found"
+                if kind in ("empty", "recovered"):
+                    recovery.mkdir()
+                if kind == "recovered":
+                    (recovery / "recovered-file").write_bytes(b"preserve-recovery")
+                if kind == "file":
+                    recovery.write_bytes(b"unexpected-entry")
+                for _ in range(2):
+                    result = subprocess.run(
+                        command + [initialize["args"][0], volume.as_posix()],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
+                    )
+                    self.assertEqual(
+                        result.returncode == 0, kind in ("missing", "empty")
+                    )
+                    self.assertEqual(metadata.read_bytes(), b"test-cluster-metadata")
+                    self.assertEqual(segment.read_bytes(), b"existing-kafka-records")
+                    if kind == "recovered":
+                        self.assertEqual(
+                            (recovery / "recovered-file").read_bytes(),
+                            b"preserve-recovery",
+                        )
+                    elif kind == "file":
+                        self.assertEqual(recovery.read_bytes(), b"unexpected-entry")
+                    else:
+                        self.assertFalse(recovery.exists())
 
     def test_optional_google_and_stripe_remain_disabled(self):
         self.render()

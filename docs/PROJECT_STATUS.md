@@ -852,3 +852,51 @@ were changed by Codex and no image build/publish was dispatched.
 Documentation Prettier, contract/document checks and Bash syntax parsing PASS.
 Actual cloud-gke variable setup and successful image publication remain
 PENDING until the operator executes them.
+
+## Kafka GKE startup repair (2026-10-15)
+
+The owner reports the fresh Singapore docnest-k8s-lab cluster RUNNING with one
+Ready e2-standard-2 node, Workload Identity/buckets configured and MySQL ready.
+Kafka remained unready with 250 restarts. Previous-container logs identify a
+fatal LogManager KafkaException: the ext4 volume-root lost+found directory
+was interpreted as an invalid topic-partition directory. They also contain
+UnknownHostException for kafka. These are owner-provided live diagnostics,
+not agent-executed cloud validation. The image publication run #38602388601
+has since completed successfully after the operator configured cloud-gke.
+
+Added a same-image, non-root UID1000 init container that removes only an empty
+lost+found directory with rmdir. It refuses non-empty recovery directories,
+files or symlinks; no recursive deletion, PVC replacement, log-directory move,
+metadata formatting, password rotation or image rebuild is performed. Existing
+Kafka metadata, segments, volume mount, cluster ID, SASL/ACL and probes remain.
+The private Kafka Service now includes named client/controller ports 9092/9093
+and publishNotReadyAddresses so controller registration and the advertised
+broker endpoint are reachable before the readiness probe succeeds.
+
+Added offline rendered endpoint/selector/target-port/bootstrap contracts;
+the new topology test failed against the original manifest for missing 9093
+and readiness filtering, then passed after correction. Added actual Bash
+init-command filesystem tests for missing/empty recovery directories, repeat
+execution, non-empty recovery files and unexpected regular files; existing
+metadata/segment bytes remain unchanged in all cases. These are real local
+filesystem tests, not a Kafka/Kubernetes runtime acceptance substitute.
+
+GKE_SINGAPORE_LAB.md now captures logs before restart and supplies a narrowly
+scoped Service/StatefulSet repair, synchronizes cached render and restarts only
+Kafka's Pod using its existing PVC. The supplied DNS Service/namespace/policy
+configuration appears consistent with the intended rules, but actual DNS
+resolution is not yet verified; do not claim the DNS error is resolved.
+
+Executed: validate_deployment.py PASS (eight Compose/Kustomize/storage-init
+tests, eight legacy recovery tests, seven GKE release tests); repository
+quality PASS (Black/imports/POM/Prettier/boundaries/types/ESLint, 19 gateway/
+boundary/lint-glob tests and Maven Spotless); contract/document checks and
+secret scan PASS. Docker-backed Kafka/Kubernetes reproduction NOT_RUN: local
+Docker Desktop Linux engine pipe is unavailable. Remote CI and applying this
+repair, Kafka readiness/ACL, migrations, GCS/app/browser/TLS acceptance remain
+PENDING/DEPLOY_PENDING. No paid cloud action or deployment was performed.
+
+Additional guide verification PASS: 19 Bash blocks parse with Git Bash and six
+embedded Python blocks parse as AST. Executed the guide's cached-render repair
+against real temporary YAML files: only Kafka Service/StatefulSet change, other
+public configuration and the original volumeClaimTemplates remain identical.

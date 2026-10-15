@@ -17,6 +17,46 @@ spec:
         app: kafka
         application: text-editor
     spec:
+      initContainers:
+        - name: prepare-data
+          image: apache/kafka:4.1.1@sha256:0bc1bb2478f45b6cea78864df86acdc11e8df2c5172477819a4d12942cbe5d40
+          command:
+            - bash
+            - -ec
+            - |
+              if [ ! -d "$1" ] || [ -L "$1" ]; then
+                echo "Expected a Kafka data volume directory" >&2
+                exit 1
+              fi
+              recovery="${1%/}/lost+found"
+              if [ -e "$recovery" ] || [ -L "$recovery" ]; then
+                if [ ! -d "$recovery" ] || [ -L "$recovery" ]; then
+                  echo "Unexpected Kafka recovery entry; review the volume" >&2
+                  exit 1
+                fi
+                # rmdir fails on recovered files; never recursively remove volume data.
+                rmdir -- "$recovery"
+              fi
+          args:
+            - prepare-kafka-data
+            - /var/lib/kafka/data
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/kafka/data
       containers:
         - name: kafka
           image: apache/kafka:4.1.1@sha256:0bc1bb2478f45b6cea78864df86acdc11e8df2c5172477819a4d12942cbe5d40
@@ -163,8 +203,14 @@ metadata:
     app: kafka
     application: text-editor
 spec:
+  # Controller registration and the authenticated probe use this Service during startup.
+  publishNotReadyAddresses: true
   selector:
     app: kafka
   ports:
-    - port: 9092
+    - name: client
+      port: 9092
       targetPort: 9092
+    - name: controller
+      port: 9093
+      targetPort: 9093
