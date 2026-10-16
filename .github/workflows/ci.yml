@@ -73,11 +73,6 @@ jobs:
           terraform -chdir=infra/gcp fmt -check -recursive
           terraform -chdir=infra/gcp validate
           terraform -chdir=infra/gcp test
-      - name: Verify backup encryption without cloud credentials
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y age
-          python testing/checks/gke_backup_crypto_check.py
   frontend-and-runtime:
     needs: changes
     runs-on: ubuntu-24.04
@@ -111,6 +106,7 @@ jobs:
           python testing/checks/validate_kit.py
           python testing/checks/scan_secrets.py
           python testing/checks/selective_release_check.py
+          python testing/checks/gke_release_check.py
       - run: python tooling/scripts/run.py test
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: npm audit --audit-level=high

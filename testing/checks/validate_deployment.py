@@ -303,33 +303,14 @@ def main():
         ]
     )
 
-    deploy = read(".github/workflows/cloud-deploy.yml")
+    deploy = read(".github/workflows/gke-build-deploy.yml")
     assert (
         "workflow_dispatch:" in deploy and "github.ref == 'refs/heads/main'" in deploy
     )
-    assert "environment: ${{ inputs.environment_name }}" in deploy
-    assert "options: [cloud-gke]" in deploy
-    assert "Verify reviewed encrypted backup exists before rollout" in deploy
-    assert (
-        deploy.index("kubectl apply --dry-run=server -f cloud-render/applications.yaml")
-        < deploy.index("python tooling/scripts/gke_auto_backup.py capture")
-        < deploy.index("gcloud storage objects describe")
-        < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
-    )
-    assert (
-        deploy.index("kubectl create --dry-run=server")
-        < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
-        < deploy.index("kubectl apply -f cloud-render/backends.yaml")
-        < deploy.index("kubectl apply -f cloud-render/web.yaml")
-    )
-    assert "previous-digests.txt" in deploy and "GCP_DEPLOY_SERVICE_ACCOUNT" in deploy
-    assert "terraform apply" not in deploy
+    assert "environment: cloud-gke" in deploy
+    assert "routine_release.py prepare" in deploy and "routine_rollout.py" in deploy
+    assert "terraform apply" not in deploy and "gke_auto_backup.py" not in deploy
     assert "loadConfig(process.env)" in deploy and "vars.TRUSTED_PROXY_CIDRS" in deploy
-    assert (
-        deploy.index("kubectl apply --dry-run=server -f cloud-render/config.yaml")
-        < deploy.index("kubectl apply -f cloud-render/config.yaml")
-        < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
-    )
     assert "--google-client-id" in deploy and "--stripe-pro-monthly-price" in deploy
     role = yaml.safe_load_all(read("infra/k8s/deploy-rbac.example.yaml"))
     rules = next(role)["rules"]
@@ -357,7 +338,7 @@ def main():
         yaml.safe_load(path.read_text(encoding="utf-8"))
     checks.extend(
         [
-            "manual protected digest deployment, separate migration validation/jobs, captured rollback digests and validated persistent proxy trust; workflow YAML parses",
+            "one-button protected rolling deployment, automatic state discovery, targeted migration jobs and validated proxy trust; workflow YAML parses",
             "exact rebuilt cloud images require secret/OS scans before publication",
         ]
     )
@@ -384,15 +365,7 @@ def main():
         check=True,
     )
     subprocess.run(
-        [sys.executable, str(ROOT / "testing/checks/vm_release_check.py")],
-        check=True,
-    )
-    subprocess.run(
         [sys.executable, str(ROOT / "testing/checks/gke_release_check.py")],
-        check=True,
-    )
-    subprocess.run(
-        [sys.executable, str(ROOT / "testing/checks/gke_auto_backup_check.py")],
         check=True,
     )
     checks.append(

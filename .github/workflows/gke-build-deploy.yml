@@ -1,53 +1,128 @@
-name: Maintenance full build & deploy GKE
-run-name: Build and deploy GKE from main at ${{ github.sha }}
+name: Build & deploy
+run-name: Build & deploy main at ${{ github.sha }}
 on:
   workflow_dispatch:
-permissions: { contents: read, id-token: write }
-concurrency:
-  group: cloud-gke-build-rollout
-  cancel-in-progress: false
+permissions: { contents: read, actions: read, id-token: write }
+# Serialize discovery, build and rollout together so baseline selection cannot race.
+concurrency: { group: cloud-gke-deployment, cancel-in-progress: false }
 jobs:
-  configuration:
+  plan:
     if: github.ref == 'refs/heads/main'
     environment: cloud-gke
     runs-on: ubuntu-24.04
-    env:
-      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
-      GCP_REGION: ${{ vars.GCP_REGION }}
-      GCP_ZONE: ${{ vars.GCP_ZONE }}
-      GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
-      WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
-      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
-      GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
-      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
-      GCP_BACKUP_SERVICE_ACCOUNT: ${{ vars.GCP_BACKUP_SERVICE_ACCOUNT }}
-      GCS_SNAPSHOTS_BUCKET: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
-      GCS_RESULTS_BUCKET: ${{ vars.GCS_RESULTS_BUCKET }}
-      GCS_BACKUPS_BUCKET: ${{ vars.GCS_BACKUPS_BUCKET }}
-      BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
-      JWT_SECRET_VERSION: ${{ vars.JWT_SECRET_VERSION }}
-      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+    timeout-minutes: 10
+    outputs:
+      images: ${{ steps.plan.outputs.images }}
+      release_plan: ${{ steps.plan.outputs.release_plan }}
     steps:
-      - name: Check one-time GKE configuration before building
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { fetch-depth: 0 }
+      - name: Check existing deployment configuration
+        env:
+          GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_ZONE: ${{ vars.GCP_ZONE }}
+          GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+          GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+          WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
+          GCS_SNAPSHOTS_BUCKET: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
+          GCS_RESULTS_BUCKET: ${{ vars.GCS_RESULTS_BUCKET }}
+          TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
         run: |
           set -euo pipefail
-          for key in GCP_PROJECT GCP_REGION GCP_ZONE GKE_CLUSTER WEB_ORIGIN GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT GCP_DEPLOY_SERVICE_ACCOUNT GCP_BACKUP_SERVICE_ACCOUNT GCS_SNAPSHOTS_BUCKET GCS_RESULTS_BUCKET GCS_BACKUPS_BUCKET BACKUP_AGE_RECIPIENT JWT_SECRET_VERSION GOOGLE_CLIENT_ID; do
+          for key in GCP_PROJECT GCP_REGION GCP_ZONE GKE_CLUSTER GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT GCP_DEPLOY_SERVICE_ACCOUNT WEB_ORIGIN GCS_SNAPSHOTS_BUCKET GCS_RESULTS_BUCKET TRUSTED_PROXY_CIDRS; do
             if [ -z "${!key}" ]; then
               echo "::error::Missing cloud-gke environment variable: $key"
               exit 1
             fi
           done
+      - name: Discover successful deployment and affected services
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROJECT: ${{ vars.GCP_PROJECT }}
+          REGION: ${{ vars.GCP_REGION }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: python tooling/scripts/routine_release.py plan
   build:
-    needs: configuration
-    if: github.ref == 'refs/heads/main'
+    needs: plan
+    if: needs.plan.outputs.images != '[]'
     uses: ./.github/workflows/cloud-images.yml
     with:
-      environment_name: cloud-gke
+      affected_services: ${{ needs.plan.outputs.images }}
+  validate-config:
+    needs: plan
+    if: needs.plan.outputs.images == '[]'
+    uses: ./.github/workflows/ci.yml
+    with: { runtime_checks: true }
   deploy:
-    needs: build
-    uses: ./.github/workflows/cloud-deploy.yml
-    with:
-      environment_name: cloud-gke
-      image_digests: ${{ needs.build.outputs.image_digests }}
-      release_json: ${{ needs.build.outputs.release_json }}
-      automatic_backup: true
+    needs: [plan, build, validate-config]
+    if: ${{ always() && needs.plan.result == 'success' && ((needs.build.result == 'success' && needs.validate-config.result == 'skipped') || (needs.build.result == 'skipped' && needs.validate-config.result == 'success')) }}
+    environment: cloud-gke
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RELEASE_PLAN: ${{ needs.plan.outputs.release_plan }}
+      BUILD_MANIFEST: ${{ needs.build.outputs.release_json }}
+      PROJECT: ${{ vars.GCP_PROJECT }}
+      REGION: ${{ vars.GCP_REGION }}
+      ZONE: ${{ vars.GCP_ZONE }}
+      CLUSTER: ${{ vars.GKE_CLUSTER }}
+      ORIGIN: ${{ vars.WEB_ORIGIN }}
+      SNAPSHOTS: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
+      RESULTS: ${{ vars.GCS_RESULTS_BUCKET }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
+      MAX_USERS: ${{ vars.MAX_USERS || '10' }}
+      STRIPE_PRO_MONTHLY_PRICE: ${{ vars.STRIPE_PRO_MONTHLY_PRICE }}
+      STRIPE_PRO_YEARLY_PRICE: ${{ vars.STRIPE_PRO_YEARLY_PRICE }}
+      REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      RELEASE_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '24.11.1' }
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        with:
+          python-version: '3.12.14'
+          cache: pip
+          cache-dependency-path: testing/checks/requirements-implementation.txt
+      - run: python -m pip install -r testing/checks/requirements-implementation.txt
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        with: { install_components: gke-gcloud-auth-plugin }
+      - name: Verify live state and same-run scanned release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE" --project "$PROJECT"
+          python tooling/scripts/routine_release.py prepare
+      - name: Render application desired state
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'JS'
+          import { loadConfig } from './frontend/web/server/gateway.mjs';
+          loadConfig(process.env);
+          JS
+          MIGRATIONS=$(python -c 'import json; print(json.dumps(json.load(open("affected.json"))["migrations"]))')
+          python tooling/scripts/render_cloud.py --project "$PROJECT" --region "$REGION" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --google-client-id "$GOOGLE_CLIENT_ID" --max-users "$MAX_USERS" --stripe-pro-monthly-price "$STRIPE_PRO_MONTHLY_PRICE" --stripe-pro-yearly-price "$STRIPE_PRO_YEARLY_PRICE" --migration-services "$MIGRATIONS" --release-id "$RELEASE_ID" --output cloud-render
+      - name: Roll out affected services while serving traffic
+        run: python tooling/scripts/routine_rollout.py
+      - name: Explain interrupted release
+        if: failure()
+        run: echo '::warning::Inspect deployment-evidence and live state. No pause, SQL rollback or full-app restart is performed. An interrupted mutation must be reconciled before the next release.'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: deployment-evidence
+          path: deployment-evidence/
+          retention-days: 90

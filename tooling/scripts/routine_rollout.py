@@ -12,7 +12,7 @@ import yaml
 
 from digest_manifest import NAMES
 from routine_release import (
-    check_config,
+    configuration_scope,
     evidence_inventory,
     inventory,
     kubectl,
@@ -150,15 +150,19 @@ def main():
         for obj in configs
         if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "editor-config"
     )
-    check_config(
-        config["data"], affected, kubectl("get", "configmap", "editor-config")["data"]
-    )
     live = inventory()
     validate_live({"images": state["previousImages"]}, live)
     verify_unrelated(before, evidence_inventory(live), [])
-    selected = affected["applications"]
-    if set(obj["metadata"]["name"] for obj in applications) != set(selected):
-        raise ValueError("Rendered deployment scope differs from tested impact")
+    selected = configuration_scope(
+        config["data"],
+        kubectl("get", "configmap", "editor-config")["data"],
+        affected,
+        live,
+        os.environ.get("TRUSTED_PROXY_CIDRS", ""),
+    )
+    if set(obj["metadata"]["name"] for obj in applications) != set(NAMES):
+        raise ValueError("Renderer must provide the complete application inventory")
+    applications = [obj for obj in applications if obj["metadata"]["name"] in selected]
     expected_jobs = {
         "migrate-" + name + "-" + os.environ["RELEASE_ID"]
         for name in affected["migrations"]
@@ -174,7 +178,7 @@ def main():
                 if entry["name"] == "TRUSTED_PROXY_CIDRS":
                     entry["value"] = os.environ.get("TRUSTED_PROXY_CIDRS", "")
     stages = []
-    with AvailabilityMonitor(selected) as observer:
+    with AvailabilityMonitor(NAMES) as observer:
         config_path = Path("cloud-render/selected-config.yaml")
         config_path.write_text(
             yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
@@ -205,7 +209,12 @@ def main():
             )
         # Every server dry-run must succeed before config, jobs or Pod templates change.
         observer.require_healthy()
-        run_stage(["kubectl", "apply", "-f", str(config_path)], stages, "apply-config")
+        if selected:
+            state["mutationStarted"] = True
+            write_json("deployment-evidence/environment-state.json", state)
+            run_stage(
+                ["kubectl", "apply", "-f", str(config_path)], stages, "apply-config"
+            )
         for obj in migrations:
             name = obj["metadata"]["name"]
             observer.require_healthy()
@@ -285,9 +294,15 @@ def main():
             "Rollout observation failed; environment state is not approved"
         )
     state["selectedServices"] = selected
-    state["recoveryReference"] = os.environ["BACKUP_REFERENCE"]
     state["rolloutStatus"] = "PASS"
     write_json("deployment-evidence/environment-state.json", state)
+    if os.environ.get("GITHUB_STEP_SUMMARY"):
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+            summary.write(
+                "Rolling release passed. Updated services: "
+                + (", ".join(selected) or "none; application state is unchanged")
+                + ". Deployment state and readiness samples: deployment-evidence artifact.\n"
+            )
     print(
         "Selected rollout completed; review environment-state and observation evidence"
     )

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "reviewedExpandMigrations": {
+    "backend/collaboration-service/src/main/resources/db/migration/V1__collaboration.sql": "913df4a0a8b5f038043bc0ecf18b06a2ec4f34dd8d925c81225e792cd5c63445",
+    "backend/collaboration-service/src/main/resources/db/migration/V2__subscription_entitlements.sql": "d1d30e941aa544dd45df7a87e3a4b34ccb21cecdff1a62e46bcd1f3cef0d1020",
+    "backend/document-service/src/main/resources/db/migration/V1__init.sql": "de2937394c46b67178248014976b0f904b21e45cef5d1d867f50b8ca00ba77e4",
+    "backend/document-service/src/main/resources/db/migration/V2__storage_gc.sql": "501d4c4d2c45456bc35ea3aff3cac26d4bf738ed3b03077b9033a9fc8f18977e",
+    "backend/document-service/src/main/resources/db/migration/V3__subscription_entitlements.sql": "d1d30e941aa544dd45df7a87e3a4b34ccb21cecdff1a62e46bcd1f3cef0d1020",
+    "backend/identity-service/src/main/resources/db/migration/V1__init.sql": "c3533b82553687ddd3c5a39212ee6a22744460d7e32e23d177e74f36ba9ab831",
+    "backend/identity-service/src/main/resources/db/migration/V2__account_quota_lock.sql": "dba52949c9d793374ed790c485a640c95cafb4779823587e81a6d1e7b87336db",
+    "backend/identity-service/src/main/resources/db/migration/V3__subscription_entitlements.sql": "d1d30e941aa544dd45df7a87e3a4b34ccb21cecdff1a62e46bcd1f3cef0d1020",
+    "backend/identity-service/src/main/resources/db/migration/V4__google_identity.sql": "8f272f4a69c471bb7f91604061fe616ae9a3706485354a2c07c54583c881142b",
+    "backend/payment-service/src/main/resources/db/migration/V1__billing.sql": "16dc5fce7d0d8abcea06a0a2c540645e40c8ba64c2027c247ce384864126c43a",
+    "backend/processing-service/src/main/resources/db/migration/V1__init.sql": "59f0315a37ca04473eb4cd54a44e3257aee1a4ef745acbf35f86265e6ecd5ebf",
+    "backend/processing-service/src/main/resources/db/migration/V2__output_attempt_cleanup.sql": "3100f8eb9a40b8180f7830d1a0749b4cf2181099755f8be11ff7a2a9887e2141",
+    "backend/processing-service/src/main/resources/db/migration/V3__trace_correlation.sql": "c0a30eed89b0769e95566b3f9b9f12d410b9a1c6ae68de59a38b1c82dda00703",
+    "backend/processing-service/src/main/resources/db/migration/V4__subscription_entitlements.sql": "d1d30e941aa544dd45df7a87e3a4b34ccb21cecdff1a62e46bcd1f3cef0d1020",
+    "backend/processing-service/src/main/resources/db/migration/V5__office_exports.sql": "9d540d8eda2121f3e3003812503c50a490fec9c17a3928594e20aeeffedd1c3b"
+  }
+}

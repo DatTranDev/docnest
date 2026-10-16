@@ -1,263 +1,406 @@
-"""Offline GKE release integrity tests; not cloud rollout/backup acceptance."""
+"""Release orchestration and real HTTP artifact transport tests; not GKE acceptance."""
 
-import copy
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import io
+import json
+import os
 from pathlib import Path
 import sys
+import subprocess
+import tempfile
+import threading
 import unittest
+from unittest.mock import patch
+import urllib.request
+import zipfile
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
+from deployment_state import Actions, ArtifactRedirect, LIMIT, discover, read_state
 from digest_manifest import NAMES
-from gke_release_input import validate_inputs
+from rolling_policy import migration_hash, validate_compatibility, validate_policy
+from routine_release import configuration_scope, evidence_inventory, plan, prepare
+from routine_rollout import verify_unrelated
+from service_config import config_hash
 
 
-class GkeReleaseTest(unittest.TestCase):
+def bundle(state):
+    stream = io.BytesIO()
+    with zipfile.ZipFile(stream, "w") as archive:
+        archive.writestr("environment-state.json", json.dumps(state))
+    return stream.getvalue()
+
+
+class ArtifactTests(unittest.TestCase):
+    def setUp(self):
+        self.state = {"rolloutStatus": "PASS", "commit": "a" * 40}
+        self.run = {
+            "id": 42,
+            "path": ".github/workflows/gke-build-deploy.yml",
+            "head_branch": "main",
+            "event": "workflow_dispatch",
+            "status": "completed",
+            "conclusion": "success",
+            "head_sha": "a" * 40,
+        }
+        self.artifact = {"id": 7, "name": "deployment-evidence", "expired": False}
+        self.routes = {}
+        self.requests = []
+        fixture = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                fixture.requests.append((self.path, self.headers.get("Authorization")))
+                data = fixture.routes.get(self.path)
+                self.send_response(200 if data is not None else 503)
+                self.end_headers()
+                if data is not None:
+                    self.wfile.write(
+                        data if isinstance(data, bytes) else json.dumps(data).encode()
+                    )
+
+            def log_message(self, *args):
+                pass
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "example/docnest"}):
+            self.actions = Actions()
+        self.actions.base = f"http://127.0.0.1:{self.server.server_port}/"
+        self.routes["/actions/runs?branch=main&per_page=100&page=1"] = {
+            "workflow_runs": [self.run]
+        }
+        self.routes["/actions/runs/42/artifacts?per_page=100&page=1"] = {
+            "artifacts": [self.artifact]
+        }
+        self.routes["/actions/artifacts/7/zip"] = bundle(self.state)
+        self.environment = patch.dict(os.environ, {"GH_TOKEN": "fixture-token"})
+        self.environment.start()
+
+    def tearDown(self):
+        self.environment.stop()
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join()
+
+    def test_discovers_state_over_actual_http_and_filters_foreign_runs(self):
+        rows = self.routes["/actions/runs?branch=main&per_page=100&page=1"][
+            "workflow_runs"
+        ]
+        rows[:0] = [
+            {**self.run, "id": 100},
+            {**self.run, "id": 99, "head_branch": "untrusted"},
+            {**self.run, "id": 98, "event": "pull_request"},
+            {**self.run, "id": 97, "path": ".github/workflows/untrusted.yml"},
+        ]
+        self.assertEqual(discover(self.actions, "100"), self.state)
+        self.assertEqual(len(self.requests), 3)
+        self.assertTrue(
+            all(auth == "Bearer fixture-token" for _, auth in self.requests)
+        )
+
+    def test_paginates_runs_and_artifacts(self):
+        first = "/actions/runs?branch=main&per_page=100&page=1"
+        self.routes[first] = {"workflow_runs": [{**self.run, "path": "ignored"}] * 100}
+        self.routes[first.replace("&page=1", "&page=2")] = {"workflow_runs": [self.run]}
+        first = "/actions/runs/42/artifacts?per_page=100&page=1"
+        self.routes[first] = {"artifacts": [{**self.artifact, "name": "ignored"}] * 100}
+        self.routes[first.replace("&page=1", "&page=2")] = {
+            "artifacts": [self.artifact]
+        }
+        self.assertEqual(discover(self.actions, "100"), self.state)
+
+    def test_bootstrap_only_when_no_deployment_state_is_available(self):
+        self.artifact["expired"] = True
+        self.assertIsNone(discover(self.actions, "100"))
+        self.artifact["expired"] = False
+        self.routes["/actions/artifacts/7/zip"] = b"corrupt archive"
+        with self.assertRaises(zipfile.BadZipFile):
+            discover(self.actions, "100")
+
+    def test_failed_or_partial_mutation_never_becomes_baseline(self):
+        for change in (
+            {"rolloutStatus": "PENDING", "mutationStarted": True},
+            {"commit": "b" * 40},
+        ):
+            self.routes["/actions/artifacts/7/zip"] = bundle({**self.state, **change})
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                discover(self.actions, "100")
+        self.routes["/actions/artifacts/7/zip"] = bundle(self.state)
+        self.run["conclusion"] = "failure"
+        with self.assertRaises(ValueError):
+            discover(self.actions, "100")
+
+    def test_preflight_failure_is_safe_to_retry_but_pending_release_is_not(self):
+        self.routes["/actions/artifacts/7/zip"] = bundle(
+            {"rolloutStatus": "PENDING", "mutationStarted": False}
+        )
+        self.assertIsNone(discover(self.actions, "100"))
+        self.run["status"] = "in_progress"
+        with self.assertRaises(ValueError):
+            discover(self.actions, "100")
+
+    def test_rerunning_same_actions_run_cannot_hide_an_interrupted_mutation(self):
+        self.routes["/actions/artifacts/7/zip"] = bundle(
+            {"rolloutStatus": "PENDING", "mutationStarted": True}
+        )
+        with self.assertRaisesRegex(ValueError, "reconcile before retry"):
+            discover(self.actions, "42", attempt=2)
+        self.routes["/actions/artifacts/7/zip"] = bundle(self.state)
+        self.assertEqual(discover(self.actions, "42", attempt=2), self.state)
+
+    def test_transport_failure_does_not_become_full_build_or_log_private_url(self):
+        self.routes.clear()
+        with self.assertRaisesRegex(
+            ValueError, "Cannot read deployment history"
+        ) as error:
+            discover(self.actions, "100")
+        self.assertNotIn("fixture-token", str(error.exception))
+        self.routes["/too-large"] = b"x" * (LIMIT + 1)
+        with self.assertRaisesRegex(ValueError, "size limit"):
+            self.actions.request("too-large", binary=True)
+
+    def test_signed_artifact_redirect_drops_authorization(self):
+        request = urllib.request.Request(
+            "https://api.github.com/evidence",
+            headers={"Authorization": "Bearer fixture-token"},
+        )
+        redirect = ArtifactRedirect().redirect_request(
+            request, None, 302, "", {}, "https://storage.example.invalid/signed"
+        )
+        self.assertIsNone(redirect.get_header("Authorization"))
+        with self.assertRaises(ValueError):
+            ArtifactRedirect().redirect_request(
+                request, None, 302, "", {}, "http://storage.example.invalid/signed"
+            )
+
+    def test_zip_duplicate_and_oversize_state_are_rejected_without_extraction(self):
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("environment-state.json", "x" * (LIMIT + 1))
+        with self.assertRaises(ValueError):
+            read_state(stream.getvalue())
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, "w") as archive:
+            archive.writestr("environment-state.json", "{}")
+            with self.assertWarns(UserWarning):
+                archive.writestr("environment-state.json", "{}")
+        with self.assertRaises(ValueError):
+            read_state(stream.getvalue())
+
+
+class ReleaseTests(unittest.TestCase):
     def setUp(self):
         self.images = {
             name: f"asia-southeast1-docker.pkg.dev/example-lab/editor/{name}@sha256:"
             + "a" * 64
             for name in NAMES
         }
-        self.release = {
-            "commit": "b" * 40,
-            "ref": "refs/heads/main",
-            "nativeFormatVersion": 6,
-            "googleClientId": "123-client.apps.googleusercontent.com",
-            "images": self.images,
-        }
-        self.arguments = {
-            "project": "example-lab",
-            "region": "asia-southeast1",
-            "commit": "b" * 40,
-            "client_id": self.release["googleClientId"],
-            "backups": "example-lab-gke-backups",
-            "reference": "gs://example-lab-gke-backups/gke/pre-update-20261014.age",
-            "require_release": True,
-        }
-
-    def test_accepts_bound_release_and_encrypted_object_reference(self):
-        validate_inputs(self.images, self.release, **self.arguments)
-
-    def test_rejects_mixed_commit_ref_native_client_or_image_metadata(self):
-        for key, value in (
-            ("commit", "c" * 40),
-            ("ref", "refs/heads/other"),
-            ("nativeFormatVersion", 5),
-            ("googleClientId", "456-other.apps.googleusercontent.com"),
-            ("images", {**self.images, "web": "mutable-tag"}),
-        ):
-            release = copy.deepcopy(self.release)
-            release[key] = value
-            with self.subTest(key=key), self.assertRaises(ValueError):
-                validate_inputs(self.images, release, **self.arguments)
-
-    def test_rejects_missing_manifest_for_combined_build(self):
-        with self.assertRaises(ValueError):
-            validate_inputs(self.images, None, **self.arguments)
-        validate_inputs(
-            self.images, None, **{**self.arguments, "require_release": False}
-        )
-
-    def test_rejects_foreign_registry_or_incomplete_images(self):
-        for images in (
-            {
-                **self.images,
-                "web": self.images["web"].replace("example-lab", "other-lab"),
+        self.live = {
+            "pods": [],
+            "deployments": {
+                name: {
+                    "metadata": {"uid": name, "generation": 1},
+                    "spec": {
+                        "replicas": 1,
+                        "template": {
+                            "metadata": {
+                                "annotations": {
+                                    "docsnest.dattrandev.id.vn/config-sha256": config_hash(
+                                        name, {}
+                                    )
+                                }
+                            },
+                            "spec": {"containers": [{"image": image, "env": []}]},
+                        },
+                    },
+                    "status": {
+                        "readyReplicas": 1,
+                        "availableReplicas": 1,
+                        "updatedReplicas": 1,
+                        "replicas": 1,
+                        "observedGeneration": 1,
+                    },
+                }
+                for name, image in self.images.items()
             },
-            {key: value for key, value in self.images.items() if key != "web"},
-        ):
-            with self.subTest(images=tuple(images)), self.assertRaises(ValueError):
-                validate_inputs(images, self.release, **self.arguments)
+        }
 
-    def test_rejects_plaintext_wrong_bucket_signed_url_or_shell_metacharacters(self):
-        for reference in (
-            "gs://other-private-backups/gke/backup.age",
-            "gs://example-lab-gke-backups/gke/backup.sql",
-            "https://signed.example/backup.age?token=private",
-            "gs://example-lab-gke-backups/gke/backup.age\nextra",
-            "gs://example-lab-gke-backups/gke/$(command).age",
-        ):
-            with (
-                self.subTest(kind=reference.split(":", 1)[0]),
-                self.assertRaises(ValueError),
-            ):
-                validate_inputs(
-                    self.images,
-                    self.release,
-                    **{**self.arguments, "reference": reference},
-                )
-
-    def test_manual_workflow_chains_same_build_outputs_into_protected_gke_deploy(self):
-        workflow = yaml.load(
-            (ROOT / ".github/workflows/gke-build-deploy.yml").read_text(),
-            Loader=yaml.BaseLoader,
+    def test_config_only_change_selects_consumers_and_proxy_change_selects_web(self):
+        scope = configuration_scope(
+            {"MAX_USERS": "20"}, {}, {"applications": []}, self.live, ""
         )
-        self.assertEqual(set(workflow["on"]), {"workflow_dispatch"})
-        self.assertEqual(workflow["concurrency"]["cancel-in-progress"], "false")
-        jobs = workflow["jobs"]
-        self.assertEqual(jobs["build"]["uses"], "./.github/workflows/cloud-images.yml")
-        self.assertEqual(jobs["deploy"]["needs"], "build")
-        self.assertEqual(jobs["deploy"]["uses"], "./.github/workflows/cloud-deploy.yml")
-        self.assertEqual(jobs["configuration"]["environment"], "cloud-gke")
-        self.assertEqual(jobs["build"]["needs"], "configuration")
-        self.assertNotIn("inputs", workflow["on"]["workflow_dispatch"] or {})
-        self.assertEqual(jobs["deploy"]["with"]["automatic_backup"], "true")
-        self.assertNotIn("backup_reference", jobs["deploy"]["with"])
-        for job in (jobs["build"], jobs["deploy"]):
-            self.assertEqual(job["with"]["environment_name"], "cloud-gke")
+        self.assertEqual(scope, ["identity-service"])
         self.assertEqual(
-            jobs["deploy"]["with"]["release_json"],
-            "${{ needs.build.outputs.release_json }}",
+            configuration_scope(
+                {}, {}, {"applications": []}, self.live, "35.191.0.0/16"
+            ),
+            ["web"],
         )
         self.assertEqual(
-            jobs["deploy"]["with"]["image_digests"],
-            "${{ needs.build.outputs.image_digests }}",
-        )
-        publish = yaml.load(
-            (ROOT / ".github/workflows/cloud-images.yml").read_text(),
-            Loader=yaml.BaseLoader,
-        )
-        self.assertEqual(
-            publish["on"]["workflow_call"]["inputs"]["environment_name"]["default"],
-            "cloud-gke",
-        )
-        self.assertEqual(
-            set(publish["on"]["workflow_call"]["outputs"]),
-            {"image_digests", "release_json"},
+            configuration_scope({}, {}, {"applications": []}, self.live, ""), []
         )
 
-    def test_active_cloud_workflows_reject_retired_vm_environment(self):
-        self.assertFalse((ROOT / ".github/workflows/vm-build-deploy.yml").exists())
-        for name, job in (
-            ("cloud-images.yml", "images"),
-            ("cloud-deploy.yml", "deploy"),
+    def test_noop_and_google_client_rotation_use_real_git_impact(self):
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
+        ).strip()
+        with patch.dict(
+            os.environ, {"GITHUB_SHA": commit, "GOOGLE_CLIENT_ID": "client"}
         ):
-            workflow = yaml.load(
-                (ROOT / ".github/workflows" / name).read_text(), Loader=yaml.BaseLoader
+            state = {"commit": commit, "googleClientId": "client"}
+            self.assertEqual(plan(state)["images"], [])
+            state["googleClientId"] = "old-client"
+            self.assertEqual(plan(state)["images"], ["web"])
+            self.assertEqual(plan(None)["images"], list(NAMES))
+
+    def test_live_evidence_roundtrip_preserves_unrelated_pod_identity(self):
+        self.live["pods"] = [
+            {"metadata": {"uid": "old-pod", "labels": {"app": "identity-service"}}}
+        ]
+        before = json.loads(json.dumps(evidence_inventory(self.live)))
+        verify_unrelated(before, evidence_inventory(self.live), [])
+        self.live["pods"][0]["metadata"]["uid"] = "replaced-pod"
+        with self.assertRaises(ValueError):
+            verify_unrelated(
+                before, evidence_inventory(self.live), ["document-service"]
             )
-            with self.subTest(workflow=name):
-                dispatch = workflow["on"]["workflow_dispatch"]["inputs"][
-                    "environment_name"
-                ]
-                self.assertEqual(dispatch["options"], ["cloud-gke"])
-                self.assertEqual(dispatch["default"], "cloud-gke")
-                self.assertEqual(
-                    workflow["on"]["workflow_call"]["inputs"]["environment_name"][
-                        "default"
-                    ],
-                    "cloud-gke",
-                )
-                self.assertEqual(
-                    workflow["jobs"][job]["if"],
-                    "github.ref == 'refs/heads/main' && inputs.environment_name == 'cloud-gke'",
-                )
 
-    def test_automatic_backup_keeps_validation_backup_and_mutations_in_one_deployment_lock(
+    def test_bootstrap_requires_all_same_run_scanned_images_and_preserves_old_digests(
         self,
     ):
-        workflow = yaml.load(
-            (ROOT / ".github/workflows/cloud-deploy.yml").read_text(),
-            Loader=yaml.BaseLoader,
-        )
-        self.assertEqual(workflow["concurrency"]["group"], "cloud-gke-deployment")
-        self.assertEqual(
-            workflow["on"]["workflow_call"]["inputs"]["automatic_backup"]["default"],
-            "false",
-        )
-        self.assertEqual(
-            workflow["on"]["workflow_dispatch"]["inputs"]["backup_reference"][
-                "required"
-            ],
-            "true",
-        )
-        steps = workflow["jobs"]["deploy"]["steps"]
-        runs = "\n".join(step.get("run", "") for step in steps)
-        self.assertLess(
-            runs.index("kubectl apply --dry-run=server"),
-            runs.index("gke_auto_backup.py capture"),
-        )
-        self.assertLess(
-            runs.index("gke_auto_backup.py capture"),
-            runs.index("gcloud storage objects describe"),
-        )
-        self.assertLess(
-            runs.index("gcloud storage objects describe"),
-            runs.index("kubectl apply -f cloud-render/config.yaml"),
-        )
-        self.assertLess(
-            runs.index("kubectl apply -f cloud-render/web.yaml"),
-            runs.index("gke_auto_backup.py complete"),
-        )
-        backup_auth = next(
-            i
-            for i, step in enumerate(steps)
-            if step.get("name") == "Authenticate dedicated backup identity"
-        )
-        deploy_auth = next(
-            i
-            for i, step in enumerate(steps)
-            if step.get("name") == "Restore scoped deploy identity after backup"
-        )
-        self.assertEqual(
-            steps[backup_auth]["with"]["service_account"],
-            "${{ vars.GCP_BACKUP_SERVICE_ACCOUNT }}",
-        )
-        self.assertEqual(
-            steps[deploy_auth]["with"]["service_account"],
-            "${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}",
-        )
-        capture_index = next(
-            i
-            for i, step in enumerate(steps)
-            if "gke_auto_backup.py capture" in step.get("run", "")
-        )
-        self.assertLess(backup_auth, capture_index)
-        self.assertLess(capture_index, deploy_auth)
-        artifact = next(
-            step
-            for step in steps
-            if step.get("uses", "").startswith("actions/upload-artifact@")
-        )
-        self.assertEqual(artifact["with"]["path"], "deployment-evidence/")
+        repository = "https://github.com/example/docnest"
+        run = repository + "/actions/runs/100"
+        images = {
+            name: image.replace("a" * 64, "b" * 64)
+            for name, image in self.images.items()
+        }
+        build = {
+            "schemaVersion": 2,
+            "nativeFormatVersion": 6,
+            "environment": "cloud-gke",
+            "ref": "refs/heads/main",
+            "commit": "c" * 40,
+            "runUrl": run,
+            "googleClientId": "",
+            "images": images,
+            "imageProvenance": {
+                name: {
+                    "image": image,
+                    "commit": "c" * 40,
+                    "runUrl": run,
+                    "scan": {
+                        "highCriticalGate": "PASS",
+                        "secretGate": "PASS",
+                        "evidenceSha256": "d" * 64,
+                        "imageId": "sha256:" + "e" * 64,
+                    },
+                }
+                for name, image in images.items()
+            },
+        }
+        original = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            os.chdir(temporary)
+            try:
+                Path("deployment-evidence").mkdir()
+                environment = {
+                    "PROJECT": "example-lab",
+                    "REGION": "asia-southeast1",
+                    "GITHUB_SHA": "c" * 40,
+                    "REPOSITORY_URL": repository,
+                    "RUN_URL": run,
+                    "BUILD_MANIFEST": json.dumps(build),
+                    "GOOGLE_CLIENT_ID": "",
+                }
+                with (
+                    patch.dict(os.environ, environment),
+                    patch("routine_release.inventory", return_value=self.live),
+                ):
+                    prepare(None, {"images": list(NAMES)})
+                    state = json.loads(
+                        Path("deployment-evidence/environment-state.json").read_text()
+                    )
+                    self.assertEqual(state["previousImages"], self.images)
+                    self.assertEqual(state["images"], images)
+                    self.assertEqual(state["rolloutStatus"], "PENDING")
+                    self.assertFalse(state["mutationStarted"])
+                    with self.assertRaises(ValueError):
+                        prepare(None, {"images": ["document-service"]})
+            finally:
+                os.chdir(original)
 
-    def test_backup_permissions_are_named_and_separate_from_deployment(self):
-        objects = list(
-            yaml.safe_load_all(
-                (ROOT / "infra/k8s/backup-rbac.example.yaml").read_text()
+    def test_migrations_are_hash_reviewed_and_schema_copies_match(self):
+        validate_policy()
+        validate_compatibility({"coordinated": False})
+        with self.assertRaises(ValueError):
+            validate_compatibility({"coordinated": True})
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = (
+                root
+                / "backend/document-service/src/main/resources/db/migration/V1__expand.sql"
             )
-        )
-        role = next(obj for obj in objects if obj["kind"] == "Role")
-        self.assertEqual(role["metadata"]["namespace"], "editor-lab")
-        rules = role["rules"]
-        secret = next(rule for rule in rules if rule["resources"] == ["secrets"])
-        self.assertEqual(secret["resourceNames"], ["editor-jwt"])
-        self.assertEqual(secret["verbs"], ["get"])
-        execute = next(rule for rule in rules if rule["resources"] == ["pods/exec"])
-        self.assertEqual(execute["resourceNames"], ["mysql-0"])
-        self.assertEqual(set(execute["verbs"]), {"get", "create"})
-        self.assertTrue(
-            all(
-                "*" not in rule["resources"] and "*" not in rule["verbs"]
-                for rule in rules
+            mirror = root / "backend/schema/document/V1__expand.sql"
+            for item in (path, mirror):
+                item.parent.mkdir(parents=True, exist_ok=True)
+                item.write_text("CREATE TABLE example(id INT);\n")
+            policy = root / "infra/k8s/rolling-migrations.json"
+            policy.parent.mkdir(parents=True)
+            policy.write_text(
+                json.dumps(
+                    {
+                        "schemaVersion": 1,
+                        "reviewedExpandMigrations": {
+                            path.relative_to(root).as_posix(): migration_hash(path)
+                        },
+                    }
+                )
             )
+            validate_policy(root)
+            path.write_text("DROP TABLE example;\n")
+            mirror.write_text(path.read_text())
+            with self.assertRaises(ValueError):
+                validate_policy(root)
+
+    def test_one_release_button_and_internal_scanned_builder(self):
+        workflows = {
+            p.name: yaml.load(p.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+            for p in (ROOT / ".github/workflows").glob("*.yml")
+        }
+        self.assertEqual(
+            set(workflows), {"ci.yml", "cloud-images.yml", "gke-build-deploy.yml"}
         )
-        deploy_role = next(
+        release = workflows["gke-build-deploy.yml"]
+        self.assertEqual(set(release["on"]), {"workflow_dispatch"})
+        self.assertFalse(release["on"]["workflow_dispatch"])
+        self.assertEqual(
+            release["concurrency"],
+            {"group": "cloud-gke-deployment", "cancel-in-progress": "false"},
+        )
+        builder = workflows["cloud-images.yml"]
+        self.assertEqual(set(builder["on"]), {"workflow_call"})
+        self.assertEqual(builder["jobs"]["images"]["environment"], "cloud-gke")
+        self.assertEqual(builder["jobs"]["validate"]["with"]["runtime_checks"], "true")
+        for workflow in workflows.values():
+            self.assertNotIn("GCP_BACKUP_SERVICE_ACCOUNT", json.dumps(workflow))
+        rules = next(
             yaml.safe_load_all(
                 (ROOT / "infra/k8s/deploy-rbac.example.yaml").read_text()
             )
-        )
+        )["rules"]
         self.assertFalse(
             any(
                 "secrets" in rule["resources"] or "pods/exec" in rule["resources"]
-                for rule in deploy_role["rules"]
+                for rule in rules
             )
         )
-        script = (ROOT / "tooling/scripts/setup_gke_backup.sh").read_text()
-        self.assertIn("roles/storage.objectCreator", script)
-        self.assertNotIn("roles/storage.admin", script)
-        self.assertNotIn("roles/editor", script)
+        script = (ROOT / "tooling/scripts/setup_gke_actions.sh").read_text()
+        self.assertNotIn("gcloud storage buckets create", script)
+        self.assertNotIn("setup_gke_backup.sh", script)
 
 
 if __name__ == "__main__":
