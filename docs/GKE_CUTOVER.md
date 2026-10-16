@@ -347,6 +347,9 @@ assert count == 1, 'Expected exactly one vm/none environment; review tfvars manu
 path.write_text(text)
 PY
 "$HOME/.local/bin/terraform" -chdir=infra/gcp init
+# Also works with older checkouts that do not configure provider quota overrides.
+export GOOGLE_BILLING_PROJECT="$PROJECT"
+export USER_PROJECT_OVERRIDE=true
 "$HOME/.local/bin/terraform" -chdir=infra/gcp plan -refresh-only \
   -out=retired-vm-refresh.plan
 "$HOME/.local/bin/terraform" -chdir=infra/gcp apply retired-vm-refresh.plan
@@ -362,6 +365,14 @@ cần review riêng; không chạy full apply với selector `gke` hiện tại.
 
 [Refresh-only](https://developer.hashicorp.com/terraform/cli/commands/apply)
 cập nhật state theo thay đổi ngoài Terraform mà không tạo/xóa cloud resource.
+
+Nếu Budget refresh báo ADC thiếu quota project và consumer project không phải
+project lab, đặt hai biến môi trường trên rồi **tạo lại** refresh-only plan.
+Provider hiện cấu hình `billing_project = var.project_id` và
+`user_project_override = true` để gửi quota project rõ ràng. Chỉ đặt project trong
+gcloud hoặc thêm quota project vào ADC không thay thế provider override này.
+Không bật API trong consumer project của bộ SDK và không bỏ budget khỏi state.
+[Google provider quota configuration](https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/provider_reference#quota-management-configuration).
 
 ## 8. Backup GKE trước mỗi Build & deploy GKE
 

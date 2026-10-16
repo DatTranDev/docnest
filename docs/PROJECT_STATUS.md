@@ -960,3 +960,37 @@ the guide's cache repair twice on real rendered temporary files: only applicatio
 Service links flags change; bootstrap/infrastructure/migrations remain byte
 identical. Live Kubernetes regression NOT_RUN locally: kubectl has no current
 context; owner-provided rollout verification is still required.
+
+## GKE readiness, VM retirement and Terraform quota routing (2026-10-16)
+
+The owner reports all five backends and Web Ready after the Service links fix;
+five migration Pods are Completed. The public GKE IP is 8.232.180.77 and the
+lab ManagedCertificate editor-tls was still Provisioning at the last supplied
+output. Agent read-only checks confirmed public A DNS points to that IP, no AAAA
+answer, and the HTTP load balancer healthz returns 200 with status UP. HTTPS,
+login/GCS/save/export and main-domain cutover acceptance remain DEPLOY_PENDING.
+
+The owner explicitly requested immediate old VM/disk/IP deletion to stop their
+charges, superseding the guide's wait-until-main-domain-acceptance ordering.
+Supplied commands target only editor-lab, its verified boot disk, and regional
+editor-lab-web IP 34.87.46.187, preserving shared/GKE resources. No destructive
+cloud action was executed by the agent. Full remote deletion/retained backup
+inventory is not yet verified. The subsequent refresh-only plan reports the old
+VM IP output removed but fails reading Budget with ADC quota project missing
+and an SDK consumer-project SERVICE_DISABLED error; no successful state apply
+has been reported.
+
+Configure the Google provider with billing_project=var.project_id and
+user_project_override=true so ADC-authenticated client-based Budget API calls
+send the explicit lab quota project. The retirement guide also supplies the
+equivalent environment variables for an existing checkout before regenerating
+the refresh-only plan. Existing cumulative budget dates, the operator's local
+VND budget edits, Secrets, infrastructure and resource state are not reset.
+Live authenticated refresh/state apply remains PENDING until operator execution.
+
+Executed: Terraform fmt/validate PASS and all five mocked-provider tests PASS;
+these check configuration/schema and plan contracts, not authenticated API quota
+routing. Documentation Prettier, contract validation and git diff checks PASS;
+18 cutover Bash blocks and six embedded Python blocks parse. Live Budget API
+refresh NOT_RUN locally because no connected operator credentials/context are
+configured; no billing API, IAM or paid-resource mutation was performed.
