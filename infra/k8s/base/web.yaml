@@ -29,6 +29,7 @@ spec:
         app: web
         application: text-editor
     spec:
+      enableServiceLinks: false
       serviceAccountName: web
       terminationGracePeriodSeconds: 45
       containers:

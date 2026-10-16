@@ -46,6 +46,12 @@ Nếu giữ VM chạy cùng lab này, phải cộng **toàn bộ tiền node, bo
 vào hóa đơn hiện tại; không chỉ cộng $20–35. Không có đủ management credit thì
 cộng thêm phí quản lý tương ứng, tối đa khoảng $73 cho 730 giờ một cluster.
 
+Các dự toán chênh lệch trên giả định **một node**. Lần bootstrap thực tế ngày
+16/10/2026 không đủ CPU cho full app trên một e2-standard-2: requests 1906m/98%,
+CPU dùng 1996m/103% và Payment/Processing Pending. Operator đã tăng lên hai node
+Ready. Cấu hình này phải tính thêm một node cùng boot disk/IP; không dùng dự toán
+một node để ước tính hóa đơn của cluster hai node.
+
 Budget USD300 là tổng ngân sách học hiện có, không phải USD300 mới mỗi tháng.
 Budget alert đang dùng là cảnh báo, không tự tắt node hay chặn hóa đơn khi chạm
 ngưỡng. [Cách hoạt động của alerts-only budget](https://docs.cloud.google.com/billing/docs/how-to/budgets).
@@ -363,7 +369,13 @@ PVC để vượt lỗi. Job đã tồn tại thì kiểm tra đang active/compl
 
 ## 8. Chạy backend rồi Web
 
+Kiểm tra `kubectl describe nodes` và `kubectl top nodes` trước khi rollout toàn bộ
+app. Một node của lần chạy thực tế không đủ CPU; xem bằng chứng/cost note ở đầu
+tài liệu. Không hạ requests hoặc bỏ system Pods chỉ để vượt scheduling.
+
 ```bash
+(
+set -euo pipefail
 "$PYTHON" - <<'PY'
 import os, pathlib, yaml
 root = pathlib.Path(os.environ['TASK_DIR'], 'render')
@@ -376,8 +388,9 @@ PY
 kubectl apply --dry-run=server -f "$TASK_DIR/render/backends.yaml"
 kubectl apply -f "$TASK_DIR/render/backends.yaml"
 for service in identity-service document-service processing-service collaboration-service payment-service; do
-  kubectl -n editor-lab rollout status deployment/"$service" --timeout=600s || break
+  kubectl -n editor-lab rollout status deployment/"$service" --timeout=600s
 done
+)
 ```
 
 Chỉ khi cả năm backend Ready mới chạy tiếp:
@@ -391,6 +404,53 @@ kubectl -n editor-lab get pods,pvc,svc
 
 Identity có startup argument chỉ rõ JWT trong `/keys`, khớp Secret volume và
 vượt default cloud profile. Normal startup không tự chạy Flyway.
+
+### Nếu Identity/Document báo Redis port không phải số
+
+Log `spring.data.redis.port` không bind được vì giá trị `tcp://...:6379` là lỗi
+biến môi trường do Kubernetes Service links tự chèn `REDIS_PORT`. Sáu Deployment
+ứng dụng hiện có `enableServiceLinks: false`; Redis vẫn dùng DNS và ConfigMap,
+port mặc định của app vẫn là 6379. [Kubernetes service environment variables](https://kubernetes.io/docs/tutorials/services/connect-applications-service/#environment-variables).
+
+Với render đã tạo trước bản sửa, cập nhật riêng field này trong cache rồi patch
+hai Deployment bị lỗi. Giữ nguyên images/config/origins/Secrets và không chạy lại
+Kafka init, migrations hoặc apply infrastructure:
+
+```bash
+export TASK_DIR="$HOME/.docnest-k8s-lab"
+export PYTHON="$TASK_DIR/venv/bin/python"
+(
+set -euo pipefail
+"$PYTHON" - <<'PY'
+import os
+from pathlib import Path
+import yaml
+
+root = Path(os.environ['TASK_DIR']) / 'render'
+for name in ('applications.yaml', 'backends.yaml', 'web.yaml'):
+    path = root / name
+    if not path.exists():
+        continue
+    objects = list(yaml.safe_load_all(path.read_text()))
+    for obj in objects:
+        if obj and obj['kind'] == 'Deployment':
+            obj['spec']['template']['spec']['enableServiceLinks'] = False
+    path.write_text(yaml.safe_dump_all(objects, sort_keys=False))
+print('Updated application render: enableServiceLinks=false')
+PY
+for service in identity-service document-service; do
+  kubectl -n editor-lab patch deployment "$service" --type=merge \
+    -p '{"spec":{"template":{"spec":{"enableServiceLinks":false}}}}'
+done
+for service in identity-service document-service; do
+  kubectl -n editor-lab rollout status deployment/"$service" --timeout=600s
+done
+kubectl -n editor-lab get deployments,pods
+)
+```
+
+Patch Pod template tự rollout; không cần build lại images hoặc rollout restart.
+Trước lần render mới sau này, cập nhật checkout đến commit chứa bản sửa.
 
 ## 9. Tạo IP và HTTPS Ingress — bắt đầu phát sinh tiền load balancer
 

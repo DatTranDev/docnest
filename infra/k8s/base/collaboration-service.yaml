@@ -29,6 +29,7 @@ spec:
         app: collaboration-service
         application: text-editor
     spec:
+      enableServiceLinks: false
       serviceAccountName: collaboration-service
       terminationGracePeriodSeconds: 45
       containers:

@@ -29,6 +29,7 @@ spec:
         app: payment-service
         application: text-editor
     spec:
+      enableServiceLinks: false
       serviceAccountName: payment-service
       terminationGracePeriodSeconds: 45
       containers:

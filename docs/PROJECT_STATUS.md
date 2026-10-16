@@ -923,3 +923,40 @@ Executed: validate_deployment.py PASS (eight cloud preparation tests, eight
 legacy recovery tests and seven GKE release tests); all 19 guide Bash blocks
 parse with Git Bash; documentation Prettier and git diff checks PASS. Live ACL
 initialization and migrations NOT_RUN locally: no connected GKE operator session.
+
+## GKE service environment collision repair (2026-10-16)
+
+The owner confirmed Kafka's final topics/ACL success marker and supplied all five
+migration Pods Completed. Live capacity output shows one e2-standard-2 exhausted:
+1906m CPU requested (98%), 1996m used (103%), Payment/Processing Pending. The
+owner subsequently reports two Ready nodes and Payment/Collaboration 1/1;
+Processing was Running but unready. This is operator-reported cloud evidence.
+Two nodes incur an additional node's compute/boot disk/IP; the guide now clearly
+separates this observed capacity from its original one-node cost assumptions.
+
+Identity and Document previous-container logs identify a separate deterministic
+startup failure: spring.data.redis.port cannot parse the Service-injected
+REDIS_PORT tcp:// URL as an integer. Set enableServiceLinks=false on all six
+application Deployment Pod templates. Explicit ConfigMap/Secret configuration,
+DNS discovery, image digests and normal-startup Flyway disabling remain intact;
+no migration or infrastructure template changes are needed.
+
+A new real-render contract checks the Identity/Document numeric Redis fallback
+against the actual Redis Service port, explicit Redis DNS/config wiring and
+disabled Service environment injection on six rendered application templates.
+It failed on all six original templates before the fix and passes after it.
+The guide supplies a narrow live patch for the two failed Deployments and updates
+only enableServiceLinks in cached application/backends/web render files to avoid
+reintroducing the fault. No image rebuild or paid cloud action was performed.
+Live corrected startup, full rollout and browser/TLS/GCS acceptance remain
+DEPLOY_PENDING until the operator applies and verifies the repair.
+
+Executed: validate_deployment.py PASS (nine actual Compose/Kustomize/render/init
+contracts, eight legacy recovery and seven GKE release checks); repository
+quality PASS (Black/imports/POM/Prettier/boundaries/types/ESLint, 19 Node HTTP/
+boundary/glob contracts and Maven Spotless). Contract validation and secret scan
+PASS. All 20 guide Bash blocks and seven embedded Python blocks parse. Executed
+the guide's cache repair twice on real rendered temporary files: only application
+Service links flags change; bootstrap/infrastructure/migrations remain byte
+identical. Live Kubernetes regression NOT_RUN locally: kubectl has no current
+context; owner-provided rollout verification is still required.

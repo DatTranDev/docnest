@@ -119,6 +119,46 @@ class CloudPreparationTest(unittest.TestCase):
         self.assertEqual(config["JWT_ALLOW_KEY_GENERATION"], "false")
         self.assertEqual(config["FLYWAY_ENABLED"], "false")
 
+    def test_application_dns_configuration_avoids_service_environment_collision(self):
+        self.render()
+        bootstrap = self.objects("bootstrap")
+        config = next(
+            obj["data"]
+            for obj in bootstrap
+            if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "editor-config"
+        )
+        redis = next(
+            obj
+            for obj in bootstrap
+            if obj["kind"] == "Service" and obj["metadata"]["name"] == "redis"
+        )
+        self.assertEqual(config["REDIS_HOST"], redis["metadata"]["name"])
+        self.assertEqual(config["SPRING_DATA_REDIS_HOST"], config["REDIS_HOST"])
+        for name in ("identity-service", "document-service"):
+            application = yaml.safe_load(
+                (
+                    ROOT / "backend" / name / "src/main/resources/application.yml"
+                ).read_text(encoding="utf-8")
+            )
+            default_port = application["spring"]["data"]["redis"]["port"]
+            self.assertEqual(
+                default_port,
+                "${REDIS_PORT:" + str(redis["spec"]["ports"][0]["port"]) + "}",
+            )
+        for obj in self.objects("applications"):
+            with self.subTest(application=obj["metadata"]["name"]):
+                pod = obj["spec"]["template"]["spec"]
+                self.assertIs(
+                    pod.get("enableServiceLinks"),
+                    False,
+                    "Service-derived REDIS_PORT is a tcp:// URL, not a numeric port",
+                )
+                if obj["metadata"]["name"] != "web":
+                    self.assertIn(
+                        {"configMapRef": {"name": "editor-config"}},
+                        pod["containers"][0]["envFrom"],
+                    )
+
     def test_public_config_change_updates_all_pod_templates_without_changing_images(
         self,
     ):

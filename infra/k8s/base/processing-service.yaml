@@ -31,6 +31,7 @@ spec:
         app: processing-service
         application: text-editor
     spec:
+      enableServiceLinks: false
       serviceAccountName: processing-service
       terminationGracePeriodSeconds: 45
       containers:
