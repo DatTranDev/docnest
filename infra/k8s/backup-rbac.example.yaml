@@ -1,0 +1,41 @@
+# Dedicated operator backup identity; never grant these reads to the deploy account.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata: { name: editor-backup, namespace: editor-lab }
+rules:
+  - apiGroups: [apps]
+    resources: [deployments]
+    resourceNames:
+      [
+        identity-service,
+        document-service,
+        processing-service,
+        collaboration-service,
+        payment-service,
+        web,
+      ]
+    verbs: [get, patch]
+  - apiGroups: ['']
+    resources: [configmaps]
+    resourceNames: [editor-config]
+    verbs: [get]
+  - apiGroups: ['']
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: ['']
+    resources: [pods/exec]
+    resourceNames: [mysql-0]
+    verbs: [get, create]
+  - apiGroups: ['']
+    resources: [secrets]
+    resourceNames: [editor-jwt]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata: { name: editor-backup, namespace: editor-lab }
+subjects:
+  - kind: User
+    name: editor-backup@YOUR_PROJECT.iam.gserviceaccount.com
+    apiGroup: rbac.authorization.k8s.io
+roleRef: { kind: Role, name: editor-backup, apiGroup: rbac.authorization.k8s.io }

@@ -374,7 +374,12 @@ gcloud hoặc thêm quota project vào ADC không thay thế provider override n
 Không bật API trong consumer project của bộ SDK và không bỏ budget khỏi state.
 [Google provider quota configuration](https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/provider_reference#quota-management-configuration).
 
-## 8. Backup GKE trước mỗi Build & deploy GKE
+## 8. Backup thủ công cho workflow advanced
+
+Với nút **Build & deploy GKE**, dùng [GKE_ONE_CLICK.md](GKE_ONE_CLICK.md) để
+cấu hình backup tự động một lần; không cần chạy phần backup thủ công này cho mỗi
+lần cập nhật. Các lệnh dưới đây dành cho **Deploy reviewed GKE digests** hoặc
+operator capture/restore drill.
 
 Nếu chưa có age key, tạo một lần. Cất private key ngoài VM/cluster; không paste
 private key/SQL/tar plaintext vào Actions. Public recipient dùng để encrypt.
@@ -420,7 +425,7 @@ PY
 kubectl --context "$LIVE_CONTEXT" -n editor-lab scale deployment \
   identity-service document-service processing-service collaboration-service payment-service web --replicas=0
 for service in identity-service document-service processing-service collaboration-service payment-service web; do
-  kubectl --context "$LIVE_CONTEXT" -n editor-lab wait --for=delete pod -l "app=$service" --timeout=300s || break
+  kubectl --context "$LIVE_CONTEXT" -n editor-lab wait --for=delete pod -l "app=$service" --timeout=300s || exit 1
 done
 "$PYTHON" tooling/scripts/cloud_backup.py backup --environment gke --project "$PROJECT" \
   --kube-context "$LIVE_CONTEXT" --directory "$ARCHIVE" --images "$TASK_DIR/running-digests.json" \
@@ -446,13 +451,16 @@ drill. Object existence/size không chứng minh backup restore được.
 
 ## 9. Bấm Build & deploy GKE
 
-GitHub → **Actions → Build & deploy GKE → Run workflow → main**, điền
-**backup_reference** vừa tạo. Tự chain build/scan/publication và deploy.
+Sau [cấu hình một lần](GKE_ONE_CLICK.md), GitHub → **Actions → Build & deploy
+GKE → Run workflow → main → Run workflow**. Không nhập backup reference. Workflow
+tự chain build/scan/publication, capture/mã hóa/upload backup mới rồi deploy.
 
 Workflow dùng **cloud-gke**, same-run commit/main/V6/Google Client ID/sáu digest
-checks, reference phải là encrypted object trong bucket cấu hình và tồn tại/
-size >0, server dry-run, năm migrations, backend trước Web và public health.
+checks, server dry-run trước maintenance, encrypted backup mới trong bucket cấu
+hình và tồn tại/size >0 trước mutations, năm migrations, backend trước Web và public health.
 Không đổi DNS, tạo cluster/Secrets hay đọc SQL/JWT bằng deploy account.
+Backup account riêng chỉ có các quyền operator cần cho capture. Advanced
+**Deploy reviewed GKE digests** vẫn dùng reference thủ công đã review ở bước 8.
 
 Nếu fail trước mutations, kiểm tra lỗi rồi operator có thể resume app cũ,
 backend trước Web. Nếu migrations/config/images đã đổi, review Flyway/history/

@@ -520,10 +520,12 @@ Dùng [GKE_CUTOVER.md](GKE_CUTOVER.md) bước 2–3 để tạo environment ri�
 **cloud-gke**, backup bucket riêng và chạy setup_gke_deploy.sh cho scoped IAM/RBAC.
 Workflow VM đã được bỏ; tất cả workflow cloud hiện tại chỉ nhận **cloud-gke**.
 
-Sau bootstrap lần đầu, [bước 8–9 của tài liệu cutover](GKE_CUTOVER.md) chỉ rõ
-backup quiesced/encrypted và nút **Build & deploy GKE → main**. Nút này nối build,
-scan, publication và same-run digest deployment; vẫn yêu cầu backup reference
-thật. Nó không tạo cluster/secrets/Ingress, đổi DNS hay đọc SQL/JWT bằng CI.
+Sau bootstrap lần đầu, dùng [GKE_ONE_CLICK.md](GKE_ONE_CLICK.md) để cấu hình
+backup identity và public age recipient một lần. Nút **Build & deploy GKE → main**
+nối build, scan, publication, automatic encrypted backup và same-run digest
+deployment; không cần nhập backup reference. App chỉ pause sau khi build xong.
+Backup dùng identity riêng để đọc SQL/JWT cần thiết; publisher/deployer giữ quyền
+riêng. Cluster/Secrets/Ingress và DNS đã bootstrap được giữ nguyên.
 
 Nếu chỉ muốn publish images, chọn **Build cloud images** với
 **environment_name=cloud-gke**. Raw reviewed-digest deployment còn có trong
@@ -541,7 +543,8 @@ gcloud container clusters resize "$CLUSTER" --project="$PROJECT" \
   --zone="$ZONE" --node-pool=default-pool --num-nodes=0
 ```
 
-Để học tiếp, resize lại 1 rồi đợi Pod Ready; login TLS/SQL/GCS cần kiểm tra lại.
+Để học tiếp full app đã dùng hai node, resize lại 2 rồi đợi Pod Ready;
+login TLS/SQL/GCS cần kiểm tra lại. Tính lại chi phí theo số node thực tế.
 Muốn kết thúc lab và đã chấp nhận bỏ dữ liệu mới, kiểm tra context và PVC/disk
 inventory trước. Xóa Ingress khi cluster còn hoạt động để controller dọn LB,
 đợi tài nguyên LB được dọn rồi mới xóa cluster:

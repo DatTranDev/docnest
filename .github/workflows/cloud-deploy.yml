@@ -28,7 +28,10 @@ on:
         required: true
       backup_reference:
         type: string
-        required: true
+        default: ''
+      automatic_backup:
+        type: boolean
+        default: false
       require_release:
         type: boolean
         default: true
@@ -39,7 +42,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && inputs.environment_name == 'cloud-gke'
     environment: ${{ inputs.environment_name }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 60
     env:
       PROJECT: ${{ vars.GCP_PROJECT }}
       REGION: ${{ vars.GCP_REGION }}
@@ -56,6 +59,11 @@ jobs:
       DIGEST_JSON: ${{ inputs.image_digests }}
       BACKUP_REFERENCE: ${{ inputs.backup_reference }}
       BACKUPS: ${{ vars.GCS_BACKUPS_BUCKET }}
+      AUTOMATIC_BACKUP: ${{ inputs.automatic_backup && 'true' || 'false' }}
+      BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+      JWT_SECRET_VERSION: ${{ vars.JWT_SECRET_VERSION }}
+      BACKUP_RUN_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}
+      GCP_BACKUP_SERVICE_ACCOUNT: ${{ vars.GCP_BACKUP_SERVICE_ACCOUNT }}
       RELEASE_JSON: ${{ inputs.release_json }}
       REQUIRE_RELEASE: ${{ inputs.require_release && 'true' || 'false' }}
     steps:
@@ -66,6 +74,12 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install -r testing/checks/requirements-implementation.txt
+          if [ "$AUTOMATIC_BACKUP" = true ]; then
+            for key in BACKUP_AGE_RECIPIENT JWT_SECRET_VERSION GCP_BACKUP_SERVICE_ACCOUNT; do
+              test -n "${!key}"
+            done
+            export BACKUP_REFERENCE="gs://$BACKUPS/gke/pre-update-$BACKUP_RUN_ID.age"
+          fi
           python - <<'PY'
           import os, pathlib
           for key in ('PROJECT','REGION','ZONE','CLUSTER','ORIGIN','SNAPSHOTS','RESULTS','BACKUP_REFERENCE','BACKUPS'):
@@ -74,18 +88,16 @@ jobs:
           PY
           python tooling/scripts/digest_manifest.py --project "$PROJECT" --region "$REGION" --input reviewed-digests.json --output digests.json
           python tooling/scripts/gke_release_input.py
+          if [ "$AUTOMATIC_BACKUP" = true ]; then
+            printf 'BACKUP_REFERENCE=%s\n' "$BACKUP_REFERENCE" >> "$GITHUB_ENV"
+          fi
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
         with: { install_components: gke-gcloud-auth-plugin }
-      - name: Verify reviewed encrypted backup exists before rollout
-        run: |
-          set -euo pipefail
-          BACKUP_SIZE=$(gcloud storage objects describe "$BACKUP_REFERENCE" --project="$PROJECT" --format='value(size)')
-          test "$BACKUP_SIZE" -gt 0
-      - name: Render, server validate, migrate, and deploy by digest
+      - name: Render and server validate before maintenance or migrations
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "$CLUSTER" --zone "$ZONE" --project "$PROJECT"
@@ -137,6 +149,34 @@ jobs:
               r=subprocess.run(['kubectl','-n','editor-lab','get','job','migrate-'+name,'--ignore-not-found','-o','json'],check=True,capture_output=True,text=True)
               if r.stdout and json.loads(r.stdout).get('status',{}).get('active',0): raise SystemExit('A migration Job is still active; inspect it before retrying')
           PY
+      - name: Install backup encryption tool
+        if: inputs.automatic_backup
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y age
+      - name: Authenticate dedicated backup identity
+        if: inputs.automatic_backup
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_BACKUP_SERVICE_ACCOUNT }}
+      - name: Capture fresh encrypted backup with application writes paused
+        if: inputs.automatic_backup
+        run: python tooling/scripts/gke_auto_backup.py capture
+      - name: Restore scoped deploy identity after backup
+        if: inputs.automatic_backup
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      - name: Verify reviewed encrypted backup exists before rollout
+        run: |
+          set -euo pipefail
+          BACKUP_SIZE=$(gcloud storage objects describe "$BACKUP_REFERENCE" --project="$PROJECT" --format='value(size)')
+          test "$BACKUP_SIZE" -gt 0
+      - name: Migrate and roll out the reviewed release
+        run: |
+          set -euo pipefail
           kubectl -n editor-lab delete job migrate-identity-service migrate-document-service migrate-processing-service migrate-collaboration-service migrate-payment-service --ignore-not-found
           # Preserve reviewed public configuration before migrations and rollout.
           # Bootstrap/IAM/secrets already exist; this account updates only editor-config.
@@ -151,6 +191,13 @@ jobs:
           kubectl apply -f cloud-render/web.yaml
           kubectl -n editor-lab rollout status deployment/web --timeout=300s
           curl --fail --silent --show-error "$ORIGIN/healthz" > deployment-evidence/public-health.txt
+      - name: Finish automatic backup maintenance
+        if: inputs.automatic_backup
+        run: python tooling/scripts/gke_auto_backup.py complete
+      - name: Explain failed maintenance state
+        if: failure() && inputs.automatic_backup
+        run: |
+          echo '::warning::Inspect editor-lab deployment backup-run annotations and migration state. A failed read-only backup attempts to resume unchanged previous apps. After migration/rollout begins, no automatic SQL rollback or blind restart is performed.'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with: { name: deployment-evidence, path: deployment-evidence/ }

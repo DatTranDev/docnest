@@ -994,3 +994,62 @@ routing. Documentation Prettier, contract validation and git diff checks PASS;
 18 cutover Bash blocks and six embedded Python blocks parse. Live Budget API
 refresh NOT_RUN locally because no connected operator credentials/context are
 configured; no billing API, IAM or paid-resource mutation was performed.
+
+## Automatic encrypted backup for one-button GKE updates (2026-10-16)
+
+The owner requests a single Build & deploy GKE action without repeating manual
+bootstrap/backup commands. The main dispatcher now has no inputs and first checks
+the one-time configuration, then builds/scans six images before entering the
+shared deployment lock. The reusable deploy job validates release/dry-runs before
+pausing writes, switches to a dedicated backup identity, captures a fresh encrypted
+backup, restores the narrower deploy identity, verifies the uploaded object, runs
+five migration jobs and rolls out backend readers before Web/public HTTPS health.
+Advanced reviewed-digest deployment retains its mandatory manual backup reference.
+
+Automatic capture reuses the existing five-database/GCS-generation/JWT-version
+integrity helper, records running digests, stops Web before service writers and
+keeps SQL/Kafka/Redis running. Deployment UID/template/config/replica/maintenance
+ownership checks fence pause/recovery. A failed read-only capture/encrypt/upload
+attempts to resume only unchanged owned apps; concurrent changes block recovery.
+Successful backup keeps apps paused until rollout. There is no automatic SQL/DDL
+rollback after migration starts. Plaintext/key/archive material stays in a private
+temporary directory and is cleaned; only age ciphertext is uploaded with generation
+match 0. Artifacts contain only release/backup references/public health evidence.
+
+Added scoped backup IAM/RBAC setup and a one-time Cloud Shell setup helper that
+requires working HTTPS, reuses current public ConfigMap values, configures the
+separate bucket and GitHub Variables, and creates/reuses a local age private key
+without sending it to GitHub. A pre-existing mismatched recipient is not rotated.
+New backup bucket lifecycle is 14 days; node/resources/budget are not changed.
+Deploy RBAC adds named Deployment list for rollout watch without Secret access;
+backup identity alone has named JWT get and MySQL-only exec. WIF-generated
+credential files are excluded from Git/build contexts. Only operator commands
+configure live IAM/buckets; no such cloud action has been executed locally.
+
+Added nine state-machine/command tests for pause ordering, stable running images, duplicate/
+unhealthy maintenance rejection, recipient failure, partial-pause recovery,
+capture/encryption/upload failures and concurrent config/template/UID/owner changes.
+These use explicit fixtures, not real GKE acceptance. Actual age 1.3.2 archive
+encryption/decryption preserves fixture SQL/key/object bytes and rejects wrong keys
+and tampering; binary verified against its official GitHub release asset SHA256.
+CI cloud-preparation also runs this offline real-crypto check without credentials.
+Source documentation now describes automatic and advanced/manual paths separately.
+
+Read-only HTTPS health at the lab domain now returns 200 with certificate
+verification enabled. Agent has not deployed these changes or run a real GKE
+automatic backup/restore, IAM grant or GitHub workflow. One-time setup and the
+first full automatic update/restore drill remain DEPLOY_PENDING.
+
+Executed: repository quality PASS (Black/imports/POM/Prettier/boundaries/types/
+ESLint, 19 real Node HTTP/boundary/glob tests, source-size review and Maven
+Spotless); deployment preparation PASS (nine Compose/Kustomize contracts, eight
+legacy recovery, nine GKE release/IAM/workflow checks and nine automatic-backup
+unit/command checks). Real age archive round trip, wrong-key rejection and tamper
+rejection PASS. Actionlint, contracts, kit/document links and secret scan PASS.
+Three setup scripts and 39 guide Bash blocks parse; both setup Python blocks
+parse, and the actual public-config extractor accepts optional empty values and
+rejects newline injection. Optional empty Stripe Variables are removed rather
+than invoking an interactive gh value prompt. Local Docker-backed/cloud runtime
+acceptance NOT_RUN: Docker Desktop Linux engine pipe is unavailable and no GKE
+operator credentials/context are connected. No image publication, deployment,
+IAM/bucket creation, SQL restore or paid-resource operation was executed locally.

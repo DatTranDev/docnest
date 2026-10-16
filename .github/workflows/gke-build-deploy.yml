@@ -2,17 +2,43 @@ name: Build & deploy GKE
 run-name: Build and deploy GKE from main at ${{ github.sha }}
 on:
   workflow_dispatch:
-    inputs:
-      backup_reference:
-        description: Reviewed quiesced encrypted GKE backup gs://.../archive.age or .gpg
-        type: string
-        required: true
 permissions: { contents: read, id-token: write }
 concurrency:
   group: cloud-gke-build-rollout
   cancel-in-progress: false
 jobs:
+  configuration:
+    if: github.ref == 'refs/heads/main'
+    environment: cloud-gke
+    runs-on: ubuntu-24.04
+    env:
+      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_ZONE: ${{ vars.GCP_ZONE }}
+      GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+      WEB_ORIGIN: ${{ vars.WEB_ORIGIN }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_CI_SERVICE_ACCOUNT: ${{ vars.GCP_CI_SERVICE_ACCOUNT }}
+      GCP_DEPLOY_SERVICE_ACCOUNT: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+      GCP_BACKUP_SERVICE_ACCOUNT: ${{ vars.GCP_BACKUP_SERVICE_ACCOUNT }}
+      GCS_SNAPSHOTS_BUCKET: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
+      GCS_RESULTS_BUCKET: ${{ vars.GCS_RESULTS_BUCKET }}
+      GCS_BACKUPS_BUCKET: ${{ vars.GCS_BACKUPS_BUCKET }}
+      BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+      JWT_SECRET_VERSION: ${{ vars.JWT_SECRET_VERSION }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+    steps:
+      - name: Check one-time GKE configuration before building
+        run: |
+          set -euo pipefail
+          for key in GCP_PROJECT GCP_REGION GCP_ZONE GKE_CLUSTER WEB_ORIGIN GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT GCP_DEPLOY_SERVICE_ACCOUNT GCP_BACKUP_SERVICE_ACCOUNT GCS_SNAPSHOTS_BUCKET GCS_RESULTS_BUCKET GCS_BACKUPS_BUCKET BACKUP_AGE_RECIPIENT JWT_SECRET_VERSION GOOGLE_CLIENT_ID; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing cloud-gke environment variable: $key"
+              exit 1
+            fi
+          done
   build:
+    needs: configuration
     if: github.ref == 'refs/heads/main'
     uses: ./.github/workflows/cloud-images.yml
     with:
@@ -24,4 +50,4 @@ jobs:
       environment_name: cloud-gke
       image_digests: ${{ needs.build.outputs.image_digests }}
       release_json: ${{ needs.build.outputs.release_json }}
-      backup_reference: ${{ inputs.backup_reference }}
+      automatic_backup: true

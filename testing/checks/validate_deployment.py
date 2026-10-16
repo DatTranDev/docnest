@@ -296,8 +296,11 @@ def main():
     assert "environment: ${{ inputs.environment_name }}" in deploy
     assert "options: [cloud-gke]" in deploy
     assert "Verify reviewed encrypted backup exists before rollout" in deploy
-    assert deploy.index("gcloud storage objects describe") < deploy.index(
-        "gcloud container clusters get-credentials"
+    assert (
+        deploy.index("kubectl apply --dry-run=server -f cloud-render/applications.yaml")
+        < deploy.index("python tooling/scripts/gke_auto_backup.py capture")
+        < deploy.index("gcloud storage objects describe")
+        < deploy.index("kubectl apply -f cloud-render/migrations.yaml")
     )
     assert (
         deploy.index("kubectl create --dry-run=server")
@@ -367,6 +370,10 @@ def main():
     )
     subprocess.run(
         [sys.executable, str(ROOT / "testing/checks/gke_release_check.py")],
+        check=True,
+    )
+    subprocess.run(
+        [sys.executable, str(ROOT / "testing/checks/gke_auto_backup_check.py")],
         check=True,
     )
     checks.append(
