@@ -1,4 +1,4 @@
-name: Build & deploy GKE
+name: Maintenance full build & deploy GKE
 run-name: Build and deploy GKE from main at ${{ github.sha }}
 on:
   workflow_dispatch:

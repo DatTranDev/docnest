@@ -1,8 +1,10 @@
 """Render ordered deployment files with explicit identifiers and immutable digests; no apply."""
 
-import argparse, hashlib, json, pathlib, re, subprocess, yaml
+import argparse, json, pathlib, re, subprocess, yaml
 from urllib.parse import urlsplit
 from digest_manifest import NAMES, validate_manifest
+from detect_affected import selection
+from service_config import config_hash, effective_config
 
 p = argparse.ArgumentParser(description=__doc__)
 for arg in ["project", "origin", "snapshots-bucket", "results-bucket", "digests"]:
@@ -13,7 +15,16 @@ p.add_argument("--google-client-id", default="")
 p.add_argument("--max-users", type=int, default=10)
 p.add_argument("--stripe-pro-monthly-price", default="")
 p.add_argument("--stripe-pro-yearly-price", default="")
+p.add_argument("--services", default=json.dumps(list(NAMES)))
+p.add_argument("--migration-services", default=json.dumps(list(NAMES[:-1])))
+p.add_argument("--release-id", default="")
 a = p.parse_args()
+selected = selection(json.loads(a.services))
+migration_services = selection(json.loads(a.migration_services))
+if "web" in migration_services or not set(migration_services) <= set(selected):
+    raise SystemExit("Migrations must belong to selected backend applications")
+if a.release_id and not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,25}", a.release_id):
+    raise SystemExit("Invalid release Job suffix")
 root = pathlib.Path(__file__).resolve().parents[2]
 try:
     origin = urlsplit(a.origin)
@@ -97,7 +108,7 @@ for obj in yaml.safe_load_all(render):
         else ("applications" if obj["kind"] == "Deployment" else "bootstrap")
     )
     groups[group].append(obj)
-for name in names[:-1]:
+for name in migration_services:
     groups["migrations"].append(
         patchobj(
             yaml.safe_load((root / f"infra/k8s/base/migrate-{name}.yaml").read_text())
@@ -108,14 +119,32 @@ config = next(
     for obj in groups["bootstrap"]
     if obj["kind"] == "ConfigMap" and obj["metadata"]["name"] == "editor-config"
 )
-config_hash = hashlib.sha256(
-    json.dumps(config, sort_keys=True, separators=(",", ":")).encode("utf-8")
-).hexdigest()
-for obj in groups["applications"]:
+for obj in groups["applications"] + groups["migrations"]:
+    name = obj["metadata"]["name"].removeprefix("migrate-")
+    pod = obj["spec"]["template"]["spec"]
+    container = pod["containers"][0]
+    if name != "web":
+        container.pop("envFrom", None)
+        existing = {entry["name"] for entry in container.get("env", [])}
+        container["env"] += [
+            {
+                "name": key,
+                "valueFrom": {"configMapKeyRef": {"name": "editor-config", "key": key}},
+            }
+            for key in effective_config(name, config)
+            if key not in existing
+        ]
     metadata = obj["spec"]["template"].setdefault("metadata", {})
     metadata.setdefault("annotations", {})[
         "docsnest.dattrandev.id.vn/config-sha256"
-    ] = config_hash
+    ] = config_hash(name, config)
+    if obj["kind"] == "Job" and a.release_id:
+        obj["metadata"]["name"] += "-" + a.release_id
+        if len(obj["metadata"]["name"]) > 63:
+            raise SystemExit("Migration Job name exceeds Kubernetes limit")
+groups["applications"] = [
+    obj for obj in groups["applications"] if obj["metadata"]["name"] in selected
+]
 out = pathlib.Path(a.output)
 out.mkdir(parents=True, exist_ok=True)
 for name, objects in groups.items():

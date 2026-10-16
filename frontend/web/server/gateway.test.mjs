@@ -384,7 +384,7 @@ test('launches a real private child, probes readiness, drains and closes both li
   const entry = join(temp, 'server.cjs');
   await writeFile(
     entry,
-    "const http=require('node:http');const s=http.createServer((q,r)=>r.end('fixture-next'));s.listen(Number(process.env.PORT),process.env.HOSTNAME);process.on('SIGTERM',()=>s.close(()=>process.exit(0)));\n",
+    "const http=require('node:http');const s=http.createServer((q,r)=>{if(q.url==='/slow'){r.write('first');setTimeout(()=>r.end('last'),31000);}else r.end('fixture-next');});s.listen(Number(process.env.PORT),process.env.HOSTNAME);process.on('SIGTERM',()=>s.close(()=>process.exit(0)));\n",
   );
   const publicProbe = await fixture((_q, r) => r.end());
   const privateProbe = await fixture((_q, r) => r.end());
@@ -410,7 +410,15 @@ test('launches a real private child, probes readiness, drains and closes both li
   }
   assert.equal(status, 200);
   assert.equal((await request(`http://127.0.0.1:${publicPort}/`)).body, 'fixture-next');
-  await runtime.shutdown(0);
+  let markStarted;
+  const started = new Promise((done) => {
+    markStarted = done;
+  });
+  const response = request(`http://127.0.0.1:${publicPort}/slow`, { onChunk: () => markStarted() });
+  await started;
+  const draining = runtime.shutdown(0);
+  assert.equal((await response).body, 'firstlast');
+  await draining;
   assert.ok(runtime.child.exitCode !== null || runtime.child.signalCode !== null);
   await assert.rejects(request(`http://127.0.0.1:${publicPort}/`));
   await assert.rejects(request(`http://127.0.0.1:${privatePort}/`));

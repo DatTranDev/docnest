@@ -1,16 +1,27 @@
 """Generate reviewable Kubernetes lab resources. Does not contact a cluster."""
 
-import pathlib, yaml
+import argparse, copy, pathlib, yaml
+
+from digest_manifest import NAMES
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--applications-only", action="store_true")
+parser.add_argument("--output-root", type=pathlib.Path)
+args = parser.parse_args()
+applications_only = args.applications_only
 
 root = pathlib.Path(__file__).resolve().parents[2]
-base = root / "infra/k8s/base"
-overlay = root / "infra/k8s/overlays/lab"
+destination = args.output_root or root / "infra/k8s"
+base = destination / "base"
+overlay = destination / "overlays/lab"
 base.mkdir(parents=True, exist_ok=True)
 overlay.mkdir(parents=True, exist_ok=True)
 resources = []
 
 
 def write(name, docs):
+    if applications_only and name.removesuffix(".yaml") not in NAMES:
+        return
     (base / name).write_text(
         yaml.safe_dump_all(docs, sort_keys=False), encoding="utf-8"
     )
@@ -171,6 +182,7 @@ for name in [
         cont["volumeMounts"].append({"name": "data", "mountPath": "/data"})
         volumes.append({"name": "data", "emptyDir": {}})
     if name == "identity-service":
+        cont["args"] = ["--editor.jwt.key-path=/keys/identity-key.pem"]
         cont["volumeMounts"].append(
             {"name": "jwt", "mountPath": "/keys", "readOnly": True}
         )
@@ -217,8 +229,9 @@ for name in [
             }.items()
         ]
     pod = {
+        "enableServiceLinks": False,
         "serviceAccountName": name,
-        "terminationGracePeriodSeconds": 45,
+        "terminationGracePeriodSeconds": 160,
         "containers": [cont],
         "volumes": volumes,
     }
@@ -234,6 +247,14 @@ for name in [
         webservice["metadata"]["annotations"] = {
             "cloud.google.com/neg": '{"ingress":true}'
         }
+    cont["lifecycle"] = {
+        "preStop": {"exec": {"command": ["/bin/sh", "-c", "sleep 10"]}}
+    }
+    if not isweb:
+        cont["env"] += [
+            {"name": "SERVER_SHUTDOWN", "value": "graceful"},
+            {"name": "SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE", "value": "135s"},
+        ]
     docs = [
         {"apiVersion": "v1", "kind": "ServiceAccount", "metadata": serviceaccount},
         {
@@ -242,10 +263,12 @@ for name in [
             "metadata": meta(name),
             "spec": {
                 "replicas": 1,
+                "minReadySeconds": 10,
+                "progressDeadlineSeconds": 600,
                 "selector": {"matchLabels": {"app": name}},
                 "strategy": {
                     "type": "RollingUpdate",
-                    "rollingUpdate": {"maxSurge": 0, "maxUnavailable": 1},
+                    "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0},
                 },
                 "template": {
                     "metadata": {"labels": {"app": name, "application": "text-editor"}},
@@ -258,7 +281,7 @@ for name in [
     write(name + ".yaml", docs)
     if not isweb:
         migration = {
-            **cont,
+            **copy.deepcopy(cont),
             "name": "migrate",
             "args": ["--editor.migrate-only=true", "--spring.flyway.enabled=true"],
             "env": cont["env"]
@@ -267,7 +290,13 @@ for name in [
                 {"name": "FLYWAY_ENABLED", "value": "true"},
             ],
         }
-        for k in ["startupProbe", "readinessProbe", "livenessProbe", "ports"]:
+        for k in [
+            "startupProbe",
+            "readinessProbe",
+            "livenessProbe",
+            "ports",
+            "lifecycle",
+        ]:
             migration.pop(k, None)
         job = {
             "apiVersion": "batch/v1",
@@ -290,6 +319,12 @@ for name in [
         (base / ("migrate-" + name + ".yaml")).write_text(
             yaml.safe_dump(job, sort_keys=False), encoding="utf-8"
         )
+if applications_only:
+    print(
+        "Generated application Deployments and migration Jobs only; shared infrastructure preserved."
+    )
+    raise SystemExit(0)
+
 mysql = {
     "name": "mysql",
     "image": "mysql:8.4.7@sha256:0426ec38c7a10aa45ba383887df7878f74ee70e2fd589c7b69207f3577901903",

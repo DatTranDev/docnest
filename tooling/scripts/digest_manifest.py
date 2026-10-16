@@ -12,12 +12,17 @@ NAMES = (
 )
 
 
-def validate_manifest(values, project, region):
+def validate_manifest(values, project, region, *, partial=False):
     if not re.fullmatch(r"[a-z][a-z0-9-]{4,61}[a-z0-9]", project):
         raise ValueError("Invalid project identifier")
     if not re.fullmatch(r"[a-z]+-[a-z]+[0-9]+", region):
         raise ValueError("Invalid registry region")
-    if not isinstance(values, dict) or set(values) != set(NAMES):
+    if (
+        not isinstance(values, dict)
+        or not values
+        or not set(values) <= set(NAMES)
+        or (not partial and set(values) != set(NAMES))
+    ):
         raise ValueError("Exactly six application digests required")
     for name, image in values.items():
         prefix = f"{region}-docker.pkg.dev/{project}/editor/{name}@sha256:"
@@ -37,6 +42,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for name in ("project", "region", "input", "output"):
         p.add_argument("--" + name, required=True)
+    p.add_argument("--partial", action="store_true")
     a = p.parse_args()
     content = pathlib.Path(a.input).read_text(encoding="utf-8").strip()
     if content.startswith("{"):
@@ -48,11 +54,11 @@ def main():
             if name in values:
                 raise ValueError("Duplicate image " + name)
             values[name] = line
-    values = validate_manifest(values, a.project, a.region)
+    values = validate_manifest(values, a.project, a.region, partial=a.partial)
     pathlib.Path(a.output).write_text(
         json.dumps(values, indent=2) + "\n", encoding="utf-8"
     )
-    print("Validated six project-scoped immutable image digests")
+    print("Validated project-scoped immutable image digests:", len(values))
 
 
 if __name__ == "__main__":

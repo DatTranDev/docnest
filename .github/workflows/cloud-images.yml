@@ -13,6 +13,9 @@ on:
       environment_name:
         type: string
         default: cloud-gke
+      affected_services:
+        type: string
+        default: '["identity-service","document-service","processing-service","collaboration-service","payment-service","web"]'
     outputs:
       image_digests:
         value: ${{ jobs.images.outputs.image_digests }}
@@ -30,6 +33,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: ${{ inputs.environment_name }}
+    env:
+      BUILD_SERVICES: ${{ inputs.affected_services || '["identity-service","document-service","processing-service","collaboration-service","payment-service","web"]' }}
+      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     outputs:
       image_digests: ${{ steps.release.outputs.image_digests }}
       release_json: ${{ steps.release.outputs.release_json }}
@@ -56,57 +65,24 @@ jobs:
       - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
       - name: Authenticate registry
         run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
-      - name: Build commit images
-        env:
-          REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/editor
-          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-        run: |
-          set -euo pipefail
-          for service in identity-service document-service processing-service collaboration-service payment-service; do
-            docker build -f infra/compose/Service.Dockerfile --build-arg SERVICE="$service" -t "text-editor/$service:local" -t "$REGISTRY/$service:$GITHUB_SHA" .
-          done
-          docker build -f infra/compose/Web.Dockerfile --build-arg "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" -t text-editor/web:local -t "$REGISTRY/web:$GITHUB_SHA" .
-      - name: Scan the exact images before publishing
-        run: |
-          set -euo pipefail
-          python testing/checks/image_secrets.py
-          python testing/checks/install_trivy.py
-          python testing/checks/image_os_scan.py --download-db
-      - name: Publish scanned commit images
-        env:
-          REGISTRY: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT }}/editor
-        run: |
-          set -euo pipefail
-          for service in identity-service document-service processing-service collaboration-service payment-service web; do
-            docker push "$REGISTRY/$service:$GITHUB_SHA"
-            docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/$service:$GITHUB_SHA" >> image-digests.txt
-          done
-          python tooling/scripts/digest_manifest.py --project "${{ vars.GCP_PROJECT }}" --region "${{ vars.GCP_REGION }}" --input image-digests.txt --output image-digests.json
-      - name: Record built release
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - name: Restore cloud build layers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: /tmp/cloud-build-cache
+          key: cloud-build-${{ runner.os }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            cloud-build-${{ runner.os }}-${{ github.sha }}-
+            cloud-build-${{ runner.os }}-
+      - name: Build selected commit images
+        run: python tooling/scripts/cloud_images.py build
+      - name: Scan the exact selected images before publishing
+        run: python tooling/scripts/cloud_images.py scan
+      - name: Publish only scanned immutable images
+        run: python tooling/scripts/cloud_images.py publish
+      - name: Record per-service build provenance
         id: release
-        env:
-          SOURCE_SHA: ${{ github.sha }}
-          SOURCE_REF: ${{ github.ref }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-        run: |
-          python - <<'PY'
-          import json, os, pathlib
-          release = {
-              'commit': os.environ['SOURCE_SHA'],
-              'ref': os.environ['SOURCE_REF'],
-              'runUrl': os.environ['RUN_URL'],
-              'images': json.loads(pathlib.Path('image-digests.json').read_text()),
-              'googleClientId': os.environ.get('GOOGLE_CLIENT_ID', ''),
-              'nativeFormatVersion': 6,
-          }
-          pathlib.Path('cloud-release.json').write_text(json.dumps(release, indent=2) + '\n')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write('image_digests='+json.dumps(release['images'], separators=(',', ':'))+'\n')
-              output.write('release_json='+json.dumps(release, separators=(',', ':'))+'\n')
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Built and published six scanned images. Download the cloud-image-digests artifact for the commit, source ref and immutable digests.\n')
-          PY
+        run: python tooling/scripts/cloud_images.py record
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: cloud-image-digests
@@ -119,6 +95,7 @@ jobs:
         with:
           name: cloud-image-scan-evidence
           path: |
+            testing/reports/cloud-build-stages.json
             testing/reports/image-secrets.json
             testing/reports/image-os-scan.json
             testing/reports/image-os/

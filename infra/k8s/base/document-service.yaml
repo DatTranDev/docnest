@@ -17,14 +17,16 @@ metadata:
     application: text-editor
 spec:
   replicas: 1
+  minReadySeconds: 10
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app: document-service
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+      maxSurge: 1
+      maxUnavailable: 0
   template:
     metadata:
       labels:
@@ -33,7 +35,7 @@ spec:
     spec:
       enableServiceLinks: false
       serviceAccountName: document-service
-      terminationGracePeriodSeconds: 45
+      terminationGracePeriodSeconds: 160
       containers:
         - name: document-service
           image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/document-service:REPLACE_WITH_DIGEST
@@ -102,6 +104,17 @@ spec:
                 secretKeyRef:
                   name: editor-secrets
                   key: KAFKA_DOCUMENT_PASSWORD
+            - name: SERVER_SHUTDOWN
+              value: graceful
+            - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
+              value: 135s
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - sleep 10
       volumes:
         - name: tmp
           emptyDir: {}

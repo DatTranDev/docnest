@@ -42,7 +42,7 @@ def ci_modes():
     )
     steps = {
         step["run"]: step
-        for step in workflow["jobs"]["application"]["steps"]
+        for step in workflow["jobs"]["frontend-and-runtime"]["steps"]
         if "run" in step
     }
     for core in (
@@ -51,23 +51,28 @@ def ci_modes():
         "npm run build",
         "npm run build:local",
     ):
-        if core in ("python tooling/scripts/run.py quality", "npm test"):
+        if core == "python tooling/scripts/run.py quality":
             assert (
                 steps[core]["if"]
                 == "${{ !inputs.runtime_checks && !inputs.full_acceptance }}"
             )
+        elif core == "npm test":
+            assert "needs.changes.outputs.web" in steps[core]["if"]
         else:
-            assert not steps[core].get("if"), "Build must run in every mode: " + core
+            assert steps[core]["if"] == "needs.changes.outputs.web == 'true'", (
+                "Affected frontend build must run: " + core
+            )
     assert workflow["jobs"]["cloud-preparation"]["if"] == (
         "inputs.runtime_checks || inputs.full_acceptance"
     )
     basic_java = next(
         step
-        for step in steps.values()
+        for step in workflow["jobs"]["java-unit"]["steps"]
         if step.get("name") == "Java build and unit tests (no Docker)"
     )
     assert (
-        basic_java["if"] == "${{ !inputs.runtime_checks && !inputs.full_acceptance }}"
+        workflow["jobs"]["java-unit"]["if"]
+        == "${{ !inputs.runtime_checks && !inputs.full_acceptance && needs.changes.outputs.backends != '[]' }}"
     )
     assert (
         "verify" in basic_java["run"]
@@ -94,6 +99,15 @@ def ci_modes():
     assert steps["python tooling/scripts/run.py down"]["if"] == (
         "always() && (inputs.runtime_checks || inputs.full_acceptance)"
     )
+    aggregate = workflow["jobs"]["application"]
+    assert aggregate["if"] == "always()"
+    assert set(aggregate["needs"]) == {
+        "java-unit",
+        "frontend-and-runtime",
+        "cloud-preparation",
+        "changes",
+    }
+    assert workflow["jobs"]["frontend-and-runtime"]["needs"] == "changes"
     publish = yaml.load(
         read(".github/workflows/cloud-images.yml"), Loader=yaml.BaseLoader
     )
@@ -156,7 +170,7 @@ def main():
     web = resource(objects, "Deployment", "web")
     pod = web["spec"]["template"]["spec"]
     container = pod["containers"][0]
-    assert pod["terminationGracePeriodSeconds"] == 45
+    assert pod["terminationGracePeriodSeconds"] == 160
     assert container["securityContext"]["runAsUser"] == 1000
     assert container["resources"]["limits"]["memory"] == "512Mi"
     assert [port["containerPort"] for port in container["ports"]] == [8080]
@@ -194,13 +208,13 @@ def main():
     assert "**/.next" in read(".dockerignore")
     web_compose = compose["services"]["web"]
     assert web_compose["init"] is True and web_compose["mem_limit"] == "512m"
-    assert web_compose["stop_grace_period"] == "45s"
+    assert web_compose["stop_grace_period"] == "160s"
     assert "node" in web_compose["healthcheck"]["test"]
     checks.extend(
         [
             "infrastructure images digest pinned/internal ports closed",
             "Next standalone/static assets behind streaming gateway; private routes, child readiness, body cap and deadline configured",
-            "web UID1000,512Mi limit,private Next port,45second grace,explicit NEG and untrusted forwarding default",
+            "web UID1000,512Mi limit,private Next port,160second grace,explicit NEG and untrusted forwarding default",
         ]
     )
 
@@ -324,16 +338,21 @@ def main():
     assert set(config_rule["verbs"]) == {"get", "patch", "update"}
     assert all("secrets" not in rule["resources"] for rule in rules)
     publish = read(".github/workflows/cloud-images.yml")
-    assert "NEXT_PUBLIC_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID" in publish
+    assert "NEXT_PUBLIC_GOOGLE_CLIENT_ID=" in read("tooling/scripts/cloud_images.py")
     assert "vars.GOOGLE_CLIENT_ID" in publish
     assert "Check cloud build configuration" in publish
-    assert "cloud-release.json" in publish and "GITHUB_STEP_SUMMARY" in publish
-    assert publish.index("python testing/checks/image_secrets.py") < publish.index(
-        "docker push"
+    assert "cloud-release.json" in publish and "GITHUB_STEP_SUMMARY" in read(
+        "tooling/scripts/cloud_images.py"
     )
-    assert publish.index(
-        "python testing/checks/image_os_scan.py --download-db"
-    ) < publish.index("docker push")
+    assert publish.index("cloud_images.py scan") < publish.index(
+        "cloud_images.py publish"
+    )
+    assert publish.index("cloud_images.py scan") < publish.index(
+        "cloud_images.py publish"
+    )
+    builder = read("tooling/scripts/cloud_images.py")
+    assert "scans = scan_records(names)" in builder
+    assert 'actual != scans[name]["imageId"]' in builder
     for path in (ROOT / ".github/workflows").glob("*.yml"):
         yaml.safe_load(path.read_text(encoding="utf-8"))
     checks.extend(
@@ -353,7 +372,7 @@ def main():
     ), "Initial managed-certificate provisioning needs the HTTP frontend"
     backend = resource(optional, "BackendConfig", "editor-web")
     assert backend["spec"]["timeoutSec"] == 130
-    assert backend["spec"]["connectionDraining"]["drainingTimeoutSec"] == 30
+    assert backend["spec"]["connectionDraining"]["drainingTimeoutSec"] == 150
     assert backend["spec"]["healthCheck"] == {
         "type": "HTTP",
         "requestPath": "/healthz",

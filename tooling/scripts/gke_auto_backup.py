@@ -93,7 +93,8 @@ class Cluster:
         if (
             live["metadata"]["uid"] != current["metadata"]["uid"]
             or live["spec"]["template"] != current["spec"]["template"]
-            or live["spec"].get("replicas", 1) != 1
+            or live["spec"].get("replicas", 1) != current["spec"].get("replicas", 1)
+            or current["spec"].get("replicas", 1) < 1
             or OWNER in live["metadata"].get("annotations", {})
         ):
             raise ValueError("Application changed before backup pause")
@@ -115,7 +116,7 @@ class Cluster:
             + ["wait", "--for=delete", "pod", "-l", "app=" + name, "--timeout=300s"]
         )
 
-    def clear(self, name, current, *, resume=False):
+    def clear(self, name, current, *, resume=False, replicas=1):
         if (
             current["metadata"].get("annotations", {}).get(OWNER)
             != self.configuration.run_id
@@ -128,7 +129,17 @@ class Cluster:
             }
         ]
         if resume:
-            operations.append({"op": "replace", "path": "/spec/replicas", "value": 1})
+            if (
+                not isinstance(replicas, int)
+                or isinstance(replicas, bool)
+                or replicas < 1
+            ):
+                raise ValueError(
+                    "Recovery requires the captured positive replica count"
+                )
+            operations.append(
+                {"op": "replace", "path": "/spec/replicas", "value": replicas}
+            )
         self.patch(name, current, operations)
 
 
@@ -136,16 +147,19 @@ def inventory(cluster):
     deployments = {name: cluster.get("deployment", name) for name in APPS}
     images = {}
     for name, deployment in deployments.items():
+        desired = deployment["spec"].get("replicas", 1)
         if (
-            deployment["spec"].get("replicas", 1) != 1
-            or deployment.get("status", {}).get("availableReplicas", 0) != 1
-            or deployment.get("status", {}).get("updatedReplicas", 0) != 1
+            not isinstance(desired, int)
+            or isinstance(desired, bool)
+            or desired < 1
+            or deployment.get("status", {}).get("availableReplicas", 0) != desired
+            or deployment.get("status", {}).get("updatedReplicas", 0) != desired
             or deployment["status"].get("observedGeneration", 0)
             < deployment["metadata"]["generation"]
             or OWNER in deployment["metadata"].get("annotations", {})
         ):
             raise ValueError(
-                "Backup requires six stable one-replica Deployments without maintenance"
+                "Backup requires six stable positive-replica Deployments without maintenance"
             )
         images[name] = deployment["spec"]["template"]["spec"]["containers"][0]["image"]
     validate_manifest(
@@ -174,7 +188,8 @@ def recover_before_mutations(cluster, previous, config):
         or any(
             current[name]["metadata"]["uid"] != previous[name]["metadata"]["uid"]
             or current[name]["spec"]["template"] != previous[name]["spec"]["template"]
-            or current[name]["spec"].get("replicas", 1) not in (0, 1)
+            or current[name]["spec"].get("replicas", 1)
+            not in (0, previous[name]["spec"].get("replicas", 1))
             or current[name]["metadata"].get("annotations", {}).get(OWNER)
             not in (None, cluster.configuration.run_id)
             or (
@@ -189,7 +204,12 @@ def recover_before_mutations(cluster, previous, config):
             "Application changed during backup; manual maintenance recovery required"
         )
     for name in (*APPS[:-1], "web"):
-        cluster.clear(name, current[name], resume=True)
+        cluster.clear(
+            name,
+            current[name],
+            resume=True,
+            replicas=previous[name]["spec"].get("replicas", 1),
+        )
 
 
 def capture(configuration, cluster, directory, *, capture_backup=backup, execute=run):

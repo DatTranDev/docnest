@@ -74,13 +74,14 @@ def read_json(path):
     return json.loads(path.read_text(encoding="utf-8-sig")) if path.is_file() else None
 
 
-def summarize(report):
+def summarize(report, required_images=None):
+    required_images = DEFAULT_IMAGES if required_images is None else required_images
     completed = {
         scan["reference"] for scan in report["scans"] if scan["status"] != "BLOCKED"
     }
-    report["requiredImages"] = DEFAULT_IMAGES
+    report["requiredImages"] = required_images
     report["pendingImages"] = [
-        image for image in DEFAULT_IMAGES if image not in completed
+        image for image in required_images if image not in completed
     ]
     blocked = any(scan["status"] == "BLOCKED" for scan in report["scans"])
     report["status"] = (
@@ -118,7 +119,7 @@ def summarize(report):
         bool(finding.get("FixedVersion")) for finding in all_findings
     )
     report["countingNote"] = (
-        "Severity totals count CVE/package/image combinations. Shared runtime packages repeat across the four Java images; uniqueCveCount deduplicates CVE IDs."
+        "Severity totals count CVE/package/image combinations. Shared runtime packages repeat across the selected Java images; uniqueCveCount deduplicates CVE IDs."
     )
 
 
@@ -141,7 +142,14 @@ def main():
     parser.add_argument("--images", nargs="+", default=DEFAULT_IMAGES)
     parser.add_argument("--download-db", action="store_true")
     parser.add_argument("--append", action="store_true")
+    parser.add_argument("--required-images", nargs="+", choices=DEFAULT_IMAGES)
     args = parser.parse_args()
+    if args.required_images and (
+        args.append or set(args.images) != set(args.required_images)
+    ):
+        parser.error(
+            "Scoped scans require an exact image set and cannot append previous evidence"
+        )
     destination = ROOT / "testing/reports/image-os"
     destination.mkdir(parents=True, exist_ok=True)
     cache = ROOT / ".tools/trivy/cache"
@@ -151,7 +159,7 @@ def main():
     if not report:
         report = {
             "startedAt": utc_now(),
-            "scope": "OS packages in the six locally built Linux application images only",
+            "scope": "OS packages in the explicitly required locally built Linux application images only",
             "exclusions": [
                 "Java/JavaScript dependency advisories",
                 "Secrets and IaC",
@@ -385,7 +393,7 @@ def main():
             scan for scan in report["scans"] if scan["reference"] != reference
         ] + [record]
         report["completedAt"] = utc_now()
-        summarize(report)
+        summarize(report, args.required_images)
         report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     return (
         2

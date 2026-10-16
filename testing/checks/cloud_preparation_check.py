@@ -154,12 +154,16 @@ class CloudPreparationTest(unittest.TestCase):
                     "Service-derived REDIS_PORT is a tcp:// URL, not a numeric port",
                 )
                 if obj["metadata"]["name"] != "web":
-                    self.assertIn(
-                        {"configMapRef": {"name": "editor-config"}},
-                        pod["containers"][0]["envFrom"],
-                    )
+                    self.assertNotIn("envFrom", pod["containers"][0])
+                    refs = [
+                        entry["valueFrom"]["configMapKeyRef"]
+                        for entry in pod["containers"][0]["env"]
+                        if "configMapKeyRef" in entry.get("valueFrom", {})
+                    ]
+                    self.assertTrue(refs)
+                    self.assertTrue(all(ref["name"] == "editor-config" for ref in refs))
 
-    def test_public_config_change_updates_all_pod_templates_without_changing_images(
+    def test_public_config_change_updates_only_consuming_service_without_changing_images(
         self,
     ):
         self.render()
@@ -171,14 +175,43 @@ class CloudPreparationTest(unittest.TestCase):
         key = "docsnest.dattrandev.id.vn/config-sha256"
         for old, new in zip(before, after, strict=True):
             old_template, new_template = (obj["spec"]["template"] for obj in (old, new))
-            self.assertNotEqual(
-                old_template["metadata"]["annotations"][key],
-                new_template["metadata"]["annotations"][key],
+            self.assertEqual(
+                old_template["metadata"]["annotations"][key]
+                != new_template["metadata"]["annotations"][key],
+                old["metadata"]["name"] == "identity-service",
             )
             self.assertEqual(
                 old_template["spec"]["containers"][0]["image"],
                 new_template["spec"]["containers"][0]["image"],
             )
+
+    def test_selective_render_has_only_target_deployment_and_unique_migration(self):
+        self.render("--services", '["document-service"]', "--migration-services", "[]")
+        self.assertEqual(
+            [obj["metadata"]["name"] for obj in self.objects("applications")],
+            ["document-service"],
+        )
+        self.assertEqual(self.objects("migrations"), [])
+        self.render(
+            "--services",
+            '["document-service"]',
+            "--migration-services",
+            '["document-service"]',
+            "--release-id",
+            "gh-123-1",
+        )
+        self.assertEqual(
+            [obj["metadata"]["name"] for obj in self.objects("migrations")],
+            ["migrate-document-service-gh-123-1"],
+        )
+        self.render(
+            "--services",
+            '["document-service"]',
+            "--migration-services",
+            '["identity-service"]',
+            success=False,
+        )
+        self.render("--services", '["mysql"]', success=False)
 
     def test_kafka_controller_and_advertised_endpoints_route_before_readiness(self):
         self.render()
