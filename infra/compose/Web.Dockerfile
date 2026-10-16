@@ -2,13 +2,16 @@ FROM node:24.11.1-alpine3.23@sha256:682368d8253e0c3364b803956085c456a612d738bd63
 RUN apk upgrade --no-cache && apk add --no-cache gcompat
 WORKDIR /src
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
 COPY package*.json ./
 COPY tooling/lint-glob ./tooling/lint-glob
+COPY frontend/editor-core/package.json ./frontend/editor-core/package.json
+COPY frontend/web/package.json ./frontend/web/package.json
+RUN npm ci
 COPY frontend ./frontend
-RUN mkdir -p frontend/web/public && npm ci && npm run build
-FROM node:24.11.1-alpine3.23@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+RUN mkdir -p frontend/web/public && npm run build
+FROM node:24.11.1-alpine3.23@sha256:682368d8253e0c3364b803956085c456a612d738bd635926d73fa24db3ce53d7 AS runtime
 RUN apk upgrade --no-cache && apk add --no-cache gcompat
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=8080 NEXT_INTERNAL_PORT=3000 NODE_OPTIONS=--max-old-space-size=256

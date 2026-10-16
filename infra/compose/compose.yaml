@@ -25,6 +25,7 @@ x-app-env: &app-env
   GCS_RESULTS_BUCKET: ${GCS_RESULTS_BUCKET:-YOUR_PRIVATE_RESULTS_BUCKET}
   JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=60 -Dfile.encoding=UTF-8
 x-app: &app
+  stop_grace_period: 160s
   profiles: [app]
   restart: unless-stopped
   init: true
@@ -242,7 +243,7 @@ services:
         NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     init: true
-    stop_grace_period: 45s
+    stop_grace_period: 160s
     mem_limit: 512m
     environment:
       NODE_ENV: production

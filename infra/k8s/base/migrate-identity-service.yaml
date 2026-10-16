@@ -15,8 +15,9 @@ spec:
         app: identity-service
         application: text-editor
     spec:
+      enableServiceLinks: false
       serviceAccountName: identity-service
-      terminationGracePeriodSeconds: 45
+      terminationGracePeriodSeconds: 160
       containers:
         - name: migrate
           image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/identity-service:REPLACE_WITH_DIGEST
@@ -70,6 +71,10 @@ spec:
                 secretKeyRef:
                   name: editor-secrets
                   key: KAFKA_IDENTITY_PASSWORD
+            - name: SERVER_SHUTDOWN
+              value: graceful
+            - name: SPRING_LIFECYCLE_TIMEOUT_PER_SHUTDOWN_PHASE
+              value: 135s
             - name: SPRING_MAIN_WEB_APPLICATION_TYPE
               value: none
             - name: FLYWAY_ENABLED

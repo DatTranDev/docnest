@@ -1,6 +1,8 @@
-# Cập nhật GKE bằng một nút
+# Cập nhật đầy đủ GKE trong maintenance
 
-Sau cấu hình một lần bên dưới: **GitHub → Actions → Build & deploy GKE → Run
+Đây là luồng maintenance có pause toàn bộ app. Với cập nhật tương thích thông thường, xem [selective releases](CICD_SELECTIVE_RELEASES.md) và các gate nghiệm thu trước khi bật.
+
+Sau cấu hình một lần bên dưới: **GitHub → Actions → Maintenance full build & deploy GKE → Run
 workflow → main → Run workflow**. Không nhập backup reference, SHA hoặc digests.
 Nếu environment có required reviewers, GitHub vẫn áp dụng các approval đã cấu hình.
 
@@ -12,7 +14,7 @@ Ingress và DNS hiện tại được giữ lại. Đây là cập nhật app, k
 
 ## Cấu hình một lần trong Cloud Shell
 
-Điều kiện: sáu Deployment hiện có Ready với một replica, DNS/HTTPS đã hoạt động,
+Điều kiện: sáu Deployment hiện có Ready với đủ số replica mong muốn (lab mặc định một replica), DNS/HTTPS đã hoạt động,
 Google login client đã cấu hình và environment **cloud-gke** đã tồn tại. Trong
 GitHub Settings → Environments → cloud-gke, giới hạn deployment branches về
 `main`; giữ các bảo vệ khác. Không deploy thủ công đồng thời trong maintenance.

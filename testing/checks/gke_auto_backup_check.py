@@ -63,7 +63,7 @@ class ClusterFixture:
         if name == self.fail_pause:
             raise ValueError("Injected pause conflict")
         self.actions.append(("pause", name))
-        assert previous["spec"]["replicas"] == 1
+        assert previous["spec"]["replicas"] >= 1
         self.deployments[name]["spec"]["replicas"] = 0
         self.deployments[name]["metadata"].setdefault("annotations", {})[
             OWNER
@@ -73,7 +73,7 @@ class ClusterFixture:
         self.actions.append(("stopped", name))
         assert all(obj["spec"]["replicas"] == 0 for obj in self.deployments.values())
 
-    def clear(self, name, current, *, resume=False):
+    def clear(self, name, current, *, resume=False, replicas=1):
         if (
             current["metadata"].get("annotations", {}).get(OWNER)
             == self.configuration.run_id
@@ -81,7 +81,7 @@ class ClusterFixture:
             self.actions.append(("resume" if resume else "clear", name))
             del self.deployments[name]["metadata"]["annotations"][OWNER]
             if resume:
-                self.deployments[name]["spec"]["replicas"] = 1
+                self.deployments[name]["spec"]["replicas"] = replicas
 
 
 class AutoBackupTest(unittest.TestCase):
@@ -165,6 +165,31 @@ class AutoBackupTest(unittest.TestCase):
                 capture_backup=self.capture_backup,
                 execute=self.execute,
             )
+
+    def test_failed_backup_restores_each_captured_replica_count(self):
+        original = {}
+        for index, name in enumerate(APPS):
+            count = index + 2
+            original[name] = count
+            obj = self.cluster.deployments[name]
+            obj["spec"]["replicas"] = count
+            obj["status"].update(availableReplicas=count, updatedReplicas=count)
+        self.failure = "capture"
+        with self.assertRaises(ValueError):
+            self.capture()
+        self.assertEqual(
+            {
+                name: obj["spec"]["replicas"]
+                for name, obj in self.cluster.deployments.items()
+            },
+            original,
+        )
+        self.assertTrue(
+            all(
+                OWNER not in obj["metadata"].get("annotations", {})
+                for obj in self.cluster.deployments.values()
+            )
+        )
 
     def test_success_pauses_web_first_captures_running_digests_and_uploads_only_encrypted_archive(
         self,
@@ -262,6 +287,32 @@ class AutoBackupTest(unittest.TestCase):
         self.assertEqual(
             operations[-1], {"op": "replace", "path": "/spec/replicas", "value": 0}
         )
+
+    def test_multi_replica_patch_restores_count_and_rejects_concurrent_scale(self):
+        original = self.cluster.get("deployment", APPS[0])
+        original["spec"]["replicas"] = 3
+        live = copy.deepcopy(original)
+        live["metadata"]["annotations"] = {OWNER: self.configuration.run_id}
+        live["spec"]["replicas"] = 0
+        calls = []
+
+        def execute(command, *, data=None):
+            calls.append(json.loads(data))
+            return b""
+
+        with patch("gke_auto_backup.run", side_effect=execute):
+            Cluster(self.configuration).clear(APPS[0], live, resume=True, replicas=3)
+        self.assertEqual(
+            calls[0][-1], {"op": "replace", "path": "/spec/replicas", "value": 3}
+        )
+        scaled = copy.deepcopy(original)
+        scaled["spec"]["replicas"] = 4
+        with patch(
+            "gke_auto_backup.run", return_value=json.dumps(scaled).encode()
+        ) as execute:
+            with self.assertRaises(ValueError):
+                Cluster(self.configuration).pause(APPS[0], original)
+        self.assertEqual(execute.call_count, 1)
 
     def test_pause_refuses_replaced_app_even_when_image_matches(self):
         original = self.cluster.get("deployment", APPS[0])

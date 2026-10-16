@@ -33,6 +33,16 @@ rules:
         migrate-payment-service,
       ]
     verbs: [get, list, watch, patch, update, delete]
+  # Read-only rollout evidence and release-scoped Job observation. No Pod exec or Secret access.
+  - apiGroups: ['']
+    resources: [pods]
+    verbs: [get, list, watch]
+  - apiGroups: [discovery.k8s.io]
+    resources: [endpointslices]
+    verbs: [get, list, watch]
+  - apiGroups: [batch]
+    resources: [jobs]
+    verbs: [get, list, watch]
   # Kubernetes RBAC cannot restrict create by resourceNames. Only the protected workflow uses this grant.
   - apiGroups: [batch]
     resources: [jobs]

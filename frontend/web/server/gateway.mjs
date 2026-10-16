@@ -442,7 +442,7 @@ export async function launch(env = process.env) {
     const force = setTimeout(() => {
       server.closeAllConnections();
       child.kill('SIGKILL');
-    }, 30_000);
+    }, REQUEST_TIMEOUT_MS + 5_000);
     force.unref();
     await closed;
     alive = false;

@@ -1,5 +1,6 @@
 """Inspect built image configuration and first-party payloads, never runtime volumes."""
 
+import argparse
 import datetime
 import io
 import json
@@ -56,6 +57,13 @@ def first_party_payloads(path, service):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--services", nargs="+", choices=SERVICES, default=list(SERVICES)
+    )
+    args = parser.parse_args()
+    if len(args.services) != len(set(args.services)):
+        raise ValueError("Duplicate image selection")
     values = initialize()
     needles = [
         value.encode()
@@ -68,7 +76,7 @@ def main():
         ROOT.resolve()
     ), "Image scan scratch escaped workspace"
     checks = []
-    for service in SERVICES:
+    for service in args.services:
         image = f"text-editor/{service}:local"
         metadata = json.loads(docker("image", "inspect", image))[0]
         assert metadata["Config"]["User"] not in ("", "0", "root", "0:0"), (
@@ -131,7 +139,7 @@ def main():
         json.dumps(report, indent=2) + "\n", encoding="utf-8"
     )
     print(
-        "PASS six images: nonroot, no generated credentials/private PEMs in config or first-party payloads"
+        "PASS selected images: nonroot, no generated credentials/private PEMs in config or first-party payloads"
     )
 
 

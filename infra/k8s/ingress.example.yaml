@@ -4,7 +4,7 @@ kind: BackendConfig
 metadata: { name: editor-web, namespace: editor-lab }
 spec:
   timeoutSec: 130
-  connectionDraining: { drainingTimeoutSec: 30 }
+  connectionDraining: { drainingTimeoutSec: 150 }
   healthCheck: { type: HTTP, requestPath: /healthz, port: 8080 }
 ---
 apiVersion: v1

@@ -109,10 +109,15 @@ jobs:
           loadConfig(process.env);
           JS
           python - <<'PY'
-          import os, pathlib, yaml
+          import json, os, pathlib, subprocess, yaml
           target=pathlib.Path('cloud-render/applications.yaml')
           objects=list(yaml.safe_load_all(target.read_text()))
           for obj in objects:
+              if obj['kind']=='Deployment':
+                  current=json.loads(subprocess.check_output(['kubectl','-n','editor-lab','get','deployment',obj['metadata']['name'],'-o','json']))
+                  replicas=current['spec'].get('replicas',1)
+                  if not isinstance(replicas,int) or isinstance(replicas,bool) or replicas<1: raise SystemExit('Existing applications must have positive desired replicas')
+                  obj['spec']['replicas']=replicas
               if obj['kind']=='Deployment' and obj['metadata']['name']=='web':
                   env=obj['spec']['template']['spec']['containers'][0]['env']
                   next(item for item in env if item['name']=='TRUSTED_PROXY_CIDRS')['value']=os.environ['TRUSTED_PROXY_CIDRS']
@@ -198,6 +203,15 @@ jobs:
         if: failure() && inputs.automatic_backup
         run: |
           echo '::warning::Inspect editor-lab deployment backup-run annotations and migration state. A failed read-only backup attempts to resume unchanged previous apps. After migration/rollout begins, no automatic SQL rollback or blind restart is performed.'
+      - name: Record approved full environment state
+        run: |
+          python - <<'PYCODE'
+          import json, os, pathlib
+          release = json.loads(os.environ.get('RELEASE_JSON') or '{}')
+          if release.get('schemaVersion') == 2:
+              release['rolloutStatus'] = 'PASS'
+              pathlib.Path('deployment-evidence/environment-state.json').write_text(json.dumps(release, indent=2) + '\n')
+          PYCODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with: { name: deployment-evidence, path: deployment-evidence/ }
