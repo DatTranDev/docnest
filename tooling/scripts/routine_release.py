@@ -1,7 +1,6 @@
-"""Protected routine-release planning and preflight; never pauses applications."""
+"""Automatic protected release planning and preflight; never pauses applications."""
 
 import argparse
-import datetime
 import hashlib
 import json
 import os
@@ -9,9 +8,11 @@ from pathlib import Path
 import re
 import subprocess
 
-from detect_affected import resolve, selection
+from deployment_state import Actions, check_attempt, discover
+from detect_affected import resolve
 from digest_manifest import NAMES, validate_manifest
 from release_manifest import merge_state, validate_provenance
+from rolling_policy import validate_compatibility
 from service_config import config_hash
 
 
@@ -27,8 +28,7 @@ def write_json(path, value):
     Path(path).write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
-def approved_state():
-    state = json.loads(os.environ["STATE_JSON"])
+def approved_state(state):
     validate_manifest(state.get("images"), os.environ["PROJECT"], os.environ["REGION"])
     validate_provenance(
         state.get("imageProvenance"), state["images"], os.environ["REPOSITORY_URL"]
@@ -36,6 +36,9 @@ def approved_state():
     if (
         state.get("rolloutStatus") != "PASS"
         or state.get("schemaVersion") != 2
+        or state.get("nativeFormatVersion") != 6
+        or state.get("environment") != "cloud-gke"
+        or state.get("ref") != "refs/heads/main"
         or not re.fullmatch(r"[a-f0-9]{40}", state.get("commit", ""))
     ):
         raise ValueError("A reviewed full V2 environment state is required")
@@ -53,14 +56,18 @@ def approved_state():
 
 
 def plan(state):
-    impact = resolve(state["commit"], os.environ["GITHUB_SHA"], merge_base=False)
-    extra = selection(json.loads(os.environ.get("EXTRA_SERVICES", "[]")))
-    impact["images"] = selection(list(set(impact["images"]) | set(extra)))
-    impact["applications"] = selection(list(set(impact["applications"]) | set(extra)))
-    if impact["coordinated"]:
-        raise ValueError(
-            "Shared protocol/native changes require the coordinated maintenance release"
-        )
+    impact = resolve(
+        state["commit"] if state else None,
+        os.environ["GITHUB_SHA"],
+        merge_base=False,
+    )
+    if state and state.get("googleClientId", "") != os.environ.get(
+        "GOOGLE_CLIENT_ID", ""
+    ):
+        for key in ("images", "applications"):
+            if "web" not in impact[key]:
+                impact[key].append("web")
+    validate_compatibility(impact)
     return impact
 
 
@@ -84,7 +91,7 @@ def evidence_inventory(live):
             for name, obj in live["deployments"].items()
         },
         "pods": sorted(
-            (pod["metadata"].get("labels", {}).get("app", ""), pod["metadata"]["uid"])
+            [pod["metadata"].get("labels", {}).get("app", ""), pod["metadata"]["uid"]]
             for pod in live["pods"]
             if pod["metadata"].get("labels", {}).get("app") in NAMES
         ),
@@ -120,61 +127,16 @@ def validate_live(state, live):
             )
 
 
-def validate_recovery(metadata, now=None):
-    now = now or datetime.datetime.now(datetime.timezone.utc)
-    updated = datetime.datetime.fromisoformat(
-        metadata.get("update_time", metadata.get("updated", "")).replace("Z", "+00:00")
-    )
-    age = (now - updated).total_seconds()
-    if (
-        int(metadata.get("size", 0)) <= 0
-        or not metadata.get("generation")
-        or not 0 <= age <= 86400
-    ):
-        raise ValueError(
-            "Recovery object must be nonempty, generation-pinned and at most 24 hours old"
-        )
-
-
-def validate_acceptance(impact, environment=None):
-    environment = os.environ if environment is None else environment
-    if environment.get("ROUTINE_RELEASE_ENABLED") != "true":
-        raise ValueError(
-            "Routine rollout acceptance/capacity/worker gate is not enabled"
-        )
-    for key in ("ROLLOUT_ACCEPTANCE_RUN", "RESTORE_DRILL_RUN"):
-        if not re.fullmatch(
-            re.escape(environment["REPOSITORY_URL"]) + r"/actions/runs/[0-9]+",
-            environment.get(key, ""),
-        ):
-            raise ValueError(
-                "Reviewed runtime and restore evidence is required: " + key
-            )
-    if impact["migrations"] and environment.get("MIGRATIONS_COMPATIBLE") != "true":
-        raise ValueError(
-            "New migrations need explicit mixed-version expand-only review"
-        )
-
-
 def prepare(state, impact):
-    validate_acceptance(impact)
-    reference, bucket = os.environ["BACKUP_REFERENCE"], os.environ["BACKUPS"]
-    prefix = "gs://" + bucket + "/"
-    if not reference.startswith(prefix) or not re.fullmatch(
-        r"[A-Za-z0-9][A-Za-z0-9._/-]{0,512}\.(age|gpg)", reference[len(prefix) :]
-    ):
-        raise ValueError("A scoped encrypted recovery object is required")
-    metadata = json.loads(
-        command("gcloud", "storage", "objects", "describe", reference, "--format=json")
-    )
-    validate_recovery(metadata)
-    write_json(
-        "deployment-evidence/recovery-object.json",
-        {
-            key: metadata.get(key)
-            for key in ("generation", "size", "update_time", "updated")
-        },
-    )
+    before = inventory()
+    previous = {
+        name: before["deployments"][name]["spec"]["template"]["spec"]["containers"][0][
+            "image"
+        ]
+        for name in NAMES
+    }
+    validate_manifest(previous, os.environ["PROJECT"], os.environ["REGION"])
+    validate_live(state or {"images": previous}, before)
     build_json = os.environ.get("BUILD_MANIFEST", "")
     build = (
         json.loads(build_json)
@@ -184,7 +146,7 @@ def prepare(state, impact):
             "nativeFormatVersion": 6,
             "environment": "cloud-gke",
             "ref": "refs/heads/main",
-            "googleClientId": state.get("googleClientId", ""),
+            "googleClientId": os.environ.get("GOOGLE_CLIENT_ID", ""),
             "commit": os.environ["GITHUB_SHA"],
             "runUrl": os.environ["RUN_URL"],
             "images": {},
@@ -193,6 +155,11 @@ def prepare(state, impact):
     )
     if set(build["images"]) != set(impact["images"]):
         raise ValueError("Build does not match independently recomputed source impact")
+    # First adoption replaces every image with same-run scanned provenance.
+    # Live image references are rollback evidence, never fabricated provenance.
+    if state is None:
+        validate_manifest(build["images"], os.environ["PROJECT"], os.environ["REGION"])
+        state = {**build, "rolloutStatus": "PASS"}
     merged = merge_state(
         state,
         build,
@@ -205,33 +172,57 @@ def prepare(state, impact):
     if merged.get("googleClientId") != os.environ.get("GOOGLE_CLIENT_ID", ""):
         raise ValueError("Google build configuration differs from deployed client")
     merged["rolloutStatus"] = "PENDING"
-    before = inventory()
-    validate_live(state, before)
+    merged["mutationStarted"] = False
+    merged["previousImages"] = previous
+    merged["recoveryStatus"] = (
+        "Independent backup/restore verification is not performed by deployment"
+    )
     write_json("deployment-evidence/before.json", evidence_inventory(before))
     write_json("deployment-evidence/environment-state.json", merged)
     write_json("digests.json", merged["images"])
     write_json("affected.json", impact)
 
 
-def check_config(config, impact, live):
+def configuration_scope(config, current, impact, live, trusted_proxy):
+    selected = set(impact["applications"])
     for name in NAMES:
-        if name not in impact["applications"] and config_hash(
-            name, config
-        ) != config_hash(name, live):
-            raise ValueError(
-                "Configuration change affects an unselected application: " + name
-            )
+        template = live["deployments"][name]["spec"]["template"]
+        annotations = template.get("metadata", {}).get("annotations", {})
+        expected = config_hash(name, config)
+        if (
+            expected != config_hash(name, current)
+            or annotations.get("docsnest.dattrandev.id.vn/config-sha256") != expected
+        ):
+            selected.add(name)
+        if name == "web":
+            environment = {
+                entry["name"]: entry.get("value", "")
+                for entry in template["spec"]["containers"][0].get("env", [])
+            }
+            if environment.get("TRUSTED_PROXY_CIDRS", "") != trusted_proxy:
+                selected.add(name)
+    return [name for name in NAMES if name in selected]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=["plan", "prepare"])
     args = parser.parse_args()
-    state = approved_state()
+    if os.environ.get("GITHUB_REF") != "refs/heads/main":
+        raise ValueError("Only protected main may be released")
+    attempt = int(os.environ.get("GITHUB_RUN_ATTEMPT", "1"))
+    if args.action == "plan":
+        state = discover(Actions(), os.environ["GITHUB_RUN_ID"], attempt)
+    else:
+        check_attempt(Actions(), os.environ["GITHUB_RUN_ID"], attempt)
+        state = json.loads(os.environ["RELEASE_PLAN"])["baseline"]
+    if state is not None:
+        approved_state(state)
     impact = plan(state)
-    validate_acceptance(impact)
     if args.action == "prepare":
         Path("deployment-evidence").mkdir(exist_ok=True)
+        if json.loads(os.environ["RELEASE_PLAN"])["impact"] != impact:
+            raise ValueError("Source impact changed after build planning")
         prepare(state, impact)
     elif os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
@@ -239,6 +230,13 @@ def main():
                 stream.write(
                     key + "=" + json.dumps(impact[key], separators=(",", ":")) + "\n"
                 )
+            stream.write(
+                "release_plan="
+                + json.dumps(
+                    {"baseline": state, "impact": impact}, separators=(",", ":")
+                )
+                + "\n"
+            )
     print(
         "Validated routine release scope:",
         ", ".join(impact["applications"]) or "no application changes",

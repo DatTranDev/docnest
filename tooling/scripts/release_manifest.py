@@ -88,7 +88,10 @@ def merge_state(state, build, *, project, region, repository, commit, run_url):
     if (
         build.get("commit") != commit
         or build.get("runUrl") != run_url
-        or state.get("googleClientId") != build.get("googleClientId")
+        or (
+            state.get("googleClientId") != build.get("googleClientId")
+            and "web" not in changed
+        )
         or not re.fullmatch(r"[a-f0-9]{40}", state.get("commit", ""))
         or any(
             record["commit"] != commit or record["runUrl"] != run_url
@@ -96,7 +99,7 @@ def merge_state(state, build, *, project, region, repository, commit, run_url):
         )
     ):
         raise ValueError(
-            "Changed images must have same-run provenance; client changes require coordinated release"
+            "Changed images must have same-run provenance; client changes require a Web rebuild"
         )
     merged = copy.deepcopy(build)
     merged["images"] = {**previous, **changed}

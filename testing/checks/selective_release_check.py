@@ -1,7 +1,6 @@
 """Offline selective release policy tests; no live rollout or restore claims."""
 
 import copy
-import datetime
 import itertools
 import json
 import os
@@ -19,12 +18,7 @@ sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from detect_affected import BACKENDS, affected, resolve, selection
 from digest_manifest import NAMES, validate_manifest
 from release_manifest import merge_state, scan_records
-from routine_release import (
-    check_config,
-    validate_acceptance,
-    validate_live,
-    validate_recovery,
-)
+from routine_release import validate_live
 from routine_rollout import verify_unrelated
 from service_config import CONFIG_KEYS, config_hash
 
@@ -247,45 +241,6 @@ class ReleaseTests(unittest.TestCase):
                 config_hash(name, config) != config_hash(name, changed),
                 name == "identity-service",
             )
-        check_config(changed, {"applications": ["identity-service"]}, config)
-        with self.assertRaises(ValueError):
-            check_config(changed, {"applications": ["document-service"]}, config)
-
-    def test_acceptance_gate_precedes_build_and_requires_reviewed_runs(self):
-        impact = {"migrations": []}
-        good = {
-            "ROUTINE_RELEASE_ENABLED": "true",
-            "REPOSITORY_URL": self.repository,
-            "ROLLOUT_ACCEPTANCE_RUN": self.run,
-            "RESTORE_DRILL_RUN": self.run,
-        }
-        validate_acceptance(impact, good)
-        for key in (
-            "ROUTINE_RELEASE_ENABLED",
-            "ROLLOUT_ACCEPTANCE_RUN",
-            "RESTORE_DRILL_RUN",
-        ):
-            with self.assertRaises(ValueError):
-                validate_acceptance(impact, {**good, key: ""})
-        with self.assertRaises(ValueError):
-            validate_acceptance({"migrations": ["document-service"]}, good)
-        validate_acceptance(
-            {"migrations": ["document-service"]},
-            {**good, "MIGRATIONS_COMPATIBLE": "true"},
-        )
-
-    def test_recovery_is_recent_nonempty_and_pinned(self):
-        now = datetime.datetime.now(datetime.timezone.utc)
-        good = {"updated": now.isoformat(), "size": "100", "generation": "42"}
-        validate_recovery(good, now)
-        for change in (
-            {"updated": (now - datetime.timedelta(days=2)).isoformat()},
-            {"updated": (now + datetime.timedelta(seconds=30)).isoformat()},
-            {"size": "0"},
-            {"generation": None},
-        ):
-            with self.subTest(change=change), self.assertRaises(ValueError):
-                validate_recovery({**good, **change}, now)
 
     def test_scan_evidence_requires_complete_identical_images(self):
         previous = Path.cwd()
@@ -470,13 +425,13 @@ class ReleaseTests(unittest.TestCase):
 
     def test_routine_workflow_has_shared_lock_and_no_maintenance_helper(self):
         workflow = yaml.safe_load(
-            (ROOT / ".github/workflows/gke-selective-deploy.yml").read_text(
+            (ROOT / ".github/workflows/gke-build-deploy.yml").read_text(
                 encoding="utf-8"
             )
         )
         deploy = workflow["jobs"]["deploy"]
         self.assertEqual(
-            deploy["concurrency"],
+            workflow["concurrency"],
             {"group": "cloud-gke-deployment", "cancel-in-progress": False},
         )
         runs = "\n".join(step.get("run", "") for step in deploy["steps"])

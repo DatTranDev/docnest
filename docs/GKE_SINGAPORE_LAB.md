@@ -90,12 +90,10 @@ kiểm tra nó thuộc đúng lab trước khi dùng lại; không xóa dữ li�
 
 ## 2. Chuẩn bị sáu image đã được scan
 
-Trên GitHub: **Actions → Build cloud images (manual, no deploy) → Run workflow →
-main → environment_name=cloud-gke**. Đợi workflow xanh, xem commit SHA trong artifact `cloud-image-digests`.
-Dùng SHA của run đó, không tự lấy latest hay SHA của một run chưa publish.
+Trên GitHub: **Actions → Build & deploy → Run workflow → main**. Dùng artifact `cloud-image-digests` từ job build/scan/publish đã PASS. Nút này cập nhật cluster đã bootstrap; trong lần bootstrap đầu, deploy dừng ở preflight nếu cluster/app chưa tồn tại. Không coi run chưa rollout là deploy thành công. Sau bootstrap chạy lại cùng nút.
 
 ```bash
-read -r -p 'SHA đầy đủ của run Build cloud images đã PASS: ' IMAGE_COMMIT
+read -r -p 'SHA đầy đủ của job build/scan/publish đã PASS: ' IMAGE_COMMIT
 export IMAGE_COMMIT
 "$PYTHON" - <<'PY'
 import json, os, pathlib, re, subprocess, sys
@@ -514,24 +512,11 @@ Public `/internal` và `/actuator` phải trả 404; database/Kafka/Redis vẫn 
 `top` cần metrics sẵn sàng. Pending/OOM không tự động chứng minh cần thêm node:
 kiểm tra events, requests, limits và allocatable trước.
 
-## 11. Cập nhật về sau bằng GitHub
+## 11. Cập nhật ứng dụng
 
-Dùng [GKE_CUTOVER.md](GKE_CUTOVER.md) bước 2–3 để tạo environment riêng
-**cloud-gke**, backup bucket riêng và chạy setup_gke_deploy.sh cho scoped IAM/RBAC.
-Workflow VM đã được bỏ; tất cả workflow cloud hiện tại chỉ nhận **cloud-gke**.
+Cấu hình một lần theo [GKE_ONE_CLICK.md](GKE_ONE_CLICK.md), rồi **Actions → Build & deploy → Run workflow → main → Run workflow**. Không nhập JSON, digest, backup reference hoặc chọn service. Workflow tự tìm baseline và rolling update các app cần thiết, không pause/scale-to-zero.
 
-Sau bootstrap lần đầu, dùng [GKE_ONE_CLICK.md](GKE_ONE_CLICK.md) để cấu hình
-backup identity và public age recipient một lần. Nút **Build & deploy GKE → main**
-nối build, scan, publication, automatic encrypted backup và same-run digest
-deployment; không cần nhập backup reference. App chỉ pause sau khi build xong.
-Backup dùng identity riêng để đọc SQL/JWT cần thiết; publisher/deployer giữ quyền
-riêng. Cluster/Secrets/Ingress và DNS đã bootstrap được giữ nguyên.
-
-Nếu chỉ muốn publish images, chọn **Build cloud images** với
-**environment_name=cloud-gke**. Raw reviewed-digest deployment còn có trong
-**Deploy reviewed GKE digests**, cũng chọn cloud-gke và backup reference đã review.
-Giữ app paused sau backup đến khi rollout hoàn tất trong learning maintenance.
-Không dùng reference giả và không gọi static checks là cloud restore proof.
+Sáu Deployment ứng dụng và MySQL/Kafka/Redis đều đang cần dùng. Không xóa workload, PVC, Secrets hoặc dữ liệu để cập nhật app. Backup/restore độc lập; kiểm chứng capacity, traffic và connection draining trên cluster thật trước khi công bố zero downtime. Chi tiết tại [release runbook](CICD_SELECTIVE_RELEASES.md).
 
 ## 12. Sau buổi học: dừng tiền node hoặc xóa lab
 

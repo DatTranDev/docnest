@@ -1,18 +1,8 @@
-name: Build cloud images (manual, no deploy)
+name: Build scanned images (internal)
 run-name: Build cloud images from ${{ github.ref_name }} at ${{ github.sha }}
 on:
-  workflow_dispatch:
-    inputs:
-      environment_name:
-        description: Protected target configuration
-        type: choice
-        options: [cloud-gke]
-        default: cloud-gke
   workflow_call:
     inputs:
-      environment_name:
-        type: string
-        default: cloud-gke
       affected_services:
         type: string
         default: '["identity-service","document-service","processing-service","collaboration-service","payment-service","web"]'
@@ -29,10 +19,10 @@ jobs:
       runtime_checks: true
   images:
     needs: validate
-    if: github.ref == 'refs/heads/main' && inputs.environment_name == 'cloud-gke'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    environment: ${{ inputs.environment_name }}
+    environment: cloud-gke
     env:
       BUILD_SERVICES: ${{ inputs.affected_services || '["identity-service","document-service","processing-service","collaboration-service","payment-service","web"]' }}
       GCP_PROJECT: ${{ vars.GCP_PROJECT }}

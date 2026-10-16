@@ -66,7 +66,6 @@ Tạo/copy **Variables**, không đưa password/JWT vào các biến này:
 | WEB_ORIGIN                                         | https://k8s.docsnest.dattrandev.id.vn khi bootstrap; domain chính ở bước 5              |
 | GCS_SNAPSHOTS_BUCKET                               | aitripmaster-docnest-k8s-snapshots                                                      |
 | GCS_RESULTS_BUCKET                                 | aitripmaster-docnest-k8s-results                                                        |
-| GCS_BACKUPS_BUCKET                                 | aitripmaster-docnest-k8s-backups                                                        |
 | MAX_USERS                                          | 100                                                                                     |
 | STRIPE_PRO_MONTHLY_PRICE / STRIPE_PRO_YEARLY_PRICE | Để rỗng cho lab                                                                         |
 
@@ -92,53 +91,25 @@ gh variable list --repo "$DOCNEST_REPO" --env cloud-gke
 Nếu `gh` chưa có, cài GitHub CLI trước. Nếu file Client ID không còn, copy đúng
 GOOGLE_CLIENT_ID từ environment cloud-lab vào Variables cloud-gke; không build
 Web với ID khác runtime. Năm biến trên chỉ đủ cho publish images; cấu hình đầy
-đủ Variables trong bảng trước **Build & deploy GKE**.
+đủ Variables trong bảng trước **Build & deploy**.
 
 Sau khi Variables đã đúng, dùng **Re-run failed jobs** trên run build bị lỗi
 config. CI validate đã PASS được giữ lại; chỉ job images chạy lại. Không rerun
 run CI cũ có lỗi timeout nếu commit mới đã sửa. Đặt đúng environment cloud-gke,
 không nạp password/JWT vào các biến public này.
 
-Lần đầu: **Build cloud images (manual, no deploy) → main →
-environment_name=cloud-gke**. Đợi scan/publish PASS, dùng đúng commit/digests
-của run đó cho bootstrap. **Build & deploy GKE** cập nhật cluster đã bootstrap:
-nó không tự tạo cluster, Secrets hay Ingress. Nếu GitHub vẫn hiện workflow VM,
-đó là lịch sử run cũ; không chạy lại run VM.
+**Build & deploy** là nút cập nhật duy nhất. Workflow build/scan/publish tự động, rồi chỉ rollout cluster đã bootstrap. Với bootstrap lần đầu, dùng phần build đã PASS và artifact `cloud-image-digests` của run này cho hướng dẫn bootstrap; deploy có thể dừng ở preflight khi app chưa tồn tại. Không gọi run đó là deployment thành công. Sau bootstrap, chạy lại cùng nút.
 
-## 3. Bucket backup và quyền deploy — một lần
-
-Nếu chưa có bucket, chạy:
-
-```bash
-gcloud storage buckets create "gs://$BACKUPS" --project="$PROJECT" \
-  --location="$REGION" --uniform-bucket-level-access --public-access-prevention
-"$PYTHON" - <<'PY'
-import json, os, pathlib
-pathlib.Path(os.environ['TASK_DIR'], 'backup-lifecycle.json').write_text(json.dumps({
-    'rule': [{'action': {'type': 'Delete'}, 'condition': {'age': 14}}]
-}))
-PY
-gcloud storage buckets update "gs://$BACKUPS" \
-  --lifecycle-file="$TASK_DIR/backup-lifecycle.json"
-```
-
-Nếu bucket đã có, kiểm tra/reuse, không xóa nó để vượt lỗi. Lifecycle này chỉ
-áp dụng backup; snapshot không được xóa bằng lifecycle theo tuổi. Soft-delete
-có thể giữ thêm byte có tính phí.
+## 3. Quyền deploy — một lần
 
 Sau khi namespace/app đã bootstrap:
 
 ```bash
 bash tooling/scripts/setup_gke_deploy.sh \
-  "$PROJECT" "$ZONE" "$CLUSTER" DatTranDev/docnest "$BACKUPS"
+  "$PROJECT" "$ZONE" "$CLUSTER" DatTranDev/docnest
 ```
 
-Script tạo/reuse SA editor-deploy, WIF repository hiện có, Cluster Viewer,
-RBAC ConfigMap/app Deployments/migration Jobs trong namespace editor-lab và
-Object Viewer chỉ trên backup bucket này. Không thêm quyền get/list Secrets,
-quản trị Terraform hay ghi registry cho deploy identity. Job create là quyền
-mạnh trong namespace: giữ main/environment được bảo vệ, chỉ chạy image đã review.
-Workflow không đọc SQL/JWT bằng deploy identity.
+Script cấu hình editor-deploy/WIF/Cluster Viewer và RBAC ConfigMap, app Deployments, Pods, EndpointSlices và migration Jobs trong editor-lab. Không cấu hình backup bucket, đọc Secrets hay exec Pod. Backup/restore vận hành độc lập; bảo quản recovery objects/keys hiện có. Xem [cấu hình Actions một lần](GKE_ONE_CLICK.md).
 
 ## 4. Chọn đúng cluster và thêm certificate domain chính
 
@@ -374,98 +345,15 @@ gcloud hoặc thêm quota project vào ADC không thay thế provider override n
 Không bật API trong consumer project của bộ SDK và không bỏ budget khỏi state.
 [Google provider quota configuration](https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/provider_reference#quota-management-configuration).
 
-## 8. Backup thủ công cho workflow advanced
+## 8. Recovery độc lập
 
-Với nút **Build & deploy GKE**, dùng [GKE_ONE_CLICK.md](GKE_ONE_CLICK.md) để
-cấu hình backup tự động một lần; không cần chạy phần backup thủ công này cho mỗi
-lần cập nhật. Các lệnh dưới đây dành cho **Deploy reviewed GKE digests** hoặc
-operator capture/restore drill.
+Deploy không pause ứng dụng để tạo backup. Bảo quản các encrypted recovery objects và private keys hiện có; online backup/PITR và restore drill cần thiết kế và nghiệm thu riêng. Không coi build/deploy xanh là bằng chứng restore dữ liệu.
 
-Nếu chưa có age key, tạo một lần. Cất private key ngoài VM/cluster; không paste
-private key/SQL/tar plaintext vào Actions. Public recipient dùng để encrypt.
+## 9. Bấm Build & deploy
 
-```bash
-sudo apt-get update
-sudo apt-get install -y age
-mkdir -p "$HOME/.docnest-secrets"
-chmod 700 "$HOME/.docnest-secrets"
-if [ ! -s "$HOME/.docnest-secrets/backup-age.key" ]; then
-  age-keygen -o "$HOME/.docnest-secrets/backup-age.key"
-fi
-export AGE_RECIPIENT=$(age-keygen -y "$HOME/.docnest-secrets/backup-age.key")
-chmod 600 "$HOME/.docnest-secrets/backup-age.key"
-age -r "$AGE_RECIPIENT" -o "$TASK_DIR/age-probe.age" /dev/null
-```
+Sau [cấu hình một lần](GKE_ONE_CLICK.md): **Actions → Build & deploy → Run workflow → main → Run workflow**. Không nhập JSON, SHA, digest hay backup reference. Workflow tự lấy baseline thành công, build/scan affected images và rolling update các consumer cần thiết, backend trước Web.
 
-Lấy **digests hiện đang chạy**, không dùng digests của bản sắp deploy. Operator
-scale app về 0, đợi Pod biến mất, capture bằng helper đã có. **Giữ app paused
-đến khi workflow hoàn tất** để không phát sinh write sau backup. Node/stateful
-services vẫn chạy. Build/test/scan có thể lâu; đây là maintenance của learning lab.
-
-```bash
-gcloud container clusters get-credentials "$CLUSTER" --project="$PROJECT" --zone="$ZONE"
-export LIVE_CONTEXT=$(kubectl config current-context)
-export STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-export ARCHIVE="$TASK_DIR/gke-backup-$STAMP"
-kubectl --context "$LIVE_CONTEXT" -n editor-lab get deployments \
-  identity-service document-service processing-service collaboration-service payment-service web \
-  -o json > "$TASK_DIR/deployments-before-backup.json"
-"$PYTHON" - <<'PY'
-import json, os, pathlib, sys
-sys.path.insert(0, 'tooling/scripts')
-from digest_manifest import validate_manifest
-root = pathlib.Path(os.environ['TASK_DIR'])
-rows = json.loads((root / 'deployments-before-backup.json').read_text())['items']
-images = {r['metadata']['name']: r['spec']['template']['spec']['containers'][0]['image'] for r in rows}
-validate_manifest(images, os.environ['PROJECT'], os.environ['REGION'])
-if any(r['spec'].get('replicas', 1) != 1 or r.get('status', {}).get('availableReplicas', 0) < 1 for r in rows):
-    raise SystemExit('Backup cần sáu Deployment khỏe, mỗi service 1 replica')
-(root / 'running-digests.json').write_text(json.dumps(images))
-PY
-kubectl --context "$LIVE_CONTEXT" -n editor-lab scale deployment \
-  identity-service document-service processing-service collaboration-service payment-service web --replicas=0
-for service in identity-service document-service processing-service collaboration-service payment-service web; do
-  kubectl --context "$LIVE_CONTEXT" -n editor-lab wait --for=delete pod -l "app=$service" --timeout=300s || exit 1
-done
-"$PYTHON" tooling/scripts/cloud_backup.py backup --environment gke --project "$PROJECT" \
-  --kube-context "$LIVE_CONTEXT" --directory "$ARCHIVE" --images "$TASK_DIR/running-digests.json" \
-  --jwt-secret-version "projects/$PROJECT/secrets/editor-jwt/versions/1"
-```
-
-Không đi tiếp sau lỗi. Chỉ encrypt/upload khi helper thành công, có manifest.
-Nếu retry, đổi STAMP vì helper không ghi đè directory.
-
-```bash
-test -s "$ARCHIVE/manifest.json"
-tar -C "$TASK_DIR" -cf "$ARCHIVE.tar" "$(basename "$ARCHIVE")"
-age -r "$AGE_RECIPIENT" -o "$ARCHIVE.tar.age" "$ARCHIVE.tar"
-export BACKUP_REFERENCE="gs://$BACKUPS/gke/backup-$STAMP.age"
-gcloud storage cp "$ARCHIVE.tar.age" "$BACKUP_REFERENCE" \
-  --project="$PROJECT" --if-generation-match=0
-printf '%s\n' "$BACKUP_REFERENCE"
-```
-
-Dùng reference gs://...age vào workflow. Raw files/tar ở thư mục private cần
-bảo mật/dọn sau khi operator xác minh encrypted archive và thực hiện restore
-drill. Object existence/size không chứng minh backup restore được.
-
-## 9. Bấm Build & deploy GKE
-
-Sau [cấu hình một lần](GKE_ONE_CLICK.md), GitHub → **Actions → Build & deploy
-GKE → Run workflow → main → Run workflow**. Không nhập backup reference. Workflow
-tự chain build/scan/publication, capture/mã hóa/upload backup mới rồi deploy.
-
-Workflow dùng **cloud-gke**, same-run commit/main/V6/Google Client ID/sáu digest
-checks, server dry-run trước maintenance, encrypted backup mới trong bucket cấu
-hình và tồn tại/size >0 trước mutations, năm migrations, backend trước Web và public health.
-Không đổi DNS, tạo cluster/Secrets hay đọc SQL/JWT bằng deploy account.
-Backup account riêng chỉ có các quyền operator cần cho capture. Advanced
-**Deploy reviewed GKE digests** vẫn dùng reference thủ công đã review ở bước 8.
-
-Nếu fail trước mutations, kiểm tra lỗi rồi operator có thể resume app cũ,
-backend trước Web. Nếu migrations/config/images đã đổi, review Flyway/history/
-backup trước recovery; không tự rollback DDL/scale app cũ một cách mù quáng.
-Real GKE/backup restore vẫn DEPLOY_PENDING cho đến khi operator thực thi.
+Không có baseline thì full build để tạo baseline đầu tiên; không scale app về 0. Sau mutation lỗi, kiểm tra `deployment-evidence`, Flyway history và live state trước recovery. Không tự rollback DDL hoặc restart tất cả app. Cloud traffic/draining và restore acceptance vẫn DEPLOY_PENDING cho đến khi thực thi.
 
 ## 10. Xác nhận runtime chỉ còn GKE và bỏ environment VM
 
@@ -488,7 +376,7 @@ phí node: không xóa node bằng compute instances delete.
 
 GitHub → Settings → Environments → **cloud-lab** → Delete environment, sau khi
 đã copy Google Client ID và biến dùng chung sang cloud-gke. Giữ cloud-gke và
-WIF/editor-ci/editor-deploy. Run mới chỉ dùng **Build & deploy GKE** trên main;
+WIF/editor-ci/editor-deploy. Run mới chỉ dùng **Build & deploy** trên main;
 run VM cũ trong Actions là lịch sử, không rerun. Recovery về sau dùng backup GKE
 và digest trước đó sau review schema; VM đã xóa không còn đường start/rollback.
 
