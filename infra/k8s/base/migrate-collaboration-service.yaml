@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       labels:
-        app: collaboration-service
+        app: migrate-collaboration-service
         application: text-editor
     spec:
       enableServiceLinks: false
