@@ -74,10 +74,6 @@ def main():
                 "structure-browser",
             )
         ],
-        (
-            "auth-fixture-budget",
-            [sys.executable, "testing/checks/auth_fixture_budget.py", "--reserve", "4"],
-        ),
         ("workspace-browser", ["node", "testing/checks/workspace-browser.cjs"]),
         ("worker", ["npm.cmd" if os.name == "nt" else "npm", "run", "worker-check"]),
         (
@@ -104,6 +100,22 @@ def main():
             ],
         ),
     ]
+    paced = []
+    for name, command in commands:
+        if name.endswith("-browser") and name != "local-tools-browser":
+            paced.append(
+                (
+                    "auth-budget-" + name,
+                    [
+                        sys.executable,
+                        "testing/checks/auth_fixture_budget.py",
+                        "--reserve",
+                        "4",
+                    ],
+                )
+            )
+        paced.append((name, command))
+    commands = paced
     print("Preparing isolated fresh acceptance stack", flush=True)
     with (
         IsolatedStack(args.port) as stack,

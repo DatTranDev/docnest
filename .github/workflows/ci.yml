@@ -148,21 +148,33 @@ jobs:
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: node testing/checks/local-tools-browser.cjs
         if: inputs.full_acceptance
-      - run: node testing/checks/collaboration-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/collaboration-browser.cjs
         if: inputs.full_acceptance
-      - run: node testing/checks/billing-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/billing-browser.cjs
         if: inputs.full_acceptance
-      - run: node testing/checks/i18n-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/i18n-browser.cjs
         if: inputs.full_acceptance
-      - run: node testing/checks/docsnest-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/docsnest-browser.cjs
         if: inputs.full_acceptance
-      - run: node testing/checks/source-files-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/source-files-browser.cjs
         if: inputs.full_acceptance
-      - run: node testing/checks/structure-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/structure-browser.cjs
         if: inputs.full_acceptance
-      - run: python testing/checks/auth_fixture_budget.py --reserve 4
-        if: inputs.full_acceptance
-      - run: node testing/checks/workspace-browser.cjs
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          node testing/checks/workspace-browser.cjs
         if: inputs.full_acceptance
       - run: python tooling/scripts/rollout_traffic.py --local --seconds 30 --slow-seconds 35
         if: inputs.full_acceptance
