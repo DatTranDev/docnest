@@ -1,0 +1,84 @@
+{
+  "checkedAt": "2026-10-17T10:01:54.991901+00:00",
+  "region": "asia-southeast1",
+  "project": "aitripmaster",
+  "status": "ESTIMATE_ONLY_NOT_PROVISIONED",
+  "totalBudgetUsd": 300,
+  "remainingBudgetUsd": null,
+  "hoursPerMonth": 730,
+  "proposedRunner": {
+    "count": 1,
+    "machineType": "e2-medium",
+    "sharedVcpu": 2,
+    "sustainedVcpuEquivalent": 1,
+    "memoryGiB": 4,
+    "bootDiskGiB": 30,
+    "bootDiskType": "pd-standard",
+    "ephemeralExternalIpv4": 1,
+    "gkeClustersAdded": 0,
+    "applicationReplicasAdded": 0
+  },
+  "monthlyUsd": {
+    "vm": 30.173141,
+    "disk": 1.32,
+    "ipv4": 3.65,
+    "fixedSubtotal": 35.143141,
+    "example10GiBStandardStorage": 0.2,
+    "operationsNetworkLogsTax": "EXCLUDED_VARIABLE",
+    "planningAllowance": 40,
+    "allowanceIsHardBillingCap": false
+  },
+  "backupDesign": {
+    "baseSchedule": "hourly",
+    "closedBinlogSchedule": "every 5 minutes",
+    "storage": "new independent regional Standard bucket; age ciphertext only",
+    "initialRetentionProposalDays": 14,
+    "retentionStatus": "NOT_APPLIED; requires actual growth/recovery-chain/source-generation review",
+    "offlineDecryptionIdentity": "not accessible to runner upload identity",
+    "mysql": "dedicated least-privilege account; verified TLS; database reads only",
+    "cloudIdentity": "dedicated attached service account; no downloaded service-account key",
+    "network": "same VPC; SSH restricted to IAP; no public application or database listener",
+    "acceptance": "successful encrypted capture and isolated application recovery required before claiming protection"
+  },
+  "blockers": [
+    "Actual remaining total budget/credit not verified",
+    "Runner bootstrap/network/TLS/IAM and offline identity export need implementation/review",
+    "Full GCS/PITR/event/provider recovery and monitoring delivery remain untested"
+  ],
+  "sources": {
+    "computeCatalog": "https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus",
+    "storageCatalog": "https://cloudbilling.googleapis.com/v1/services/95FF-2EF5-5EA1/skus",
+    "ipv4": "https://cloud.google.com/vpc/pricing#ipaddress",
+    "gke": "https://cloud.google.com/kubernetes-engine/pricing"
+  },
+  "catalogPrices": [
+    {
+      "skuId": "0572-568A-4FC4",
+      "description": "Storage PD Capacity in Singapore",
+      "usdPerUnit": 0.044,
+      "unit": "GiBy.mo",
+      "effectiveTime": "2026-10-16T07:00:00Z"
+    },
+    {
+      "skuId": "7102-B9AA-2ACF",
+      "description": "E2 Instance Core running in Singapore",
+      "usdPerUnit": 0.02690931,
+      "unit": "h",
+      "effectiveTime": "2026-10-16T07:00:00Z"
+    },
+    {
+      "skuId": "E277-7DC2-2C7D",
+      "description": "E2 Instance Ram running in Singapore",
+      "usdPerUnit": 0.00360594,
+      "unit": "GiBy.h",
+      "effectiveTime": "2026-10-16T07:00:00Z"
+    },
+    {
+      "skuId": "76BA-5CAD-4338",
+      "description": "Standard Storage Singapore",
+      "usdPerUnit": 0.02,
+      "unit": "GiBy.mo",
+      "effectiveTime": "2026-10-16T07:00:00Z"
+    }
+  ]
+}
