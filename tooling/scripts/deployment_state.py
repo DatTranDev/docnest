@@ -101,14 +101,15 @@ def reconciled(state, recovery):
         return None
     binding = recovery.get("recoveryOf", {})
     decision = binding.get("decision")
+    unmodified = decision == "operator-approved-unmodified-application-reconciliation"
     target = (
         state.get("previousImages")
-        if decision == "operator-approved-image-rollback"
+        if decision == "operator-approved-image-rollback" or unmodified
         else state.get("images")
     )
     configuration = (
         state.get("previousConfigSha256")
-        if decision == "operator-approved-image-rollback"
+        if decision == "operator-approved-image-rollback" or unmodified
         else state.get("desiredConfigSha256")
     )
     if (
@@ -118,7 +119,11 @@ def reconciled(state, recovery):
         ).hexdigest()
         or binding.get("runUrl") != state.get("runUrl")
         or decision
-        not in ("operator-approved-image-rollback", "operator-approved-roll-forward")
+        not in (
+            "operator-approved-image-rollback",
+            "operator-approved-roll-forward",
+            "operator-approved-unmodified-application-reconciliation",
+        )
         or recovery.get("rolloutStatus") != "PASS"
         or recovery.get("images") != target
         or not re.fullmatch(r"[a-f0-9]{64}", binding.get("configurationSha256", ""))
@@ -128,6 +133,17 @@ def reconciled(state, recovery):
     ):
         raise ValueError(
             "Protected recovery state does not reconcile this exact interrupted release"
+        )
+    if unmodified and (
+        binding.get("applicationMutationAbsent") is not True
+        or recovery.get("selectedServices") != []
+        or state.get("previousConfigSha256") != state.get("desiredConfigSha256")
+        or not re.fullmatch(r"[a-f0-9]{64}", binding.get("beforeSha256", ""))
+        or binding.get("beforeSha256") != binding.get("afterSha256")
+        or not re.fullmatch(r"[a-f0-9]{64}", binding.get("stagesSha256", ""))
+    ):
+        raise ValueError(
+            "Unmodified recovery must bind identical application inventories and configuration"
         )
     return recovery
 

@@ -212,9 +212,11 @@ def native_fixture(sequence=0, large=False):
             ("text.utf8", text),
             ("styles.bin", styles),
         ):
-            archive.writestr(
-                zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0)), data
-            )
+            entry = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            # Preserve the immutable fixture originally created by Windows and
+            # emit identical archive bytes from Linux CI and operator hosts.
+            entry.create_system = 0
+            archive.writestr(entry, data)
     return output.getvalue()
 
 
