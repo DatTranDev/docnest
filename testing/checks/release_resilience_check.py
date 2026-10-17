@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT / "testing/checks"))
 from mixed_migration_gate import owners as migration_owners
 from mixed_version_check import run as isolated_command
 from archive_release import evidence_sources
+from backup_runtime_check import BackupRuntimeTests
 from runtime_diagnostics import gateway_events, states as runtime_states
 
 

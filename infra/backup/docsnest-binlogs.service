@@ -6,6 +6,9 @@ After=network-online.target
 Type=oneshot
 User=docsnest-backup
 WorkingDirectory=/opt/docsnest
+Environment=HOME=/var/lib/docsnest-backup
+Environment=TMPDIR=/var/lib/docsnest-backup/tmp
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
 ExecStart=/opt/docsnest/.venv/bin/python tooling/scripts/backup_schedule.py --config /etc/docsnest/backup.json --mode binlogs
 TimeoutStartSec=15min
 UMask=0077

@@ -2,9 +2,9 @@
 Description=Hourly DocNest online snapshot; independent from deployment
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=*-*-* *:02:00
 Persistent=true
-RandomizedDelaySec=60
+RandomizedDelaySec=30
 Unit=docsnest-backup.service
 
 [Install]
