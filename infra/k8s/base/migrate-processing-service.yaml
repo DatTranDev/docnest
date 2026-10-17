@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       labels:
-        app: processing-service
+        app: migrate-processing-service
         application: text-editor
     spec:
       enableServiceLinks: false

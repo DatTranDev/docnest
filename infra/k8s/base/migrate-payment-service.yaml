@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       labels:
-        app: payment-service
+        app: migrate-payment-service
         application: text-editor
     spec:
       enableServiceLinks: false

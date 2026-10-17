@@ -79,11 +79,12 @@ For a SQL-only drill, use the explicit snapshot and complete binlog boundary fro
 
 ```bash
 python tooling/scripts/online_restore.py --snapshot /secure/snapshot.age \
-  --binlogs /secure/binlogs.age --identity /offline/age-identity.txt \
+  --binlogs /secure/binlogs-first.age /secure/binlogs-next.age \
+  --identity /offline/age-identity.txt \
   --stop-time '2026-10-17 01:00:00'
 ```
 
-The timestamp is UTC. The chain must match the server UUID, starting file/position and consecutive files. Checksums, archive paths, ciphertext integrity and all five schemas are checked before approval. The official minimal server image lacks mysqlbinlog; the isolated tools image extracts the matching8.4.7 client from an official signature-verified RPM. Use the exact recovery tooling, not an older MariaDB decoder.
+The timestamp is UTC. Supply consecutive archives in capture order, without duplicate or missing batches. Every server UUID, file hash, authorized byte range and closed-file continuation cursor is checked before replay. A later hourly snapshot can lie inside a file archived from position4: replay starts at the snapshot's exact coordinate, then continues at position4 in each subsequent file. Older files in the first batch are verified and omitted. An archive whose authorized range begins after the snapshot coordinate is rejected. This preserves the independent binlog cursor across hourly snapshots; do not reset that cursor to force a match. Checksums, archive paths, ciphertext integrity and all five schemas remain required. The official minimal server image lacks mysqlbinlog; the isolated tools image extracts the matching8.4.7 client from an official signature-verified RPM. Use the exact recovery tooling, not an older MariaDB decoder. This SQL chain does not prove that GCS generations created after the base snapshot are available for application PITR.
 
 For a base GCS snapshot, export reviewed plaintext only to an explicit protected directory, then reuse the existing generation-aware isolated object remap:
 
@@ -127,6 +128,12 @@ python tooling/scripts/release_recovery.py plan --context "$CONTEXT" \
 Review the plan and real schema/event evidence. Set `approved` only after review, then use `execute` with the same arguments plus `--approval /secure/recovery/recovery-plan.json`. Export the four traffic Secrets and `ORIGIN`, `GITHUB_REPOSITORY`, `GH_TOKEN` through the protected operator session. Successful recovery requires authenticated traffic and all-service availability, not just a completed patch. A partial attempt remains PENDING.
 
 Store the resulting full recovered state in protected environment Variable `GKE_RECOVERY_STATE` after review, then re-enable the workflow. Discovery accepts it only when it binds the exact failed-state hash, the chosen previous/current image set and configuration hash, with traffic/compatibility evidence. It cannot bypass a different interrupted release. Remove the override after the next normal successful release. Never edit failed artifacts to PASS or automatically reverse SQL.
+
+If the failed attempt completed only the unchanged ConfigMap and reviewed migration Jobs, use `unmodified_recovery.py plan` with the same context/project/region/repository/failed/baseline/output arguments, plus the independently verified `--server-uuid` and `--mysql-defaults`. This separate mode fetches original Actions artifacts, verifies the successful predecessor's image provenance, binds actual old-image schema compatibility and all five live Flyway histories, and requires identical six-service images/templates/Deployment UIDs/serving Pod UIDs/replicas. Every exact migration Job must still exist and be successfully complete. Only its UID-bound, completed migrate-only Pod can be excluded from the serving inventory. Missing Jobs, changed configuration, application apply stages or any serving change fail closed. Candidate event compatibility is not asserted: no new application image is promoted.
+
+Where the operator already has Pod exec but no external MySQL reader, explicitly choose `--operator-pod-schema` instead of `--mysql-defaults`. This port runs only fixed UUID/Flyway queries and the DDL fence in mysql-0, with the credential expanded inside that Pod. It exports no credential and grants no Pod exec to deployment or backup identities. Review the expiring plan, set `approved`, then run `execute` with the same arguments and `--approval`. Execution holds the actual DDL fence, rechecks the workflow freeze and inventories, runs authenticated/slow traffic and all-service availability, then rechecks before writing a separate recovered state. It patches no workloads and restores no SQL; traffic writes only dedicated synthetic fixtures through the existing API. Install the resulting protected override only after reviewing the evidence.
+
+Migration Job Pods use an `app: migrate-<service>` label while retaining `application: text-editor` for internal network policy. Application Services must never select these non-HTTP Pods. The generated manifests and offline deployment checker enforce this for all five owners.
 
 ## Observability, retention and availability
 

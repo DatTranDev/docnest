@@ -328,7 +328,12 @@ for name in [
                 "activeDeadlineSeconds": 300,
                 "ttlSecondsAfterFinished": 3600,
                 "template": {
-                    "metadata": {"labels": {"app": name, "application": "text-editor"}},
+                    "metadata": {
+                        "labels": {
+                            "app": "migrate-" + name,
+                            "application": "text-editor",
+                        }
+                    },
                     "spec": {
                         **pod,
                         "restartPolicy": "Never",

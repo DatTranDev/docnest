@@ -5,6 +5,7 @@ The mutable source and restore target are isolated, random, owned containers.
 """
 
 import argparse
+from contextlib import ExitStack
 import json
 from pathlib import Path
 import subprocess
@@ -18,7 +19,65 @@ sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from cloud_backup import DBS
 from mysql_sandbox import Sandbox, build_tools
 from online_backup import Source, archive_binlogs, capture, prerequisites, run, snapshot
-from online_restore import decrypted, replay, validate_snapshot
+from online_restore import decrypted, replay, replay_chain, validate_snapshot
+
+
+def periodic_chain(source, options, logs, folder, key, age):
+    def commit():
+        source.query(
+            "START TRANSACTION; UPDATE document_db.recovery_probe SET value=value+1; "
+            "UPDATE processing_db.recovery_probe SET value=value+1; COMMIT;"
+        )
+
+    commit()
+    options.output = folder / "later-snapshot.age"
+    capture(options)
+    previous = json.loads(logs.output.with_suffix(".age.receipt.json").read_text())
+    archives = []
+    for value in (4, 5):
+        commit()
+        batch = SimpleNamespace(**vars(logs))
+        batch.start_file = previous["nextBoundary"]["file"]
+        batch.start_position = previous["nextBoundary"]["position"]
+        batch.output = folder / ("binlogs-" + str(value) + ".age")
+        archive_binlogs(batch)
+        archives.append(batch.output)
+        previous = json.loads(batch.output.with_suffix(".age.receipt.json").read_text())
+    with ExitStack() as stack:
+        data, snapshot_manifest = stack.enter_context(
+            decrypted(options.output, key, age)
+        )
+        validate_snapshot(data, snapshot_manifest)
+        batches = [
+            stack.enter_context(decrypted(archive, key, age)) for archive in archives
+        ]
+        assert batches[0][1]["logs"][0]["startPosition"] == 4
+        assert snapshot_manifest["binlogBoundary"]["position"] > 4
+        assert (
+            batches[0][1]["logs"][0]["file"]
+            == snapshot_manifest["binlogBoundary"]["file"]
+        )
+        with Sandbox(tools=True) as restored:
+            restored.restore(data / "databases.sql")
+            for owner in ("document_db", "processing_db"):
+                assert restored.query(
+                    owner, "SELECT JSON_OBJECT('value',value) FROM recovery_probe;"
+                ) == [{"value": 3}]
+            assert replay_chain(restored, batches, snapshot_manifest) == 2
+            for owner in ("document_db", "processing_db"):
+                assert restored.query(
+                    owner, "SELECT JSON_OBJECT('value',value) FROM recovery_probe;"
+                ) == [{"value": 5}]
+            for invalid in (batches[::-1], batches[1:], [batches[0], batches[0]]):
+                try:
+                    replay_chain(restored, invalid, snapshot_manifest)
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError("Invalid periodic archive chain accepted")
+            assert restored.query(
+                "document_db", "SELECT JSON_OBJECT('value',value) FROM recovery_probe;"
+            ) == [{"value": 5}]
 
 
 def main():
@@ -134,6 +193,10 @@ def main():
                 checks.append(
                     "Actual ROW binlog replay recovers the post-snapshot cross-database transaction"
                 )
+            periodic_chain(source, options, logs, folder, key, args.age)
+            checks.append(
+                "Later hourly snapshot restores from its interior binlog position through two consecutive periodic archives; reordered, missing and overlapping batches rejected"
+            )
             raw = bytearray(options.output.read_bytes())
             raw[-5] ^= 1
             broken = folder / "tampered.age"

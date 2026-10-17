@@ -257,10 +257,23 @@ def main():
         assert "--editor.migrate-only=true" in job_container["args"]
         assert "--spring.flyway.enabled=true" in job_container["args"]
         assert job["spec"]["template"]["spec"]["restartPolicy"] == "Never"
+        job_labels = job["spec"]["template"]["metadata"]["labels"]
+        assert job_labels["application"] == "text-editor"
+        resources = list(
+            yaml.safe_load_all(read("infra/k8s/base/" + service + "-service.yaml"))
+        )
+        endpoint_services = [row for row in resources if row["kind"] == "Service"]
+        assert endpoint_services
+        for endpoint in endpoint_services:
+            selector = endpoint["spec"]["selector"]
+            assert selector and not all(
+                job_labels.get(key) == value for key, value in selector.items()
+            ), "Migration Pod must never be an application HTTP endpoint"
     checks.extend(
         [
             "all authoritative migration bytes/inventories match service resources",
             "separate bounded migrate-only Jobs for all five database owners",
+            "migration Pods retain internal network access and cannot match application Service selectors",
         ]
     )
 
