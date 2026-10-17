@@ -254,8 +254,19 @@ async function createWrittenDocument(page, title, text) {
     stage = 'sort selector and order reversal';
     await page.getByRole('button', { name: 'Sort by', exact: true }).click();
     await page.getByRole('option', { name: 'Name', exact: true }).click();
+    await page.locator('.folder-file').nth(3).waitFor();
     const before = await page.locator('.folder-file .file-label').allTextContents();
+    assert.deepEqual(before, ['Archive', 'Personal', 'Projects', 'Research']);
     await page.getByRole('button', { name: 'Reverse sort order', exact: true }).click();
+    await page.waitForFunction(
+      (expected) =>
+        JSON.stringify(
+          [...document.querySelectorAll('.folder-file .file-label')].map(
+            (node) => node.textContent,
+          ),
+        ) === JSON.stringify(expected),
+      before.toReversed(),
+    );
     assert.deepEqual(
       await page.locator('.folder-file .file-label').allTextContents(),
       before.toReversed(),

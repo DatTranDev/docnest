@@ -62,11 +62,12 @@ export function WorkspaceLibrary({
   const [kind, setKind] = useState('all');
   const items = useMemo(() => {
     const collator = new Intl.Collator(localeTag, { numeric: true, sensitivity: 'base' });
+    const folderDirection = sortBy === 'name' && sortDirection === 'desc' ? -1 : 1;
     return {
       folders:
         kind !== 'all' && kind !== 'folders'
           ? []
-          : [...folders].sort((a, b) => collator.compare(a.name, b.name)),
+          : [...folders].sort((a, b) => folderDirection * collator.compare(a.name, b.name)),
       documents:
         kind === 'folders'
           ? []
@@ -75,7 +76,7 @@ export function WorkspaceLibrary({
                 ['all', 'documents'].includes(kind) || sourceFileType(document.title) === kind,
             ),
     };
-  }, [folders, documents, kind, localeTag]);
+  }, [folders, documents, kind, localeTag, sortBy, sortDirection]);
   const title =
     scope === 'mine'
       ? MESSAGE.myDocuments
