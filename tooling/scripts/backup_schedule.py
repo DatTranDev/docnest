@@ -10,21 +10,17 @@ import uuid
 from types import SimpleNamespace
 
 from online_backup import capture, archive_binlogs
+from backup_runtime import prepared_config
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--mode", choices=["snapshot", "binlogs"], default="snapshot")
-    args = parser.parse_args()
-    config = json.loads(args.config.read_text(encoding="utf-8"))
+def run_schedule(config, mode):
     directory = Path(config["outputDirectory"])
     if not directory.is_dir() or not Path(config["metricsFile"]).parent.is_dir():
         raise ValueError(
             "Provision and protect the existing runner's directories first"
         )
     name = (
-        args.mode
+        mode
         + "-"
         + dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         + "-"
@@ -52,7 +48,7 @@ def main():
     try:
         os.close(descriptor)
         started = time.monotonic()
-        if args.mode == "snapshot":
+        if mode == "snapshot":
             capture(options)
         else:
             boundary = json.loads(cursor.read_text(encoding="utf-8"))
@@ -63,7 +59,7 @@ def main():
         receipt = json.loads(
             options.output.with_suffix(".age.receipt.json").read_text(encoding="utf-8")
         )
-        if args.mode == "binlogs" or not cursor.exists():
+        if mode == "binlogs" or not cursor.exists():
             temporary = cursor.with_suffix(".partial")
             temporary.write_text(
                 json.dumps(
@@ -75,14 +71,24 @@ def main():
         lock.unlink()
     metrics = Path(config["metricsFile"])
     temporary = metrics.with_suffix(".tmp")
-    if args.mode == "binlogs":
+    if mode == "binlogs":
         metrics = metrics.with_name("docsnest-binlogs.prom")
         temporary = metrics.with_suffix(".tmp")
     temporary.write_text(
-        f"docsnest_backup_{args.mode}_timestamp_seconds {int(time.time())}\n"
-        f"docsnest_backup_{args.mode}_duration_seconds {time.monotonic() - started:.3f}\n"
+        f"docsnest_backup_{mode}_timestamp_seconds {int(time.time())}\n"
+        f"docsnest_backup_{mode}_duration_seconds {time.monotonic() - started:.3f}\n"
     )
     temporary.replace(metrics)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", type=Path, required=True)
+    parser.add_argument("--mode", choices=["snapshot", "binlogs"], default="snapshot")
+    args = parser.parse_args()
+    config = json.loads(args.config.read_text(encoding="utf-8"))
+    with prepared_config(config, snapshot=args.mode == "snapshot") as prepared:
+        run_schedule(prepared, args.mode)
 
 
 if __name__ == "__main__":

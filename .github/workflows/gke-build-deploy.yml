@@ -154,3 +154,9 @@ jobs:
           name: deployment-evidence
           path: deployment-evidence/
           retention-days: 90
+      - name: Publish approved image state for independent backup
+        if: success() && vars.GCS_RECOVERY_BUCKET != ''
+        continue-on-error: true
+        env:
+          RECOVERY_BUCKET: ${{ vars.GCS_RECOVERY_BUCKET }}
+        run: python tooling/scripts/backup_runtime.py --evidence deployment-evidence --destination-prefix "gs://$RECOVERY_BUCKET/approved-releases"

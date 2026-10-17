@@ -1,5 +1,6 @@
 {
   "mysqlDefaults": "/etc/docsnest/mysql-backup.cnf",
+  "refreshMysqlEndpoint": true,
   "mysqlServerUuid": "REPLACE_WITH_VERIFIED_MYSQL_SERVER_UUID",
   "recipient": "REPLACE_WITH_AGE_PUBLIC_RECIPIENT",
   "age": "/usr/local/bin/age",
@@ -9,6 +10,8 @@
   "region": "YOUR_REGION",
   "context": "YOUR_REVIEWED_KUBE_CONTEXT",
   "images": "/etc/docsnest/approved-images.json",
+  "repository": "https://github.com/YOUR_OWNER/YOUR_REPOSITORY",
+  "approvedReleasePrefix": "gs://YOUR_INDEPENDENT_RECOVERY_BUCKET/approved-releases",
   "jwtSecretVersion": "projects/YOUR_PROJECT/secrets/editor-jwt/versions/REPLACE_NUMERIC_VERSION",
   "destinationPrefix": "gs://YOUR_INDEPENDENT_RECOVERY_BUCKET/recovery"
 }

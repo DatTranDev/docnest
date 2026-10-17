@@ -16,6 +16,10 @@ rules:
       ]
     verbs: [get]
   - apiGroups: ['']
+    resources: [endpoints]
+    resourceNames: [mysql]
+    verbs: [get]
+  - apiGroups: ['']
     resources: [secrets]
     resourceNames: [editor-jwt]
     verbs: [get]
@@ -25,6 +29,8 @@ kind: RoleBinding
 metadata: { name: editor-online-backup-reader, namespace: editor-lab }
 subjects:
   - kind: User
-    name: editor-backup@YOUR_PROJECT.iam.gserviceaccount.com
+    # Attached GCE identities can authenticate by numeric uniqueId. Verify the
+    # exact principal with IAM metadata; never substitute a broad group.
+    name: REPLACE_WITH_VERIFIED_BACKUP_PRINCIPAL
     apiGroup: rbac.authorization.k8s.io
 roleRef: { kind: Role, name: editor-online-backup-reader, apiGroup: rbac.authorization.k8s.io }
