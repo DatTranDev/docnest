@@ -1,16 +1,20 @@
 """Serial, observed application-only rollout. Does not scale, provision or roll back SQL."""
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
 import threading
 import time
 import urllib.request
+from contextlib import ExitStack
 
 import yaml
 
 from digest_manifest import NAMES
+from drain_policy import policy as drain_policy, validate_backend, validate_web
+from rollout_traffic import TrafficMonitor
 from routine_release import (
     configuration_scope,
     evidence_inventory,
@@ -22,31 +26,41 @@ from routine_release import (
 
 
 class AvailabilityMonitor:
-    def __init__(self, names):
+    def __init__(
+        self,
+        names,
+        *,
+        query=kubectl,
+        origin=None,
+        report="deployment-evidence/availability.json",
+    ):
         self.names = names
         self.stop = threading.Event()
         self.failures = []
         self.samples = []
         self.thread = threading.Thread(target=self.observe, daemon=True)
+        self.query = query
+        self.origin = origin or os.environ["ORIGIN"]
+        self.report = report
 
     def sample(self):
         counts = {}
+        slices = self.query("get", "endpointslices")
         for name in self.names:
-            slices = kubectl(
-                "get", "endpointslices", "-l", "kubernetes.io/service-name=" + name
-            )
             counts[name] = sum(
                 len(endpoint.get("addresses", []))
                 for item in slices.get("items", [])
+                if item.get("metadata", {})
+                .get("labels", {})
+                .get("kubernetes.io/service-name")
+                == name
                 for endpoint in item.get("endpoints", [])
                 if endpoint.get("conditions", {}).get("ready") is True
                 and not endpoint.get("conditions", {}).get("terminating", False)
             )
             if counts[name] < 1:
                 raise ValueError("No serving endpoint: " + name)
-        with urllib.request.urlopen(
-            os.environ["ORIGIN"] + "/healthz", timeout=5
-        ) as response:
+        with urllib.request.urlopen(self.origin + "/healthz", timeout=5) as response:
             if response.status != 200:
                 raise ValueError("Public readiness failed")
         self.samples.append(
@@ -76,7 +90,7 @@ class AvailabilityMonitor:
         if self.thread.is_alive():
             self.failures.append("Readiness observer did not finish")
         write_json(
-            "deployment-evidence/availability.json",
+            self.report,
             {
                 "samples": self.samples,
                 "failures": self.failures,
@@ -105,6 +119,7 @@ def run_stage(command, stages, name):
     if result.returncode:
         # Do not retain arbitrary API errors/payloads or migration logs in artifacts.
         raise ValueError("Deployment stage failed: " + name)
+    return result.stdout
 
 
 def verify_unrelated(before, after, selected):
@@ -153,9 +168,10 @@ def main():
     live = inventory()
     validate_live({"images": state["previousImages"]}, live)
     verify_unrelated(before, evidence_inventory(live), [])
+    current_config = kubectl("get", "configmap", "editor-config")["data"]
     selected = configuration_scope(
         config["data"],
-        kubectl("get", "configmap", "editor-config")["data"],
+        current_config,
         affected,
         live,
         os.environ.get("TRUSTED_PROXY_CIDRS", ""),
@@ -163,6 +179,10 @@ def main():
     if set(obj["metadata"]["name"] for obj in applications) != set(NAMES):
         raise ValueError("Renderer must provide the complete application inventory")
     applications = [obj for obj in applications if obj["metadata"]["name"] in selected]
+    validate_backend(kubectl("get", "backendconfig", "editor-web"))
+    for obj in applications:
+        if obj["metadata"]["name"] == "web":
+            validate_web(obj)
     expected_jobs = {
         "migrate-" + name + "-" + os.environ["RELEASE_ID"]
         for name in affected["migrations"]
@@ -178,7 +198,19 @@ def main():
                 if entry["name"] == "TRUSTED_PROXY_CIDRS":
                     entry["value"] = os.environ.get("TRUSTED_PROXY_CIDRS", "")
     stages = []
-    with AvailabilityMonitor(NAMES) as observer:
+    state["selectedServices"] = selected
+    state["previousConfigSha256"] = hashlib.sha256(
+        json.dumps(current_config, sort_keys=True).encode()
+    ).hexdigest()
+    state["desiredConfigSha256"] = hashlib.sha256(
+        json.dumps(config["data"], sort_keys=True).encode()
+    ).hexdigest()
+    state["desiredTemplateSha256"] = {
+        name: before["deployments"][name]["templateSha256"] for name in NAMES
+    }
+    with ExitStack() as stack:
+        traffic = stack.enter_context(TrafficMonitor.environment())
+        observer = stack.enter_context(AvailabilityMonitor(NAMES))
         config_path = Path("cloud-render/selected-config.yaml")
         config_path.write_text(
             yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
@@ -202,13 +234,29 @@ def main():
                     "spec"
                 ].get("replicas", 1)
             target.write_text(yaml.safe_dump(obj, sort_keys=False), encoding="utf-8")
-            run_stage(
-                ["kubectl", "apply", "--dry-run=server", "-f", str(target)],
+            normalized = run_stage(
+                [
+                    "kubectl",
+                    "apply",
+                    "--dry-run=server",
+                    "-f",
+                    str(target),
+                    "-o",
+                    "json",
+                ],
                 stages,
                 "validate-" + obj["metadata"]["name"],
             )
+            if obj["kind"] == "Deployment":
+                template = json.loads(normalized)["spec"]["template"]
+                state["desiredTemplateSha256"][obj["metadata"]["name"]] = (
+                    hashlib.sha256(
+                        json.dumps(template, sort_keys=True).encode()
+                    ).hexdigest()
+                )
         # Every server dry-run must succeed before config, jobs or Pod templates change.
         observer.require_healthy()
+        traffic.require_healthy()
         if selected:
             state["mutationStarted"] = True
             write_json("deployment-evidence/environment-state.json", state)
@@ -218,6 +266,7 @@ def main():
         for obj in migrations:
             name = obj["metadata"]["name"]
             observer.require_healthy()
+            traffic.require_healthy()
             # Unique release names; never delete a different release's migration Job.
             run_stage(
                 ["kubectl", "create", "-f", "cloud-render/" + name + ".yaml"],
@@ -242,6 +291,7 @@ def main():
             if name not in selected:
                 continue
             observer.require_healthy()
+            traffic.require_healthy()
             run_stage(
                 ["kubectl", "apply", "-f", "cloud-render/" + name + ".yaml"],
                 stages,
@@ -264,18 +314,22 @@ def main():
         # rollout status can finish while old Pods are still in their preStop/drain period.
         drain_start = time.monotonic()
         while True:
-            after = inventory()
+            pods = kubectl("get", "pods").get("items", [])
             draining = any(
                 pod["metadata"].get("deletionTimestamp")
                 and pod["metadata"].get("labels", {}).get("app") in selected
-                for pod in after["pods"]
+                for pod in pods
             )
             if not draining:
                 break
             observer.require_healthy()
-            if time.monotonic() - drain_start > 200:
+            if (
+                time.monotonic() - drain_start
+                > drain_policy()["webTerminationGraceSeconds"] + 40
+            ):
                 raise ValueError("Old application Pods did not finish draining")
             time.sleep(1)
+        after = inventory()
         stages.append(
             {
                 "stage": "wait-old-pod-drain",
@@ -289,6 +343,7 @@ def main():
         verify_unrelated(before, safe_after, selected)
         write_json("deployment-evidence/after.json", safe_after)
         observer.require_healthy()
+        traffic.require_healthy()
     if observer.failures:
         raise ValueError(
             "Rollout observation failed; environment state is not approved"

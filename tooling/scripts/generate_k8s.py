@@ -3,6 +3,7 @@
 import argparse, copy, pathlib, yaml
 
 from digest_manifest import NAMES
+from drain_policy import policy as drain_policy
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--applications-only", action="store_true")
@@ -231,12 +232,23 @@ for name in [
     pod = {
         "enableServiceLinks": False,
         "serviceAccountName": name,
-        "terminationGracePeriodSeconds": 160,
+        "terminationGracePeriodSeconds": (
+            drain_policy()["webTerminationGraceSeconds"] if isweb else 160
+        ),
         "containers": [cont],
         "volumes": volumes,
     }
     if isweb:
         pod["securityContext"] = {"fsGroup": 1000}
+    if name in ("web", "identity-service", "document-service"):
+        pod["topologySpreadConstraints"] = [
+            {
+                "maxSkew": 1,
+                "topologyKey": "kubernetes.io/hostname",
+                "whenUnsatisfiable": "ScheduleAnyway",
+                "labelSelector": {"matchLabels": {"app": name}},
+            }
+        ]
     serviceaccount = meta(name)
     if name not in ["web", "collaboration-service", "payment-service"]:
         serviceaccount["annotations"] = {
@@ -248,7 +260,16 @@ for name in [
             "cloud.google.com/neg": '{"ingress":true}'
         }
     cont["lifecycle"] = {
-        "preStop": {"exec": {"command": ["/bin/sh", "-c", "sleep 10"]}}
+        "preStop": {
+            "exec": {
+                "command": [
+                    "/bin/sh",
+                    "-c",
+                    "sleep "
+                    + str(drain_policy()["webPreStopSeconds"] if isweb else 10),
+                ]
+            }
+        }
     }
     if not isweb:
         cont["env"] += [

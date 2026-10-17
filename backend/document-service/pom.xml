@@ -10,6 +10,10 @@
   <artifactId>document-service</artifactId>
   <dependencies>
     <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <dependency>
       <groupId>vn.editor</groupId>
       <artifactId>editor-common</artifactId>
       <version>${project.version}</version>

@@ -33,7 +33,7 @@ spec:
     spec:
       enableServiceLinks: false
       serviceAccountName: web
-      terminationGracePeriodSeconds: 160
+      terminationGracePeriodSeconds: 360
       containers:
         - name: web
           image: YOUR_REGION-docker.pkg.dev/YOUR_PROJECT/editor/web:REPLACE_WITH_DIGEST
@@ -99,12 +99,19 @@ spec:
                 command:
                   - /bin/sh
                   - -c
-                  - sleep 10
+                  - sleep 210
       volumes:
         - name: tmp
           emptyDir: {}
       securityContext:
         fsGroup: 1000
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: web
 ---
 apiVersion: v1
 kind: Service

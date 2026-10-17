@@ -1,0 +1,14 @@
+{
+  "commit": "5b6d0597a42a32b424b8c2602524f82bbdf1edd2",
+  "runUrl": "https://github.com/DatTranDev/docnest/actions/runs/38937866068",
+  "scope": "Initial six-image release; attempt 1 build and attempt 2 deployment; excludes operator RBAC repair gap",
+  "validationSeconds": 780,
+  "localStackBuildStartSeconds": 308,
+  "imageJobSeconds": 396,
+  "imageBuildStepSeconds": 217,
+  "publishStepSeconds": 98,
+  "deployJobSeconds": 594,
+  "rolloutStepSeconds": 517,
+  "singleServiceSeconds": null,
+  "coldWarmComparison": "NOT_MEASURED"
+}

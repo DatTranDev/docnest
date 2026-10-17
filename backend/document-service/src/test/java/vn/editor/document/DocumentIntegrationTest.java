@@ -645,6 +645,10 @@ class DocumentIntegrationTest {
         HttpClient client = HttpClient.newHttpClient();
         assertEquals(
             401, http(client, base, "GET", "/api/v1/documents", null, null, null).statusCode());
+        var metrics = http(client, base, "GET", "/actuator/prometheus", null, null, null);
+        assertEquals(200, metrics.statusCode());
+        assertTrue(metrics.body().contains("http_server_requests_seconds_bucket"));
+        assertTrue(metrics.body().contains("editor_outbox_oldest_pending_seconds"));
         var folder =
             http(
                 client,

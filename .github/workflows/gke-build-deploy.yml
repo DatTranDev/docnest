@@ -14,6 +14,7 @@ jobs:
     outputs:
       images: ${{ steps.plan.outputs.images }}
       release_plan: ${{ steps.plan.outputs.release_plan }}
+      validation_required: ${{ steps.plan.outputs.validation_required }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: { fetch-depth: 0 }
@@ -30,6 +31,10 @@ jobs:
           GCS_SNAPSHOTS_BUCKET: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
           GCS_RESULTS_BUCKET: ${{ vars.GCS_RESULTS_BUCKET }}
           TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
+          ROLLOUT_OWNER_EMAIL: ${{ secrets.ROLLOUT_OWNER_EMAIL }}
+          ROLLOUT_OWNER_PASSWORD: ${{ secrets.ROLLOUT_OWNER_PASSWORD }}
+          ROLLOUT_VIEWER_EMAIL: ${{ secrets.ROLLOUT_VIEWER_EMAIL }}
+          ROLLOUT_VIEWER_PASSWORD: ${{ secrets.ROLLOUT_VIEWER_PASSWORD }}
         run: |
           set -euo pipefail
           for key in GCP_PROJECT GCP_REGION GCP_ZONE GKE_CLUSTER GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT GCP_DEPLOY_SERVICE_ACCOUNT WEB_ORIGIN GCS_SNAPSHOTS_BUCKET GCS_RESULTS_BUCKET TRUSTED_PROXY_CIDRS; do
@@ -38,6 +43,16 @@ jobs:
               exit 1
             fi
           done
+          for key in ROLLOUT_OWNER_EMAIL ROLLOUT_OWNER_PASSWORD ROLLOUT_VIEWER_EMAIL ROLLOUT_VIEWER_PASSWORD; do
+            if [ -z "${!key}" ]; then
+              echo "::error::Missing dedicated synthetic-account secret: $key"
+              exit 1
+            fi
+          done
+          if [ "$ROLLOUT_OWNER_EMAIL" = "$ROLLOUT_VIEWER_EMAIL" ]; then
+            echo '::error::Synthetic owner and viewer accounts must be different'
+            exit 1
+          fi
       - name: Discover successful deployment and affected services
         id: plan
         env:
@@ -46,6 +61,7 @@ jobs:
           REGION: ${{ vars.GCP_REGION }}
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          RECOVERY_STATE: ${{ vars.GKE_RECOVERY_STATE }}
         run: python tooling/scripts/routine_release.py plan
   build:
     needs: plan
@@ -53,19 +69,21 @@ jobs:
     uses: ./.github/workflows/cloud-images.yml
     with:
       affected_services: ${{ needs.plan.outputs.images }}
+      release_plan: ${{ needs.plan.outputs.release_plan }}
   validate-config:
     needs: plan
-    if: needs.plan.outputs.images == '[]'
+    if: needs.plan.outputs.images == '[]' && needs.plan.outputs.validation_required == 'true'
     uses: ./.github/workflows/ci.yml
-    with: { runtime_checks: true }
+    with: { runtime_checks: true, full_acceptance: true }
   deploy:
     needs: [plan, build, validate-config]
-    if: ${{ always() && needs.plan.result == 'success' && ((needs.build.result == 'success' && needs.validate-config.result == 'skipped') || (needs.build.result == 'skipped' && needs.validate-config.result == 'success')) }}
+    if: ${{ always() && needs.plan.result == 'success' && ((needs.build.result == 'success' && needs.validate-config.result == 'skipped') || (needs.build.result == 'skipped' && (needs.validate-config.result == 'success' || (needs.validate-config.result == 'skipped' && needs.plan.outputs.validation_required == 'false')))) }}
     environment: cloud-gke
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       RELEASE_PLAN: ${{ needs.plan.outputs.release_plan }}
+      RECOVERY_STATE: ${{ vars.GKE_RECOVERY_STATE }}
       BUILD_MANIFEST: ${{ needs.build.outputs.release_json }}
       PROJECT: ${{ vars.GCP_PROJECT }}
       REGION: ${{ vars.GCP_REGION }}
@@ -82,6 +100,10 @@ jobs:
       REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RELEASE_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}
+      ROLLOUT_OWNER_EMAIL: ${{ secrets.ROLLOUT_OWNER_EMAIL }}
+      ROLLOUT_OWNER_PASSWORD: ${{ secrets.ROLLOUT_OWNER_PASSWORD }}
+      ROLLOUT_VIEWER_EMAIL: ${{ secrets.ROLLOUT_VIEWER_EMAIL }}
+      ROLLOUT_VIEWER_PASSWORD: ${{ secrets.ROLLOUT_VIEWER_PASSWORD }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: { fetch-depth: 0 }
@@ -117,9 +139,15 @@ jobs:
           python tooling/scripts/render_cloud.py --project "$PROJECT" --region "$REGION" --origin "$ORIGIN" --snapshots-bucket "$SNAPSHOTS" --results-bucket "$RESULTS" --digests digests.json --google-client-id "$GOOGLE_CLIENT_ID" --max-users "$MAX_USERS" --stripe-pro-monthly-price "$STRIPE_PRO_MONTHLY_PRICE" --stripe-pro-yearly-price "$STRIPE_PRO_YEARLY_PRICE" --migration-services "$MIGRATIONS" --release-id "$RELEASE_ID" --output cloud-render
       - name: Roll out affected services while serving traffic
         run: python tooling/scripts/routine_rollout.py
+      - name: Verify independent release evidence
+        run: python tooling/scripts/release_evidence.py deployment-evidence
       - name: Explain interrupted release
         if: failure()
         run: echo '::warning::Inspect deployment-evidence and live state. No pause, SQL rollback or full-app restart is performed. An interrupted mutation must be reconciled before the next release.'
+      - name: Record completed build and deployment stages
+        if: always()
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: python tooling/scripts/ci_timings.py --output deployment-evidence/cicd-timings.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

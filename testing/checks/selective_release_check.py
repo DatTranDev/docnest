@@ -452,7 +452,7 @@ class ReleaseTests(unittest.TestCase):
             self.assertGreaterEqual(pod["terminationGracePeriodSeconds"], 160)
             self.assertEqual(
                 pod["containers"][0]["lifecycle"]["preStop"]["exec"]["command"],
-                ["/bin/sh", "-c", "sleep 10"],
+                ["/bin/sh", "-c", "sleep 210" if name == "web" else "sleep 10"],
             )
 
 

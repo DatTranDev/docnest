@@ -1,0 +1,13 @@
+# Load into an existing private Prometheus; this file does not provision one.
+scrape_configs:
+  - job_name: docsnest-services
+    metrics_path: /actuator/prometheus
+    scrape_interval: 15s
+    static_configs:
+      - targets:
+          - identity-service.editor-lab.svc:8080
+          - document-service.editor-lab.svc:8080
+          - processing-service.editor-lab.svc:8080
+          - collaboration-service.editor-lab.svc:8080
+          - payment-service.editor-lab.svc:8080
+rule_files: [docsnest-alerts.yml]

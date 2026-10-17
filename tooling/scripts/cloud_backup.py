@@ -427,10 +427,19 @@ def backup(args):
     )
 
 
-def load_manifest(directory):
+def load_manifest(directory, *, allow_online=False):
     directory = pathlib.Path(directory).resolve()
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-    if manifest.get("format") != 1 or not manifest.get("quiesced"):
+    online = (
+        allow_online
+        and manifest.get("format") == 2
+        and manifest.get("kind") == "online-snapshot"
+        and manifest.get("quiesced") is False
+        and manifest.get("databases") == list(DBS)
+        and manifest.get("storageMode") != "LOCAL"
+        and isinstance(manifest.get("binlogBoundary"), dict)
+    )
+    if not online and (manifest.get("format") != 1 or not manifest.get("quiesced")):
         raise ValueError("Unrecognized or nonquiesced archive")
     if (
         fingerprint(directory / "databases.sql") != manifest["sqlSha256"]
@@ -456,7 +465,9 @@ def restore_objects(args):
         raise ValueError(
             "Requires --confirm-isolated-restore after reviewing isolated target buckets"
         )
-    directory, manifest = load_manifest(args.directory)
+    directory, manifest = load_manifest(
+        args.directory, allow_online=getattr(args, "allow_online_snapshot", False)
+    )
     target_buckets = {
         "snapshots": args.target_snapshots_bucket,
         "results": args.target_results_bucket,
@@ -674,7 +685,9 @@ def reference_patch(manifest, mapping):
 
 
 def prepare_remap(args):
-    directory, manifest = load_manifest(args.directory)
+    directory, manifest = load_manifest(
+        args.directory, allow_online=getattr(args, "allow_online_snapshot", False)
+    )
     mapping = json.loads(
         (directory / "generation-remap.json").read_text(encoding="utf-8")
     )
@@ -685,7 +698,7 @@ def prepare_remap(args):
         path.write_text(content, encoding="utf-8")
         path.chmod(0o600)
     print(
-        "PREPARED four database-specific SQL files; review before applying to isolated restored databases. No SQL executed."
+        "PREPARED five database-specific SQL files; review before applying to isolated restored databases. No SQL executed."
     )
 
 
@@ -705,6 +718,7 @@ def main():
     parser.add_argument("--target-snapshots-bucket")
     parser.add_argument("--target-results-bucket")
     parser.add_argument("--confirm-isolated-restore", action="store_true")
+    parser.add_argument("--allow-online-snapshot", action="store_true")
     args = parser.parse_args()
     try:
         if args.command == "backup":

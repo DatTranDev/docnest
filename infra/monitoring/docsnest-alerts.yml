@@ -1,0 +1,74 @@
+groups:
+  - name: docsnest-release
+    rules:
+      - alert: DocNestServiceUnavailable
+        expr: up{job="docsnest-services"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: 'Private application scrape is unavailable' }
+      - alert: DocNestServerErrors
+        expr: sum by (instance) (rate(http_server_requests_seconds_count{status=~"5.."}[5m])) / clamp_min(sum by (instance) (rate(http_server_requests_seconds_count[5m])), 0.01) > 0.01
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: 'Application HTTP 5xx exceeds one percent' }
+      - alert: DocNestP95Latency
+        expr: histogram_quantile(0.95, sum by (instance, le) (rate(http_server_requests_seconds_bucket[5m]))) > 5
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: 'Application p95 latency exceeds five seconds' }
+      - alert: DocNestP99Latency
+        expr: histogram_quantile(0.99, sum by (instance, le) (rate(http_server_requests_seconds_bucket[5m]))) > 10
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: 'Application p99 latency exceeds ten seconds' }
+      - alert: DocNestOutboxBacklog
+        expr: editor_outbox_oldest_pending_seconds > 120
+        for: 2m
+        labels: { severity: critical }
+        annotations: { summary: 'Durable event publication is delayed' }
+      - alert: DocNestProcessingBacklog
+        expr: editor_jobs_queue_age_seconds > 120
+        for: 2m
+        labels: { severity: warning }
+        annotations: { summary: 'Processing queue age exceeds two minutes' }
+      - alert: DocNestDatabasePoolTimeout
+        expr: increase(hikaricp_connections_timeout_total[5m]) > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          {
+            summary: 'Database connection acquisition timed out; inspect private SQL error signals too',
+          }
+      # Kafka client metric is emitted only once a consumer has joined its group.
+      - alert: DocNestConsumerLag
+        expr: kafka_consumer_fetch_manager_records_lag_max > 100
+        for: 5m
+        labels: { severity: warning }
+        annotations: { summary: 'Kafka consumer lag remains elevated' }
+      # Requires an existing kube-state-metrics installation.
+      - alert: DocNestPodRestarts
+        expr: increase(kube_pod_container_status_restarts_total{namespace="editor-lab"}[10m]) > 2
+        for: 1m
+        labels: { severity: warning }
+        annotations: { summary: 'Application namespace is repeatedly restarting containers' }
+      - alert: DocNestMigrationFailed
+        expr: kube_job_status_failed{namespace="editor-lab",job_name=~"migrate-.*"} > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations: { summary: 'A release-scoped migration Job failed' }
+      # Emitted by the independent backup runner's node-exporter textfile collector.
+      - alert: DocNestBackupCaptureStale
+        expr: time() - docsnest_backup_snapshot_timestamp_seconds > 7200
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: 'Encrypted online snapshot is more than two hours old' }
+      - alert: DocNestBackupCaptureMissing
+        expr: absent(docsnest_backup_snapshot_timestamp_seconds)
+        for: 15m
+        labels: { severity: critical }
+        annotations: { summary: 'No independent backup capture metric is present' }
+      - alert: DocNestBinlogArchiveStale
+        expr: time() - docsnest_backup_binlogs_timestamp_seconds > 900 or absent(docsnest_backup_binlogs_timestamp_seconds)
+        for: 5m
+        labels: { severity: critical }
+        annotations: { summary: 'PITR closed-binlog archive is stale or missing' }

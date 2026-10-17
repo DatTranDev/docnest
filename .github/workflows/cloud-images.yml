@@ -3,6 +3,9 @@ run-name: Build cloud images from ${{ github.ref_name }} at ${{ github.sha }}
 on:
   workflow_call:
     inputs:
+      release_plan:
+        type: string
+        required: true
       affected_services:
         type: string
         default: '["identity-service","document-service","processing-service","collaboration-service","payment-service","web"]'
@@ -17,6 +20,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
     with:
       runtime_checks: true
+      full_acceptance: true
   images:
     needs: validate
     if: github.ref == 'refs/heads/main'
@@ -25,6 +29,7 @@ jobs:
     environment: cloud-gke
     env:
       BUILD_SERVICES: ${{ inputs.affected_services || '["identity-service","document-service","processing-service","collaboration-service","payment-service","web"]' }}
+      RELEASE_PLAN: ${{ inputs.release_plan }}
       GCP_PROJECT: ${{ vars.GCP_PROJECT }}
       GCP_REGION: ${{ vars.GCP_REGION }}
       GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -68,6 +73,8 @@ jobs:
         run: python tooling/scripts/cloud_images.py build
       - name: Scan the exact selected images before publishing
         run: python tooling/scripts/cloud_images.py scan
+      - name: Verify old and new migration owners on candidate schemas
+        run: python testing/checks/mixed_migration_gate.py
       - name: Publish only scanned immutable images
         run: python tooling/scripts/cloud_images.py publish
       - name: Record per-service build provenance
@@ -89,3 +96,5 @@ jobs:
             testing/reports/image-secrets.json
             testing/reports/image-os-scan.json
             testing/reports/image-os/
+            testing/reports/mixed-version-gate.json
+            testing/reports/mixed-schema-*.json

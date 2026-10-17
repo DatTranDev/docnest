@@ -1,6 +1,7 @@
 """Automatic protected release planning and preflight; never pauses applications."""
 
 import argparse
+import datetime as dt
 import hashlib
 import json
 import os
@@ -14,6 +15,24 @@ from digest_manifest import NAMES, validate_manifest
 from release_manifest import merge_state, validate_provenance
 from rolling_policy import validate_compatibility
 from service_config import config_hash
+
+ACCEPTANCE_PROFILE = "full-8-browser-saga-online-sql-v1"
+
+
+def validation_required(state, commit, now=None):
+    gate = (state or {}).get("acceptanceGate", {})
+    if (
+        gate.get("profile") != ACCEPTANCE_PROFILE
+        or gate.get("commit") != commit
+        or not gate.get("runUrl")
+    ):
+        return True
+    try:
+        completed = dt.datetime.fromisoformat(gate["completedAt"])
+        age = (now or dt.datetime.now(dt.timezone.utc)) - completed
+    except (KeyError, TypeError, ValueError):
+        return True
+    return not dt.timedelta(0) <= age <= dt.timedelta(hours=24)
 
 
 def command(*args):
@@ -127,7 +146,7 @@ def validate_live(state, live):
             )
 
 
-def prepare(state, impact):
+def prepare(state, impact, *, reuse_acceptance=False):
     before = inventory()
     previous = {
         name: before["deployments"][name]["spec"]["template"]["spec"]["containers"][0][
@@ -173,6 +192,16 @@ def prepare(state, impact):
         raise ValueError("Google build configuration differs from deployed client")
     merged["rolloutStatus"] = "PENDING"
     merged["mutationStarted"] = False
+    merged["acceptanceGate"] = (
+        {
+            "profile": ACCEPTANCE_PROFILE,
+            "commit": os.environ["GITHUB_SHA"],
+            "runUrl": os.environ["RUN_URL"],
+            "completedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
+        }
+        if not reuse_acceptance
+        else state["acceptanceGate"]
+    )
     merged["previousImages"] = previous
     merged["recoveryStatus"] = (
         "Independent backup/restore verification is not performed by deployment"
@@ -181,6 +210,7 @@ def prepare(state, impact):
     write_json("deployment-evidence/environment-state.json", merged)
     write_json("digests.json", merged["images"])
     write_json("affected.json", impact)
+    write_json("deployment-evidence/affected.json", impact)
 
 
 def configuration_scope(config, current, impact, live, trusted_proxy):
@@ -211,21 +241,37 @@ def main():
     if os.environ.get("GITHUB_REF") != "refs/heads/main":
         raise ValueError("Only protected main may be released")
     attempt = int(os.environ.get("GITHUB_RUN_ATTEMPT", "1"))
+    recovery = (
+        json.loads(os.environ["RECOVERY_STATE"])
+        if os.environ.get("RECOVERY_STATE")
+        else None
+    )
     if args.action == "plan":
-        state = discover(Actions(), os.environ["GITHUB_RUN_ID"], attempt)
+        state = discover(Actions(), os.environ["GITHUB_RUN_ID"], attempt, recovery)
     else:
-        check_attempt(Actions(), os.environ["GITHUB_RUN_ID"], attempt)
+        check_attempt(Actions(), os.environ["GITHUB_RUN_ID"], attempt, recovery)
         state = json.loads(os.environ["RELEASE_PLAN"])["baseline"]
     if state is not None:
         approved_state(state)
     impact = plan(state)
+    needs_validation = bool(impact["images"]) or validation_required(
+        state, os.environ["GITHUB_SHA"]
+    )
     if args.action == "prepare":
         Path("deployment-evidence").mkdir(exist_ok=True)
         if json.loads(os.environ["RELEASE_PLAN"])["impact"] != impact:
             raise ValueError("Source impact changed after build planning")
-        prepare(state, impact)
+        if (
+            json.loads(os.environ["RELEASE_PLAN"]).get("validationRequired", True)
+            != needs_validation
+        ):
+            raise ValueError(
+                "Acceptance proof expired after planning; start a fresh release"
+            )
+        prepare(state, impact, reuse_acceptance=not needs_validation)
     elif os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+            stream.write("validation_required=" + str(needs_validation).lower() + "\n")
             for key in ("images", "applications", "migrations"):
                 stream.write(
                     key + "=" + json.dumps(impact[key], separators=(",", ":")) + "\n"
@@ -233,7 +279,12 @@ def main():
             stream.write(
                 "release_plan="
                 + json.dumps(
-                    {"baseline": state, "impact": impact}, separators=(",", ":")
+                    {
+                        "baseline": state,
+                        "impact": impact,
+                        "validationRequired": needs_validation,
+                    },
+                    separators=(",", ":"),
                 )
                 + "\n"
             )

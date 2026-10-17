@@ -17,20 +17,11 @@ import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
-from run import initialize
+from run import initialize, compose_prefix
 
 SERVICES = ("identity", "document", "processing", "collaboration", "payment")
 REPORT = ROOT / "testing/reports" / "migration-only.json"
-COMPOSE = [
-    "docker",
-    "compose",
-    "--env-file",
-    str(ROOT / ".env"),
-    "-f",
-    "infra/compose/compose.yaml",
-    "--profile",
-    "app",
-]
+COMPOSE = compose_prefix() + ["--profile", "app"]
 RUNTIME_MARKERS = re.compile(
     r"::\s*Spring Boot\s*::|Starting \w+Application|Tomcat started|"
     r"org\.apache\.kafka|KafkaProducer|ConsumerConfig|RedisConnection|"

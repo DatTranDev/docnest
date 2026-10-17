@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
@@ -77,7 +78,9 @@ public class Configuration {
                     org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers("/actuator/health/**", "/api/v1/public/**")
+                a.requestMatchers(HttpMethod.GET, "/actuator/prometheus")
+                    .permitAll()
+                    .requestMatchers("/actuator/health/**", "/api/v1/public/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())

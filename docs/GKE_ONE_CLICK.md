@@ -40,3 +40,5 @@ Các mutation cùng dùng một concurrency lock. Khi thiếu chỗ cho surge Po
 Build/scan/preflight lỗi: sửa nguyên nhân rồi chạy lại. Sau mutation bị gián đoạn, artifact `PENDING` chặn lần deploy tiếp; kiểm tra migration history, image/config và reconcile trạng thái. Không tự rollback SQL hoặc restart tất cả app. Xem chi tiết tại [selective release runbook](CICD_SELECTIVE_RELEASES.md).
 
 Backup/restore là hoạt động độc lập. Nút deploy không tạo hoặc xác nhận recovery point. Online backup/PITR, restore drill và traffic/draining trên GKE vẫn cần operator kiểm chứng; YAML rolling update không chứng minh zero downtime. Xem kết quả thực tế tại [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
+The release-assurance update also needs two dedicated synthetic account Secrets and the reviewed existing BackendConfig/deploy Role before the next cloud run. These are one-time setup, not dispatch inputs. Follow [release assurance](RELEASE_RESILIENCE.md#one-time-release-setup); traffic checks fail before application mutation when setup is incomplete.

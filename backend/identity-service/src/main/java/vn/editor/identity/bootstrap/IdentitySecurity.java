@@ -3,6 +3,7 @@ package vn.editor.identity.bootstrap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.argon2.Argon2PasswordEncoder;
@@ -50,7 +51,9 @@ public class IdentitySecurity {
             session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers(
+                auth.requestMatchers(HttpMethod.GET, "/actuator/prometheus")
+                    .permitAll()
+                    .requestMatchers(
                         "/api/v1/auth/csrf",
                         "/api/v1/auth/register",
                         "/api/v1/auth/login",
