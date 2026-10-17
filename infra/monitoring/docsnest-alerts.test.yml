@@ -1,0 +1,85 @@
+rule_files: [docsnest-alerts.yml]
+evaluation_interval: 1m
+tests:
+  - name: service unavailable after its grace period
+    interval: 1m
+    input_series:
+      - series: 'up{job="docsnest-services",instance="document"}'
+        values: '1 0x10'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: DocNestServiceUnavailable
+        exp_alerts:
+          - exp_labels: { job: docsnest-services, instance: document, severity: critical }
+            exp_annotations: { summary: 'Private application scrape is unavailable' }
+  - name: two percent server errors fire while healthy counters stay quiet
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_count{job="docsnest-services",instance="document",status="500"}'
+        values: '0+2x10'
+      - series: 'http_server_requests_seconds_count{job="docsnest-services",instance="document",status="200"}'
+        values: '0+98x10'
+      - series: 'http_server_requests_seconds_count{job="docsnest-services",instance="identity",status="200"}'
+        values: '0+100x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: DocNestServerErrors
+        exp_alerts:
+          - exp_labels: { instance: document, severity: critical }
+            exp_annotations: { summary: 'Application HTTP 5xx exceeds one percent' }
+  - name: histogram p95 and p99 use actual bucket rates
+    interval: 1m
+    input_series:
+      - series: 'http_server_requests_seconds_bucket{job="docsnest-services",instance="processing",le="5"}'
+        values: '0+10x12'
+      - series: 'http_server_requests_seconds_bucket{job="docsnest-services",instance="processing",le="10"}'
+        values: '0+50x12'
+      - series: 'http_server_requests_seconds_bucket{job="docsnest-services",instance="processing",le="20"}'
+        values: '0+100x12'
+      - series: 'http_server_requests_seconds_bucket{job="docsnest-services",instance="processing",le="+Inf"}'
+        values: '0+100x12'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: DocNestP95Latency
+        exp_alerts:
+          - exp_labels: { instance: processing, severity: warning }
+            exp_annotations: { summary: 'Application p95 latency exceeds five seconds' }
+      - eval_time: 8m
+        alertname: DocNestP99Latency
+        exp_alerts:
+          - exp_labels: { instance: processing, severity: warning }
+            exp_annotations: { summary: 'Application p99 latency exceeds ten seconds' }
+  - name: missing backup capture cannot silently look healthy
+    interval: 1m
+    input_series: []
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DocNestBackupCaptureMissing
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations: { summary: 'No independent backup capture metric is present' }
+  - name: stale backup capture exceeds its two hour budget
+    interval: 1m
+    input_series:
+      - series: docsnest_backup_snapshot_timestamp_seconds
+        values: '0x150'
+    alert_rule_test:
+      - eval_time: 130m
+        alertname: DocNestBackupCaptureStale
+        exp_alerts:
+          - exp_labels: { severity: critical }
+            exp_annotations: { summary: 'Encrypted online snapshot is more than two hours old' }
+  - name: advancing captures stay healthy
+    interval: 1m
+    input_series:
+      - series: docsnest_backup_snapshot_timestamp_seconds
+        values: '0+60x30'
+      - series: docsnest_backup_binlogs_timestamp_seconds
+        values: '0+60x30'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: DocNestBackupCaptureStale
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: DocNestBinlogArchiveStale
+        exp_alerts: []

@@ -1,5 +1,7 @@
 # Implementation version lock
 
+Release assurance tooling: age **1.3.2** and Prometheus promtool **3.15.0** use checksum-verified official archives in `install_age.py` and `monitoring_check.py`. The recovery sandbox and binlog decoder use **MySQL 8.4.7**; the tools image verifies the official RPM signature before extracting `mysqlbinlog`. Prometheus JVM exposition uses `micrometer-registry-prometheus` managed by the existing Spring Boot **4.1.1** BOM. No additional production server is installed by these tooling changes.
+
 ADR027 adds Yjs **13.6.33**, pinned in `frontend/editor-core/package.json` and the npm lockfile. Collaboration uses the existing Java/Spring Boot/MySQL pins.
 
 Locked 4 October 2026. Application version1.0.0-SNAPSHOT; native format remains adaptive-v1. Original OpenAPI fields, event envelopes, golden fixtures and V1 migrations are unchanged. V2 migrations remain additive under ADR015; Processing V3 adds nullable trace correlation under ADR019. The original version checkpoint predates Git initialization and has no recorded commit SHA.

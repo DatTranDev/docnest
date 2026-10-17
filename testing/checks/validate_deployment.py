@@ -86,14 +86,14 @@ def ci_modes():
         "python testing/checks/digest_check.py",
         "python testing/checks/scan_secrets.py",
         "python testing/checks/mysql_bootstrap_check.py",
-        "python tooling/scripts/run.py up",
+        "python tooling/scripts/run.py up --verified-output",
         "python testing/checks/migration_only.py",
         "python tooling/scripts/run.py smoke",
         "npm run worker-check",
     ):
         assert steps[runtime]["if"] == "inputs.runtime_checks || inputs.full_acceptance"
     browser_steps = [key for key in steps if "-browser.cjs" in key]
-    assert len(browser_steps) == 7
+    assert len(browser_steps) == 8
     for acceptance in (*browser_steps, "python testing/checks/billing_saga_check.py"):
         assert steps[acceptance]["if"] == "inputs.full_acceptance"
     assert steps["python tooling/scripts/run.py down"]["if"] == (
@@ -113,6 +113,7 @@ def ci_modes():
     )
     assert publish["jobs"]["validate"]["uses"] == "./.github/workflows/ci.yml"
     assert publish["jobs"]["validate"]["with"]["runtime_checks"] == "true"
+    assert publish["jobs"]["validate"]["with"]["full_acceptance"] == "true"
     assert publish["jobs"]["images"]["needs"] == "validate"
 
 
@@ -170,7 +171,7 @@ def main():
     web = resource(objects, "Deployment", "web")
     pod = web["spec"]["template"]["spec"]
     container = pod["containers"][0]
-    assert pod["terminationGracePeriodSeconds"] == 160
+    assert pod["terminationGracePeriodSeconds"] == 360
     assert container["securityContext"]["runAsUser"] == 1000
     assert container["resources"]["limits"]["memory"] == "512Mi"
     assert [port["containerPort"] for port in container["ports"]] == [8080]
@@ -214,7 +215,7 @@ def main():
         [
             "infrastructure images digest pinned/internal ports closed",
             "Next standalone/static assets behind streaming gateway; private routes, child readiness, body cap and deadline configured",
-            "web UID1000,512Mi limit,private Next port,160second grace,explicit NEG and untrusted forwarding default",
+            "web UID1000,512Mi limit,private Next port,Compose160s/GKE360s grace,explicit NEG and untrusted forwarding default",
         ]
     )
 
@@ -278,7 +279,23 @@ def main():
     assert "terraform -chdir=infra/gcp test" in ci
     assert "workflow_dispatch:" in ci
     assert "init -backend=false -input=false -lockfile=readonly" in ci
-    assert "actions/upload-artifact" not in ci
+    workflow = yaml.load(ci, Loader=yaml.BaseLoader)
+    artifacts = [
+        step["with"]
+        for step in workflow["jobs"]["frontend-and-runtime"]["steps"]
+        if step.get("uses", "").startswith("actions/upload-artifact@")
+    ]
+    assert len(artifacts) == 1
+    assert artifacts[0]["name"] == "application-acceptance-evidence"
+    assert set(artifacts[0]["path"].splitlines()) == {
+        "testing/reports/rollout-traffic.json",
+        "testing/reports/verified-fixtures.json",
+        "testing/reports/release-resilience.json",
+        "testing/reports/online-recovery.json",
+        "testing/reports/local-online-restore.json",
+        "testing/reports/online-backup-source-traffic.json",
+        "testing/reports/restored-application-traffic.json",
+    }, "Only bounded scalar reports may leave runtime acceptance; never SQL, keys, raw logs or images"
     ci_modes()
     quality = read("tooling/scripts/run.py")
     for gate in (
@@ -298,7 +315,7 @@ def main():
     checks.extend(
         [
             "Kafka service ACL/auth configuration, authenticated controller and five independent service principals",
-            "CI core gates always run; cloud builds require runtime/migration/smoke/Worker checks; full browser/billing acceptance is opt-in",
+            "CI core gates always run; cloud builds require full runtime/migration/smoke/Worker/browser/billing/recovery acceptance",
             "cloud Compose TLS bind resolves relative to base Compose file",
         ]
     )

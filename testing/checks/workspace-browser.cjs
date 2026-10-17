@@ -4,7 +4,9 @@ const { readFileSync, mkdirSync } = require('node:fs');
 const { createHash } = require('node:crypto');
 const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
-const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
+const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m
+  .exec(readFileSync(require('./browser-environment.cjs').environmentFile, 'utf8'))?.[1]
+  ?.trim();
 assert.ok(root, 'Initialize the local environment first');
 const report = 'testing/reports/raw';
 const documents = [];
@@ -34,7 +36,7 @@ async function login(page, email, password) {
   const response = page.waitForResponse((r) => r.url().endsWith('/api/v1/auth/login'));
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   const authenticated = await response;
-  assert.equal(authenticated.status(), 200, 'Fixture login');
+  assert.equal(authenticated.status(), 200, `Fixture login HTTP ${authenticated.status()}`);
   await page.getByRole('button', { name: 'New', exact: true }).waitFor();
   return (await authenticated.json()).accessToken;
 }
@@ -249,8 +251,11 @@ async function createWrittenDocument(page, title, text) {
       await page.getByRole('button', { name: 'List view' }).getAttribute('aria-pressed'),
       'true',
     );
+    stage = 'sort selector and order reversal';
+    await page.getByRole('button', { name: 'Sort by', exact: true }).click();
+    await page.getByRole('option', { name: 'Name', exact: true }).click();
     const before = await page.locator('.folder-file .file-label').allTextContents();
-    await page.getByRole('button', { name: 'Sort visible items by name' }).click();
+    await page.getByRole('button', { name: 'Reverse sort order', exact: true }).click();
     assert.deepEqual(
       await page.locator('.folder-file .file-label').allTextContents(),
       before.toReversed(),
@@ -276,7 +281,7 @@ async function createWrittenDocument(page, title, text) {
         document.querySelectorAll('.folder-file').length === 1,
     );
     assert.equal(await page.locator('.document-file').count(), 0);
-    await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+    await page.locator('.search-chip').click();
     await page.locator('.document-file').nth(5).waitFor();
     await page.getByRole('button', { name: 'Grid view' }).click();
     stage = 'item menus, rename, move, trash and restore';
@@ -290,6 +295,7 @@ async function createWrittenDocument(page, title, text) {
     const renameDialog = page.getByRole('dialog', { name: 'Rename', exact: true });
     await renameDialog.getByRole('textbox', { name: 'Name' }).fill('Product roadmap 2026');
     await renameDialog.getByRole('button', { name: 'Rename', exact: true }).click();
+    await renameDialog.waitFor({ state: 'detached' });
     markItemStep('open move');
     await article.waitFor();
     await article
@@ -298,7 +304,10 @@ async function createWrittenDocument(page, title, text) {
     await page.getByRole('menuitem', { name: 'Move', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Move', exact: true });
     await dialog.getByRole('button', { name: 'Destination folder' }).click();
-    await dialog.getByRole('option', { name: 'Projects', exact: true }).click();
+    markItemStep('select destination path');
+    await dialog
+      .getByRole('option', { name: `${previewFolder.name} / Projects`, exact: true })
+      .click();
     await dialog.getByRole('button', { name: 'Move', exact: true }).click();
     markItemStep('enter folder');
     await article.waitFor({ state: 'detached' });
@@ -314,6 +323,7 @@ async function createWrittenDocument(page, title, text) {
     await page.getByRole('menuitem', { name: 'Move to trash', exact: true }).click();
     await article.waitFor({ state: 'detached' });
     await page.locator('.sidebar').getByRole('button', { name: 'Trash', exact: true }).click();
+    await page.getByRole('button', { name: 'Grid view', exact: true }).click();
     markItemStep('restore');
     await article.waitFor();
     assert.equal(await article.locator('.file-name').isDisabled(), true);

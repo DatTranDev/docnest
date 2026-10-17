@@ -1,0 +1,17 @@
+[Unit]
+Description=Independent encrypted DocNest online snapshot
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=docsnest-backup
+WorkingDirectory=/opt/docsnest
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/docsnest/.venv/bin/python tooling/scripts/backup_schedule.py --config /etc/docsnest/backup.json
+TimeoutStartSec=45min
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/docsnest-backup /var/lib/node_exporter/textfile_collector

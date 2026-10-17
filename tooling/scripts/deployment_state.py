@@ -1,6 +1,7 @@
 """Discover bounded deployment evidence from protected repository Actions runs."""
 
 import io
+import hashlib
 import json
 import os
 import re
@@ -95,13 +96,52 @@ def run_states(actions, run_id):
             yield state
 
 
-def check_attempt(actions, current_run, attempt):
+def reconciled(state, recovery):
+    if recovery is None:
+        return None
+    binding = recovery.get("recoveryOf", {})
+    decision = binding.get("decision")
+    target = (
+        state.get("previousImages")
+        if decision == "operator-approved-image-rollback"
+        else state.get("images")
+    )
+    configuration = (
+        state.get("previousConfigSha256")
+        if decision == "operator-approved-image-rollback"
+        else state.get("desiredConfigSha256")
+    )
+    if (
+        binding.get("failedStateSha256")
+        != hashlib.sha256(
+            json.dumps(state, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        or binding.get("runUrl") != state.get("runUrl")
+        or decision
+        not in ("operator-approved-image-rollback", "operator-approved-roll-forward")
+        or recovery.get("rolloutStatus") != "PASS"
+        or recovery.get("images") != target
+        or not re.fullmatch(r"[a-f0-9]{64}", binding.get("configurationSha256", ""))
+        or binding.get("configurationSha256") != configuration
+        or not re.fullmatch(r"[a-f0-9]{64}", binding.get("trafficSha256", ""))
+        or not re.fullmatch(r"[a-f0-9]{64}", binding.get("compatibilitySha256", ""))
+    ):
+        raise ValueError(
+            "Protected recovery state does not reconcile this exact interrupted release"
+        )
+    return recovery
+
+
+def check_attempt(actions, current_run, attempt, recovery=None):
     if attempt > 1:
         for state in run_states(actions, current_run):
             if (
                 state.get("rolloutStatus") != "PASS"
                 and state.get("mutationStarted") is not False
             ):
+                resolved = reconciled(state, recovery)
+                if resolved:
+                    return resolved
                 raise ValueError(
                     "Previous attempt mutated the cluster; reconcile before retry"
                 )
@@ -110,8 +150,8 @@ def check_attempt(actions, current_run, attempt):
     return None
 
 
-def discover(actions, current_run, attempt=1):
-    previous_attempt = check_attempt(actions, current_run, attempt)
+def discover(actions, current_run, attempt=1, recovery=None):
+    previous_attempt = check_attempt(actions, current_run, attempt, recovery)
     if previous_attempt is not None:
         return previous_attempt
     for run in actions.pages("actions/runs?branch=main", "workflow_runs"):
@@ -130,6 +170,9 @@ def discover(actions, current_run, attempt=1):
             if state.get("rolloutStatus") != "PASS":
                 if state.get("mutationStarted") is False:
                     continue
+                resolved = reconciled(state, recovery)
+                if resolved:
+                    return resolved
                 raise ValueError(
                     "Previous rollout is incomplete; reconcile live state first"
                 )

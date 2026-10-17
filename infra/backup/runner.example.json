@@ -1,0 +1,14 @@
+{
+  "mysqlDefaults": "/etc/docsnest/mysql-backup.cnf",
+  "mysqlServerUuid": "REPLACE_WITH_VERIFIED_MYSQL_SERVER_UUID",
+  "recipient": "REPLACE_WITH_AGE_PUBLIC_RECIPIENT",
+  "age": "/usr/local/bin/age",
+  "outputDirectory": "/var/lib/docsnest-backup",
+  "metricsFile": "/var/lib/node_exporter/textfile_collector/docsnest-backup.prom",
+  "project": "YOUR_PROJECT",
+  "region": "YOUR_REGION",
+  "context": "YOUR_REVIEWED_KUBE_CONTEXT",
+  "images": "/etc/docsnest/approved-images.json",
+  "jwtSecretVersion": "projects/YOUR_PROJECT/secrets/editor-jwt/versions/REPLACE_NUMERIC_VERSION",
+  "destinationPrefix": "gs://YOUR_INDEPENDENT_RECOVERY_BUCKET/recovery"
+}

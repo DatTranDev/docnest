@@ -60,7 +60,18 @@ def build(names, registry):
     new.mkdir(parents=True, exist_ok=True)
     if backends:
         modules = "MAVEN_PROJECTS=" + ",".join("backend/" + name for name in backends)
-        common = ["docker", "buildx", "build", "-f", "infra/compose/Service.Dockerfile"]
+        common = [
+            "docker",
+            "buildx",
+            "build",
+            "-f",
+            "infra/compose/Service.Dockerfile",
+            "--build-arg",
+            "SECURITY_REFRESH="
+            + os.environ["GITHUB_RUN_ID"]
+            + "-"
+            + os.environ["GITHUB_RUN_ATTEMPT"],
+        ]
         run(
             *common,
             "--target",

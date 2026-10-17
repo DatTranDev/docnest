@@ -260,6 +260,7 @@ test('rejects private routes, canonical traversal and ambiguous paths before for
   for (const path of [
     '/internal/v1/users',
     '/actuator/health',
+    '/actuator/prometheus',
     '/%69nternal/test',
     '/x/%2e%2e/actuator/health',
     '/INTERNAL',

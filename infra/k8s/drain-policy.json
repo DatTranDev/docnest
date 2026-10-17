@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "requestTimeoutSeconds": 130,
+  "backendDrainSeconds": 150,
+  "negDetachBudgetSeconds": 60,
+  "applicationShutdownSeconds": 135,
+  "shutdownMarginSeconds": 15,
+  "webPreStopSeconds": 210,
+  "webTerminationGraceSeconds": 360
+}

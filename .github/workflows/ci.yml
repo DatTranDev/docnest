@@ -73,6 +73,8 @@ jobs:
           terraform -chdir=infra/gcp fmt -check -recursive
           terraform -chdir=infra/gcp validate
           terraform -chdir=infra/gcp test
+      - name: Validate private monitoring rules and alert behavior
+        run: python testing/checks/monitoring_check.py --download
   frontend-and-runtime:
     needs: changes
     runs-on: ubuntu-24.04
@@ -107,6 +109,7 @@ jobs:
           python testing/checks/scan_secrets.py
           python testing/checks/selective_release_check.py
           python testing/checks/gke_release_check.py
+          python testing/checks/release_resilience_check.py
       - run: python tooling/scripts/run.py test
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: npm audit --audit-level=high
@@ -133,7 +136,7 @@ jobs:
       - name: Check fresh Linux MySQL bootstrap
         if: inputs.runtime_checks || inputs.full_acceptance
         run: python testing/checks/mysql_bootstrap_check.py
-      - run: python tooling/scripts/run.py up
+      - run: python tooling/scripts/run.py up --verified-output
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/migration_only.py
         if: inputs.runtime_checks || inputs.full_acceptance
@@ -157,10 +160,38 @@ jobs:
         if: inputs.full_acceptance
       - run: node testing/checks/structure-browser.cjs
         if: inputs.full_acceptance
+      - run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
+      - run: node testing/checks/workspace-browser.cjs
+        if: inputs.full_acceptance
+      - run: python tooling/scripts/rollout_traffic.py --local --seconds 30 --slow-seconds 35
+        if: inputs.full_acceptance
       - run: npm run worker-check
         if: inputs.runtime_checks || inputs.full_acceptance
+      - name: Install pinned recovery crypto tools
+        if: inputs.full_acceptance
+        run: python tooling/scripts/install_age.py
+      - name: Real online SQL and PITR drill
+        if: inputs.full_acceptance
+        run: python testing/checks/online_recovery_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
+      - name: Isolated complete LOCAL application recovery
+        if: inputs.full_acceptance
+        run: python testing/checks/local_online_restore_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
       - run: python tooling/scripts/run.py down
         if: always() && (inputs.runtime_checks || inputs.full_acceptance)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && (inputs.runtime_checks || inputs.full_acceptance)
+        with:
+          name: application-acceptance-evidence
+          path: |
+            testing/reports/rollout-traffic.json
+            testing/reports/verified-fixtures.json
+            testing/reports/release-resilience.json
+            testing/reports/online-recovery.json
+            testing/reports/local-online-restore.json
+            testing/reports/online-backup-source-traffic.json
+            testing/reports/restored-application-traffic.json
+          retention-days: 90
   # Keep the existing required check as an aggregate: skipped/failed work cannot pass it.
   application:
     if: always()

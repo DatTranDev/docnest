@@ -4,7 +4,9 @@ const { readFileSync, mkdirSync, writeFileSync } = require('node:fs');
 const { createHash, randomUUID } = require('node:crypto');
 const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
-const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
+const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m
+  .exec(readFileSync(require('./browser-environment.cjs').environmentFile, 'utf8'))?.[1]
+  ?.trim();
 assert.ok(root, 'Initialize local environment first');
 const report = 'testing/reports/raw';
 const ownerEmail = process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test';

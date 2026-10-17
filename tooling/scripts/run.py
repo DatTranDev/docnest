@@ -5,7 +5,7 @@ import argparse, json, os, pathlib, secrets, subprocess, sys, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 os.chdir(ROOT)
-ENV = ROOT / ".env"
+ENV = pathlib.Path(os.environ.get("EDITOR_ENV_FILE", str(ROOT / ".env"))).resolve()
 
 
 def execute(args, **kwargs):
@@ -14,6 +14,8 @@ def execute(args, **kwargs):
 
 
 def initialize():
+    if os.environ.get("EDITOR_ENV_FILE") and not ENV.is_file():
+        raise ValueError("Explicit test environment file does not exist")
     if not ENV.exists():
         text = (ROOT / ".env.example").read_text(encoding="utf-8")
         text = text.replace("REPLACE_LOCAL_RANDOM", "{}")
@@ -51,7 +53,7 @@ def initialize():
     return values
 
 
-def compose(*args, debug=False, **kwargs):
+def compose_prefix(debug=False):
     cmd = [
         "docker",
         "compose",
@@ -62,7 +64,20 @@ def compose(*args, debug=False, **kwargs):
     ]
     if debug:
         cmd += ["-f", "infra/compose/debug.yaml"]
-    return execute(cmd + list(args), **kwargs)
+    project = os.environ.get("EDITOR_COMPOSE_PROJECT")
+    if project:
+        import re
+
+        if not re.fullmatch(r"docsnest-(?:check|compat)-[a-f0-9]{12}", project):
+            raise ValueError("Explicit test commands require an owned isolated project")
+        cmd[2:2] = ["--project-name", project]
+    if os.environ.get("EDITOR_COMPOSE_OVERRIDE"):
+        cmd += ["-f", os.environ["EDITOR_COMPOSE_OVERRIDE"]]
+    return cmd
+
+
+def compose(*args, debug=False, **kwargs):
+    return execute(compose_prefix(debug) + list(args), **kwargs)
 
 
 def topics(debug=False):
@@ -100,6 +115,7 @@ def main():
             "infra-up",
             "down",
             "build",
+            "fixtures",
             "test",
             "format",
             "quality",
@@ -113,7 +129,17 @@ def main():
     )
     p.add_argument("--backup-path", default="testing/reports/raw/backup")
     p.add_argument("--confirm-restore", action="store_true")
+    p.add_argument(
+        "--verified-output",
+        action="store_true",
+        help="For up: package verified Maven JARs; build Web in production Alpine",
+    )
     a = p.parse_args()
+    if a.command == "fixtures":
+        from verified_fixtures import build as build_verified
+
+        build_verified()
+        return
     if a.command in {"test", "quality", "contracts", "smoke", "infra-check"}:
         (ROOT / "testing/reports").mkdir(parents=True, exist_ok=True)
     initialize()
@@ -142,15 +168,31 @@ def main():
             debug=debug,
         )
         if not debug:
-            for service in [
-                "identity-service",
-                "document-service",
-                "processing-service",
-                "collaboration-service",
-                "payment-service",
-                "web",
-            ]:
-                compose("--profile", "app", "build", service)
+            security_refresh = str(time.time_ns())
+            if a.verified_output:
+                from verified_fixtures import build as build_verified
+
+                build_verified()
+            for service in (
+                []
+                if a.verified_output
+                else [
+                    "identity-service",
+                    "document-service",
+                    "processing-service",
+                    "collaboration-service",
+                    "payment-service",
+                    "web",
+                ]
+            ):
+                compose(
+                    "--profile",
+                    "app",
+                    "build",
+                    "--build-arg",
+                    "SECURITY_REFRESH=" + security_refresh,
+                    service,
+                )
             compose(
                 "--profile",
                 "app",

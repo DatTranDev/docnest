@@ -3,6 +3,7 @@ package vn.editor.collaboration.bootstrap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -53,7 +54,9 @@ public class CollaborationConfiguration {
         .headers(h -> h.cacheControl(c -> {}))
         .authorizeHttpRequests(
             a ->
-                a.requestMatchers("/actuator/health/**")
+                a.requestMatchers(HttpMethod.GET, "/actuator/prometheus")
+                    .permitAll()
+                    .requestMatchers("/actuator/health/**")
                     .permitAll()
                     .requestMatchers("/api/v1/collaboration/**")
                     .authenticated()

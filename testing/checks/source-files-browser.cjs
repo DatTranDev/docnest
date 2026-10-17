@@ -6,7 +6,9 @@ const path = require('node:path');
 const { createHash } = require('node:crypto');
 const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://127.0.0.1:8080';
-const rootSecret = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
+const rootSecret = /^MYSQL_ROOT_PASSWORD=(.*)$/m
+  .exec(readFileSync(require('./browser-environment.cjs').environmentFile, 'utf8'))?.[1]
+  ?.trim();
 assert.ok(rootSecret);
 const reports = 'testing/reports/raw';
 async function main() {

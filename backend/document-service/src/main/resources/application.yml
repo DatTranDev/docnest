@@ -43,10 +43,18 @@ spring:
       port: ${REDIS_PORT:6379}
       timeout: 300ms
 management:
+  metrics:
+    distribution:
+      percentiles-histogram:
+        editor.http.duration: true
+        http.server.requests: true
+      maximum-expected-value:
+        editor.http.duration: 135s
+        http.server.requests: 135s
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       probes:

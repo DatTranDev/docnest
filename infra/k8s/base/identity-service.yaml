@@ -128,6 +128,13 @@ spec:
         - name: jwt
           secret:
             secretName: editor-jwt
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: identity-service
 ---
 apiVersion: v1
 kind: Service

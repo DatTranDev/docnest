@@ -4,7 +4,9 @@ const { readFileSync, mkdirSync } = require('node:fs');
 const { createHash, randomUUID } = require('node:crypto');
 const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
-const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
+const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m
+  .exec(readFileSync(require('./browser-environment.cjs').environmentFile, 'utf8'))?.[1]
+  ?.trim();
 assert.ok(root, 'Initialize the local environment first');
 async function selectLanguage(page, label, choice) {
   await page.getByRole('button', { name: label, exact: true }).click();

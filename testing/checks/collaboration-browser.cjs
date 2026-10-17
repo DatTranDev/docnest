@@ -7,7 +7,9 @@ const assert = require('node:assert/strict');
 const base = process.env.SMOKE_BASE_URL || 'http://localhost:8080';
 const ownerEmail = process.env.SMOKE_OWNER_EMAIL || 'smoke-owner@editor.test';
 const recipientEmail = process.env.SMOKE_RECIPIENT_EMAIL || 'smoke-recipient@editor.test';
-const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
+const root = /^MYSQL_ROOT_PASSWORD=(.*)$/m
+  .exec(readFileSync(require('./browser-environment.cjs').environmentFile, 'utf8'))?.[1]
+  ?.trim();
 if (!root) throw new Error('Local environment must be initialized first');
 
 async function login(browser, email) {
@@ -283,11 +285,7 @@ async function enterCollaboration(page, documentId) {
     execFileSync(
       'docker',
       [
-        'compose',
-        '--env-file',
-        '.env',
-        '-f',
-        'infra/compose/compose.yaml',
+        ...require('./browser-environment.cjs').composeArguments(),
         'restart',
         'collaboration-service',
       ],
