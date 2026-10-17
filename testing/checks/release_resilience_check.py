@@ -21,6 +21,7 @@ from digest_manifest import NAMES
 from drain_policy import policy, validate_backend, validate_web
 from release_recovery import approve, fingerprint, make_plan
 from rollout_traffic import Client, Measurements, ProbeFailure, native_fixture
+from rollout_transfer import LongTransfer
 from routine_release import ACCEPTANCE_PROFILE, validation_required
 from capacity_report import quantity, report as capacity_report
 from cloud_backup import DBS, load_manifest
@@ -451,6 +452,74 @@ class TransportTests(unittest.TestCase):
                 manifest["textSha256"],
                 hashlib.sha256(archive.read("text.utf8")).hexdigest(),
             )
+
+    def test_immutable_large_fixture_has_the_original_cross_platform_hash(self):
+        import io
+        import zipfile
+
+        data = native_fixture(0, large=True)
+        self.assertEqual(len(data), 8389349)
+        self.assertEqual(
+            hashlib.sha256(data).hexdigest(),
+            "169f8fbb9c517b72278b901b477b83c47aff1946dd81f22ba78844aa6fc61eff",
+        )
+        with zipfile.ZipFile(io.BytesIO(data)) as archive:
+            self.assertEqual(
+                [entry.create_system for entry in archive.infolist()], [0, 0, 0]
+            )
+
+    def test_actual_http_preflight_rejects_corrupt_persistent_bytes_before_slow_request(
+        self,
+    ):
+        expected = native_fixture(0)
+        body = [expected]
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                document = {
+                    "id": "fixture",
+                    "title": "Release long-request fixture",
+                    "headRevision": 1,
+                }
+                data = (
+                    body[0]
+                    if self.path.endswith("/content")
+                    else json.dumps(
+                        {"items": [document]}
+                        if self.path == "/api/v1/documents"
+                        else document
+                    ).encode()
+                )
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            metrics = Measurements()
+            client = Client(f"http://127.0.0.1:{server.server_port}", metrics)
+            transfer = LongTransfer(
+                client, client, client, expected, "unused-fixture", metrics
+            )
+            self.assertFalse(transfer.started.is_set())
+            self.assertIn("verify-long-fixture", metrics.report()["operations"])
+            for invalid in (b"truncated", expected[:-1] + b"!"):
+                body[0] = invalid
+                with self.assertRaises(ValueError):
+                    LongTransfer(
+                        client, client, client, expected, "unused-fixture", metrics
+                    )
+            self.assertNotIn("slow-download", metrics.report()["operations"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join()
 
     def test_timing_report_does_not_count_running_jobs_or_sum_parallel_work(self):
         rows = durations(
