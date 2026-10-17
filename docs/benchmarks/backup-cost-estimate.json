@@ -2,7 +2,7 @@
   "checkedAt": "2026-10-17T10:01:54.991901+00:00",
   "region": "asia-southeast1",
   "project": "aitripmaster",
-  "status": "ESTIMATE_ONLY_NOT_PROVISIONED",
+  "status": "RUNNER_PROVISIONED_FIXED_COST_ESTIMATE",
   "totalBudgetUsd": 300,
   "remainingBudgetUsd": null,
   "hoursPerMonth": 730,
@@ -33,7 +33,7 @@
     "closedBinlogSchedule": "every 5 minutes",
     "storage": "new independent regional Standard bucket; age ciphertext only",
     "initialRetentionProposalDays": 14,
-    "retentionStatus": "NOT_APPLIED; requires actual growth/recovery-chain/source-generation review",
+    "retentionStatus": "NOT_APPLIED; review capture growth and recovery chain before enabling deletion",
     "offlineDecryptionIdentity": "not accessible to runner upload identity",
     "mysql": "dedicated least-privilege account; verified TLS; database reads only",
     "cloudIdentity": "dedicated attached service account; no downloaded service-account key",
@@ -41,9 +41,9 @@
     "acceptance": "successful encrypted capture and isolated application recovery required before claiming protection"
   },
   "blockers": [
-    "Actual remaining total budget/credit not verified",
-    "Runner bootstrap/network/TLS/IAM and offline identity export need implementation/review",
-    "Full GCS/PITR/event/provider recovery and monitoring delivery remain untested"
+    "Actual remaining total credit and existing infrastructure burn not verified",
+    "External offline identity custody, periodic schedule and alert delivery remain pending",
+    "Full GCS remap/application/PITR generation coverage/event/provider recovery remain untested"
   ],
   "sources": {
     "computeCatalog": "https://cloudbilling.googleapis.com/v1/services/6F81-5844-456A/skus",
@@ -80,5 +80,6 @@
       "unit": "GiBy.mo",
       "effectiveTime": "2026-10-16T07:00:00Z"
     }
-  ]
+  ],
+  "remainingBudgetVndReported": 7000000
 }
