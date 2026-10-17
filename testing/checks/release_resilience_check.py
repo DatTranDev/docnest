@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT / "testing/checks"))
 from mixed_migration_gate import owners as migration_owners
 from mixed_version_check import run as isolated_command
 from archive_release import evidence_sources
+from runtime_diagnostics import gateway_events, states as runtime_states
 
 
 class DrainTests(unittest.TestCase):
@@ -150,6 +151,44 @@ def recovery_fixture():
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_runtime_diagnostics_discard_payloads_and_unknown_fields(self):
+        secret = "private-fixture-must-not-escape"
+        result = runtime_states(
+            [
+                {
+                    "Config": {
+                        "Labels": {"com.docker.compose.service": "document-service"},
+                        "Env": [secret],
+                    },
+                    "State": {
+                        "Running": True,
+                        "OOMKilled": False,
+                        "ExitCode": 0,
+                        "Error": secret,
+                        "Health": {"Status": "healthy", "Log": [secret]},
+                    },
+                    "RestartCount": 2,
+                },
+                {"Config": {"Labels": {"com.docker.compose.service": secret}}},
+            ]
+        )
+        events = gateway_events(
+            json.dumps(
+                {
+                    "event": "UPSTREAM_FAILURE",
+                    "code": "ECONNRESET",
+                    "reusedSocket": True,
+                    "message": secret,
+                }
+            )
+            + "\n"
+            + json.dumps({"event": "UPSTREAM_FAILURE", "code": secret, "retry": secret})
+        )
+        self.assertEqual(result[0]["restarts"], 2)
+        self.assertEqual(events[0]["code"], "ECONNRESET")
+        self.assertEqual(events[1]["code"], "OTHER")
+        self.assertNotIn(secret, json.dumps([result, events]))
+
     def test_evidence_retention_covers_reused_images_and_acceptance(self):
         repository = "https://github.com/example/docnest"
         images = {name: "image-" + name for name in NAMES}

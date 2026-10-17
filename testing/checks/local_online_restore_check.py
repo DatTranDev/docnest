@@ -24,6 +24,7 @@ from online_backup import Source, capture
 from online_restore import decrypted, validate_snapshot
 from rollout_traffic import Client, Measurements, TrafficMonitor
 from run import initialize, compose_prefix
+from runtime_diagnostics import collect as runtime_diagnostics
 
 
 def main():
@@ -34,6 +35,10 @@ def main():
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535:
         raise ValueError("Invalid private restore port")
+    diagnostic_start = time.time()
+    report_path = ROOT / "testing/reports/local-online-restore.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps({"status": "PENDING"}) + "\n", encoding="utf-8")
     root_password = initialize()["MYSQL_ROOT_PASSWORD"]
     source_prefix = compose_prefix() + ["--profile", "app"]
     source_containers = {
@@ -111,6 +116,8 @@ def main():
             "--profile",
             "app",
         ]
+        baseline_verified = False
+        before_traffic = None
         try:
             run(
                 [
@@ -235,6 +242,8 @@ def main():
                 or client.json("jwks", "GET", "/.well-known/jwks.json") != jwks
             ):
                 raise ValueError("Restored native bytes or signing key changed")
+            baseline_verified = True
+            before_traffic = runtime_diagnostics(prefix, diagnostic_start)
             with TrafficMonitor(
                 f"http://localhost:{args.port}",
                 credentials,
@@ -276,9 +285,30 @@ def main():
                 "kafkaHistoricalReplay": "NOT_VERIFIED; fresh broker used, pending SQL outbox remains authoritative",
                 "productionRpoRto": "NOT_MEASURED",
             }
-            (ROOT / "testing/reports/local-online-restore.json").write_text(
-                json.dumps(report, indent=2) + "\n"
+            report["runtimeBeforeTraffic"] = before_traffic
+            report_path.write_text(json.dumps(report, indent=2) + "\n")
+        except Exception as error:
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "status": "FAIL",
+                        "scope": "Isolated LOCAL recovery; raw logs and application data withheld",
+                        "errorType": type(error).__name__,
+                        "originalKeyAndNativeVerified": baseline_verified,
+                        "runtimeBeforeTraffic": before_traffic,
+                        "targetRuntimeAfterFailure": runtime_diagnostics(
+                            prefix, diagnostic_start
+                        ),
+                        "sourceRuntimeAfterFailure": runtime_diagnostics(
+                            source_prefix, diagnostic_start
+                        ),
+                    },
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
             )
+            raise
         finally:
             if not re.fullmatch(r"docsnest-compat-[a-f0-9]{12}", project):
                 raise ValueError("Owned restore project check failed")
