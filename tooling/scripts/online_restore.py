@@ -5,7 +5,7 @@ SQL verification is distinct from the isolated application/GCS recovery acceptan
 """
 
 import argparse
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 import json
 from pathlib import Path
 import re
@@ -108,38 +108,80 @@ def validate_snapshot(directory, manifest):
         raise ValueError("Signing key integrity mismatch")
 
 
-def replay(sandbox, directory, manifest, snapshot, stop_time=None):
+def replay_plan(archives, snapshot):
+    boundary = snapshot["binlogBoundary"]
     if (
-        manifest.get("kind") != "closed-binlogs"
-        or manifest.get("serverUuid") != snapshot["source"]["serverUuid"]
-        or not manifest.get("logs")
+        not re.fullmatch(r"[A-Za-z0-9_-]+\.[0-9]{6}", boundary["file"])
+        or type(boundary["position"]) is not int
+        or boundary["position"] < 4
     ):
-        raise ValueError("PITR source or archive scope mismatch")
-    logs = manifest["logs"]
+        raise ValueError("Snapshot binlog boundary rejected")
+    prefix = boundary["file"].rsplit(".", 1)[0]
+    previous = None
+    entries = []
+    for directory, manifest in archives:
+        if (
+            manifest.get("kind") != "closed-binlogs"
+            or manifest.get("serverUuid") != snapshot["source"]["serverUuid"]
+            or not manifest.get("logs")
+        ):
+            raise ValueError("PITR source or archive scope mismatch")
+        for entry in manifest["logs"]:
+            name = entry["file"]
+            if (
+                not re.fullmatch(re.escape(prefix) + r"\.[0-9]{6}", name)
+                or name != entry["sourceFile"]
+                or type(entry["startPosition"]) is not int
+                or entry["startPosition"] < 4
+                or entry["startPosition"] > (directory / name).stat().st_size
+                or fingerprint(directory / name) != entry["sha256"]
+            ):
+                raise ValueError("PITR log path, range or integrity mismatch")
+            if previous is not None and (
+                int(name.rsplit(".", 1)[1]) != int(previous.rsplit(".", 1)[1]) + 1
+                or entry["startPosition"] != 4
+            ):
+                raise ValueError(
+                    "PITR log sequence has a gap, overlap or partial continuation"
+                )
+            previous = name
+            entries.append((directory, entry))
+        expected_next = prefix + "." + str(int(previous.rsplit(".", 1)[1]) + 1).zfill(6)
+        if manifest.get("nextBoundary") != {"file": expected_next, "position": 4}:
+            raise ValueError(
+                "Closed-binlog archive cursor does not follow its last file"
+            )
+    start = next(
+        (
+            i
+            for i, (_, entry) in enumerate(entries)
+            if entry["file"] == boundary["file"]
+        ),
+        None,
+    )
+    if start is None:
+        raise ValueError("PITR chain does not contain the snapshot boundary file")
+    directory, first = entries[start]
     if (
-        logs[0]["sourceFile"] != snapshot["binlogBoundary"]["file"]
-        or logs[0]["startPosition"] != snapshot["binlogBoundary"]["position"]
+        not first["startPosition"]
+        <= boundary["position"]
+        <= (directory / first["file"]).stat().st_size
     ):
-        raise ValueError("PITR chain does not start at the snapshot boundary")
+        raise ValueError("PITR chain does not cover the snapshot boundary position")
+    return [
+        (directory, entry["file"], boundary["position"] if index == start else 4)
+        for index, (directory, entry) in enumerate(entries)
+        if index >= start
+    ]
+
+
+def replay_chain(sandbox, archives, snapshot, stop_time=None):
     if stop_time and not re.fullmatch(
         r"20[0-9]{2}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}", stop_time
     ):
         raise ValueError("Use an explicit UTC MySQL stop-datetime")
-    previous = None
-    for entry in logs:
-        name = entry["file"]
-        if (
-            not re.fullmatch(r"[A-Za-z0-9_-]+\.[0-9]{6}", name)
-            or name != entry["sourceFile"]
-            or fingerprint(directory / name) != entry["sha256"]
-        ):
-            raise ValueError("PITR log path or integrity mismatch")
-        if previous is not None and (
-            name.rsplit(".", 1)[0] != previous.rsplit(".", 1)[0]
-            or int(name.rsplit(".", 1)[1]) != int(previous.rsplit(".", 1)[1]) + 1
-        ):
-            raise ValueError("PITR log sequence has a gap")
-        previous = name
+    plan = replay_plan(archives, snapshot)
+    for directory, name, position in plan:
         remote = "/tmp/" + name
         run(["docker", "cp", str(directory / name), sandbox.name + ":" + remote])
         options = [
@@ -150,7 +192,7 @@ def replay(sandbox, directory, manifest, snapshot, stop_time=None):
             sandbox.name,
             "mysqlbinlog",
             "--verify-binlog-checksum",
-            "--start-position=" + str(entry["startPosition"]),
+            "--start-position=" + str(position),
         ]
         if stop_time:
             options.append("--stop-datetime=" + stop_time)
@@ -158,13 +200,23 @@ def replay(sandbox, directory, manifest, snapshot, stop_time=None):
         with output.open("wb") as stream:
             run([*options, remote], output=stream)
         sandbox.restore(output)
+    return len(plan)
+
+
+def replay(sandbox, directory, manifest, snapshot, stop_time=None):
+    return replay_chain(sandbox, [(directory, manifest)], snapshot, stop_time)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--snapshot", type=Path, required=True)
     parser.add_argument("--identity", type=Path, required=True)
-    parser.add_argument("--binlogs", type=Path)
+    parser.add_argument(
+        "--binlogs",
+        type=Path,
+        nargs="+",
+        help="Consecutive encrypted closed-binlog archives in capture order",
+    )
     parser.add_argument(
         "--stop-time", help="UTC YYYY-MM-DD HH:MM:SS; whole transactions only"
     )
@@ -194,8 +246,12 @@ def main():
             }:
                 raise ValueError("Snapshot schemas differ after isolated restore")
             if args.binlogs:
-                with decrypted(args.binlogs, args.identity, args.age) as (logs, chain):
-                    replay(sandbox, logs, chain, manifest, args.stop_time)
+                with ExitStack() as stack:
+                    archives = [
+                        stack.enter_context(decrypted(archive, args.identity, args.age))
+                        for archive in args.binlogs
+                    ]
+                    replay_chain(sandbox, archives, manifest, args.stop_time)
             report = {
                 "sqlRecovery": "PASS",
                 "databases": len(DBS),

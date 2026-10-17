@@ -73,11 +73,12 @@ For a SQL-only drill, use the explicit snapshot and complete binlog boundary fro
 
 ```bash
 python tooling/scripts/online_restore.py --snapshot /secure/snapshot.age \
-  --binlogs /secure/binlogs.age --identity /offline/age-identity.txt \
+  --binlogs /secure/binlogs-first.age /secure/binlogs-next.age \
+  --identity /offline/age-identity.txt \
   --stop-time '2026-10-17 01:00:00'
 ```
 
-The timestamp is UTC. The chain must match the server UUID, starting file/position and consecutive files. Checksums, archive paths, ciphertext integrity and all five schemas are checked before approval. The official minimal server image lacks mysqlbinlog; the isolated tools image extracts the matching8.4.7 client from an official signature-verified RPM. Use the exact recovery tooling, not an older MariaDB decoder.
+The timestamp is UTC. Supply consecutive archives in capture order, without duplicate or missing batches. Every server UUID, file hash, authorized byte range and closed-file continuation cursor is checked before replay. A later hourly snapshot can lie inside a file archived from position4: replay starts at the snapshot's exact coordinate, then continues at position4 in each subsequent file. Older files in the first batch are verified and omitted. An archive whose authorized range begins after the snapshot coordinate is rejected. This preserves the independent binlog cursor across hourly snapshots; do not reset that cursor to force a match. Checksums, archive paths, ciphertext integrity and all five schemas remain required. The official minimal server image lacks mysqlbinlog; the isolated tools image extracts the matching8.4.7 client from an official signature-verified RPM. Use the exact recovery tooling, not an older MariaDB decoder. This SQL chain does not prove that GCS generations created after the base snapshot are available for application PITR.
 
 For a base GCS snapshot, export reviewed plaintext only to an explicit protected directory, then reuse the existing generation-aware isolated object remap:
 
