@@ -102,7 +102,12 @@ def main():
     ]
     paced = []
     for name, command in commands:
-        if name.endswith("-browser") and name != "local-tools-browser":
+        if (name.endswith("-browser") and name != "local-tools-browser") or name in (
+            "smoke",
+            "billing-saga",
+            "slow-traffic",
+            "local-online-restore",
+        ):
             paced.append(
                 (
                     "auth-budget-" + name,

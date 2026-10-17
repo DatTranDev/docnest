@@ -140,9 +140,13 @@ jobs:
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/migration_only.py
         if: inputs.runtime_checks || inputs.full_acceptance
-      - run: python tooling/scripts/run.py smoke
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          python tooling/scripts/run.py smoke
         if: inputs.runtime_checks || inputs.full_acceptance
-      - run: python testing/checks/billing_saga_check.py
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          python testing/checks/billing_saga_check.py
         if: inputs.full_acceptance
       - run: npx playwright install --with-deps chromium
         if: inputs.runtime_checks || inputs.full_acceptance
@@ -176,7 +180,9 @@ jobs:
           python testing/checks/auth_fixture_budget.py --reserve 4
           node testing/checks/workspace-browser.cjs
         if: inputs.full_acceptance
-      - run: python tooling/scripts/rollout_traffic.py --local --seconds 30 --slow-seconds 35
+      - run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          python tooling/scripts/rollout_traffic.py --local --seconds 30 --slow-seconds 35
         if: inputs.full_acceptance
       - run: npm run worker-check
         if: inputs.runtime_checks || inputs.full_acceptance
@@ -188,7 +194,9 @@ jobs:
         run: python testing/checks/online_recovery_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
       - name: Isolated complete LOCAL application recovery
         if: inputs.full_acceptance
-        run: python testing/checks/local_online_restore_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
+        run: |
+          python testing/checks/auth_fixture_budget.py --reserve 4
+          python testing/checks/local_online_restore_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
       - run: python tooling/scripts/run.py down
         if: always() && (inputs.runtime_checks || inputs.full_acceptance)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
