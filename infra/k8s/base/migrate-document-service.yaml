@@ -12,7 +12,7 @@ spec:
   template:
     metadata:
       labels:
-        app: document-service
+        app: migrate-document-service
         application: text-editor
     spec:
       enableServiceLinks: false
