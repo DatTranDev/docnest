@@ -1,7 +1,8 @@
 """Fenced reconciliation only when no application image/template/Pod changed.
 
-Never applies workloads, changes SQL, restores data, resets events or approves the
-unpublished candidate's event compatibility. Original failed artifacts stay PENDING.
+Never applies workloads, restores SQL, resets events or approves the unpublished
+candidate's event compatibility. Traffic writes only dedicated synthetic fixtures.
+Original failed artifacts stay PENDING.
 """
 
 import argparse
@@ -343,7 +344,7 @@ def main():
         encoding="utf-8",
     )
     print(
-        "Unmodified application state reconciled; original failure retained, no workloads/SQL/events changed"
+        "Application state reconciled; original failure retained, no workloads patched or SQL restored; synthetic traffic verified"
     )
 
 
