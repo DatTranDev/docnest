@@ -140,41 +140,57 @@ jobs:
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: python testing/checks/migration_only.py
         if: inputs.runtime_checks || inputs.full_acceptance
+      - name: Wait for smoke login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.runtime_checks || inputs.full_acceptance
       - run: python tooling/scripts/run.py smoke
         if: inputs.runtime_checks || inputs.full_acceptance
+      - name: Wait for billing_saga_check login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
       - run: python testing/checks/billing_saga_check.py
         if: inputs.full_acceptance
       - run: npx playwright install --with-deps chromium
         if: inputs.runtime_checks || inputs.full_acceptance
       - run: node testing/checks/local-tools-browser.cjs
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/collaboration-browser.cjs
+      - name: Wait for collaboration-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/billing-browser.cjs
+      - run: node testing/checks/collaboration-browser.cjs
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/i18n-browser.cjs
+      - name: Wait for billing-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/docsnest-browser.cjs
+      - run: node testing/checks/billing-browser.cjs
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/source-files-browser.cjs
+      - name: Wait for i18n-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/structure-browser.cjs
+      - run: node testing/checks/i18n-browser.cjs
         if: inputs.full_acceptance
-      - run: |
-          python testing/checks/auth_fixture_budget.py --reserve 4
-          node testing/checks/workspace-browser.cjs
+      - name: Wait for docsnest-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
+      - run: node testing/checks/docsnest-browser.cjs
+        if: inputs.full_acceptance
+      - name: Wait for source-files-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
+      - run: node testing/checks/source-files-browser.cjs
+        if: inputs.full_acceptance
+      - name: Wait for structure-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
+      - run: node testing/checks/structure-browser.cjs
+        if: inputs.full_acceptance
+      - name: Wait for workspace-browser login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
+      - run: node testing/checks/workspace-browser.cjs
+        if: inputs.full_acceptance
+      - name: Wait for slow traffic login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
         if: inputs.full_acceptance
       - run: python tooling/scripts/rollout_traffic.py --local --seconds 30 --slow-seconds 35
         if: inputs.full_acceptance
@@ -186,6 +202,9 @@ jobs:
       - name: Real online SQL and PITR drill
         if: inputs.full_acceptance
         run: python testing/checks/online_recovery_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
+      - name: Wait for recovery source login budget
+        run: python testing/checks/auth_fixture_budget.py --reserve 4
+        if: inputs.full_acceptance
       - name: Isolated complete LOCAL application recovery
         if: inputs.full_acceptance
         run: python testing/checks/local_online_restore_check.py --age .tools/age/1.3.2/age/age --age-keygen .tools/age/1.3.2/age/age-keygen
