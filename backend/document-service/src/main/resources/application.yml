@@ -44,6 +44,8 @@ spring:
       timeout: 300ms
 management:
   metrics:
+    tags:
+      application: document-service
     distribution:
       percentiles-histogram:
         editor.http.duration: true

@@ -649,6 +649,16 @@ class DocumentIntegrationTest {
         assertEquals(200, metrics.statusCode());
         assertTrue(metrics.body().contains("http_server_requests_seconds_bucket"));
         assertTrue(metrics.body().contains("editor_outbox_oldest_pending_seconds"));
+        var httpBuckets =
+            metrics
+                .body()
+                .lines()
+                .filter(line -> line.startsWith("http_server_requests_seconds_bucket{"))
+                .toList();
+        assertFalse(httpBuckets.isEmpty());
+        assertTrue(
+            httpBuckets.stream()
+                .allMatch(line -> line.contains("application=\"document-service\"")));
         var folder =
             http(
                 client,
