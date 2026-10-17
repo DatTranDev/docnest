@@ -77,6 +77,16 @@ class LongTransfer:
                 json={"email": viewer_email, "role": "VIEWER"},
             )
         self.path = path + "/versions/1/content"
+        # Validate the persistent bytes before any rollout SQL/config mutation.
+        # The slow request still runs independently and must finish byte-exactly.
+        observed = viewer.request("verify-long-fixture", "GET", self.path).content
+        if (
+            len(observed) != self.expected_bytes
+            or hashlib.sha256(observed).hexdigest() != self.expected_hash
+        ):
+            raise ValueError(
+                "Dedicated long-request fixture bytes differ from acceptance"
+            )
 
     def run(self):
         self.client.refresh()
