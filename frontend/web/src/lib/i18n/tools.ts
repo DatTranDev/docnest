@@ -1,5 +1,10 @@
 import { useI18n } from '@/lib/i18n';
 export const toolsVi = {
+  introEyebrow: 'CHO MỌI Ý TƯỞNG CỦA BẠN',
+  toolsEyebrow: 'BỐN CÁCH ĐỂ BẮT ĐẦU',
+  demoLabel: 'Xem trước trình soạn thảo',
+  demoSection: 'Ý tưởng chính',
+  localEyebrow: 'VIẾT NGAY TRÊN MÁY',
   navigation: 'Điều hướng',
   login: 'Đăng nhập',
   manageFiles: 'Quản lý tệp',
@@ -108,6 +113,11 @@ export const toolsVi = {
   editMarkdown: 'Soạn Markdown',
 } as const;
 export const toolsEn: Record<keyof typeof toolsVi, string> = {
+  introEyebrow: 'A LITTLE SPACE FOR BIG IDEAS',
+  toolsEyebrow: 'FOUR WAYS TO GET STARTED',
+  demoLabel: 'Editor preview',
+  demoSection: 'The idea at a glance',
+  localEyebrow: 'LOCAL BY DESIGN',
   navigation: 'Navigation',
   login: 'Sign in',
   manageFiles: 'Manage files',

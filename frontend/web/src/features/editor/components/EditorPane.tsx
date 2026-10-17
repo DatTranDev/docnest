@@ -20,6 +20,7 @@ import { STYLE_BITS } from '../model/constants';
 import { ParagraphTools } from './ParagraphTools';
 import { CharacterFormattingTools } from './CharacterFormattingTools';
 import { PagedPreview } from './PagedPreview';
+import { ImageSizeTools } from './ImageSizeTools';
 
 interface EditorSurface {
   model: EditorModel;
@@ -276,7 +277,6 @@ export function EditorPane({
           </button>
         </div>
         <div className="tool-group format-group" aria-label={t(MESSAGE.textFormatting)}>
-          <span className="tool-label">{t(MESSAGE.format)}</span>
           <button
             className="tool-icon format-button"
             title={t(MESSAGE.boldCtrlB)}
@@ -312,7 +312,7 @@ export function EditorPane({
           </button>
         </div>
         <details className="toolbar-more-format">
-          <summary>{t(MESSAGE.format)} ▾</summary>
+          <summary>{t(MESSAGE.textFormatting)} ▾</summary>
           <div className="toolbar-more-panel">
             <CharacterFormattingTools
               character={character}
@@ -529,6 +529,13 @@ export function EditorPane({
           </button>
         </div>
       )}
+      <ImageSizeTools
+        model={active.model}
+        tick={tick}
+        readOnly={active.readOnly}
+        controller={controller}
+        onError={onError}
+      />
       {recovery}
       {pagePreview && (
         <PagedPreview

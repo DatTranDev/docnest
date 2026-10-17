@@ -52,7 +52,7 @@ function base64(bytes: Uint8Array): string {
     value += String.fromCharCode(...bytes.subarray(at, at + CLIPBOARD.base64ChunkBytes));
   return btoa(value);
 }
-function unbase64(value: string, cap: number): Uint8Array {
+function unbase64(value: string, cap: number): Uint8Array<ArrayBuffer> {
   if (value.length % 4 || value.length > Math.ceil(cap / 3) * 4 || /[^A-Za-z0-9+/=]/.test(value))
     throw new Error('INVALID_CLIPBOARD');
   const raw = atob(value);
@@ -191,6 +191,17 @@ export class EditorController {
           }),
           EditorView.domEventHandlers({
             click: (event) => {
+              const target = event.target as HTMLElement;
+              if (target.matches('img.editor-inline-image')) {
+                const image = this.model.images.images.find(
+                  (entry) => entry.id === target.dataset.imageId,
+                );
+                if (image)
+                  this.view.dispatch({
+                    selection: EditorSelection.single(image.from, image.from + 1),
+                  });
+                return true;
+              }
               const anchor = (event.target as HTMLElement).closest('a.editor-link');
               if (anchor && !this.readOnly && !event.ctrlKey && !event.metaKey) {
                 event.preventDefault();
@@ -381,6 +392,41 @@ export class EditorController {
       userEvent: 'input.image',
     });
     this.focusEditor();
+  }
+  async resizeImage(id: string, width: number, height: number): Promise<void> {
+    if (this.readOnly || this.collaborationBlocked) return;
+    if (![width, height].every((n) => Number.isInteger(n) && n >= 1 && n <= MAX_IMAGE_DIMENSION_PX))
+      throw new Error(MESSAGE.imageDimensionsExceed4096Px);
+    const image = this.model.images.images.find((entry) => entry.id === id);
+    if (!image || (image.width === width && image.height === height)) return;
+    const bitmap = await createImageBitmap(
+      new Blob([unbase64(image.data, MAX_IMAGE_BYTES)], { type: image.mime }),
+    );
+    let blob: Blob | null;
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('INVALID_IMAGE');
+      context.drawImage(bitmap, 0, 0, width, height);
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, image.mime, 0.92));
+    } finally {
+      bitmap.close();
+    }
+    if (!blob || blob.size > MAX_IMAGE_BYTES) throw new Error(MESSAGE.useAPngOrJpegImageUpTo);
+    const data = base64(new Uint8Array(await blob.arrayBuffer()));
+    if (this.destroyed || this.collaborationBlocked) return;
+    const current = this.model.images.images.find((entry) => entry.id === id);
+    if (!current || current.data !== image.data) return;
+    this.model.endGroup();
+    this.view.dispatch({
+      changes: { from: current.from, to: current.from + 1, insert: IMAGE_PLACEHOLDER },
+      selection: EditorSelection.single(current.from, current.from + 1),
+      effects: insertImage.of({ id: crypto.randomUUID(), mime: image.mime, width, height, data }),
+      userEvent: 'input.image',
+    });
+    this.model.endGroup();
   }
   imageUrl(image: PlacedImage): string {
     return this.imageUrls.get(image);

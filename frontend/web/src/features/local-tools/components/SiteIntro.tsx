@@ -1,8 +1,7 @@
 'use client';
 import Link from 'next/link';
-import { useToolsCopy, markdownSample } from '../model/copy';
+import { useToolsCopy } from '../model/copy';
 import { SiteHeader } from './SiteHeader';
-import { MarkdownPreview } from './MarkdownPreview';
 import { Icon } from '@/components/ui/Icon';
 import { LocalClient } from './LocalClient';
 export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
@@ -17,11 +16,12 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
       <main className="intro-main">
         <section className="intro-hero">
           <div className="intro-words">
+            <span className="public-eyebrow">{copy.introEyebrow}</span>
             <h1>{copy.headline}</h1>
             <p>{copy.description}</p>
             <div className="intro-actions">
               <a className="site-primary" href={edit('document')}>
-                {copy.startWriting} →
+                {copy.startWriting} <Icon name="chevron" size={18} />
               </a>
               {!standalone && (
                 <Link className="intro-account-action" href="/">
@@ -31,37 +31,49 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             </div>
             <small>{copy.noAccount}</small>
           </div>
-          <div className="intro-demo">
+          <figure className="intro-demo">
             <div className="intro-demo-bar">
               <span className="intro-demo-title">
                 <Icon name="document" size={18} /> {copy.demoTitle}
               </span>
-              <span className="intro-demo-actions">
-                <span>Save</span>
-                <span>Share</span>
+              <span className="intro-demo-format" aria-hidden="true">
+                .tedoc
               </span>
             </div>
-            <div className="intro-demo-toolbar">
-              <span>Normal text ▾</span>
+            <div className="intro-demo-toolbar" aria-hidden="true">
+              <span>
+                {copy.document} <Icon name="chevron-down" size={14} />
+              </span>
               <b>B</b>
               <i>I</i>
               <u>U</u>
-              <span>☷</span>
-              <span>↗</span>
-              <span>•••</span>
+              <span className="intro-demo-separator" />
+              <Icon name="align-left" size={17} />
+              <Icon name="list" size={17} />
+              <Icon name="undo" size={17} />
             </div>
             <div className="intro-demo-content">
               <div className="intro-demo-paper">
                 <h2>{copy.demoTitle}</h2>
                 <p>{copy.demoBody}</p>
+                <h3>{copy.demoSection}</h3>
                 <ul>
                   <li>{copy.demoPoint}</li>
                 </ul>
               </div>
             </div>
-          </div>
+            <figcaption>
+              <span className="intro-preview-dot" aria-hidden="true" />
+              {copy.demoLabel}
+              <span>docsnest</span>
+            </figcaption>
+          </figure>
         </section>
         <section className="intro-features" aria-label={copy.featureHeading}>
+          <div className="intro-section-heading">
+            <span className="public-eyebrow">{copy.toolsEyebrow}</span>
+            <h2>{copy.featureHeading}</h2>
+          </div>
           <div className="intro-feature-list">
             {[
               {
@@ -79,7 +91,10 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
                   {feature.mark}
                 </span>
                 <div>
-                  <h3>{feature.title}</h3>
+                  <h3>
+                    {feature.title}
+                    <Icon name="chevron" size={16} />
+                  </h3>
                   <p>{feature.description}</p>
                 </div>
               </a>
@@ -88,6 +103,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
         </section>
         <section className="intro-local">
           <div>
+            <span className="public-eyebrow">{copy.localEyebrow}</span>
             <h2>{copy.localHeading}</h2>
             <p>{copy.localDescription}</p>
             <a className="site-primary" href={edit()}>
@@ -95,7 +111,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             </a>
           </div>
           <div className="intro-file-stack" aria-hidden="true">
-            <span>Ban-thao.md</span>
+            <span>notes.md</span>
             <span>snippet.ts</span>
             <span>data.json</span>
             <span>docsnest.tedoc</span>
@@ -106,17 +122,6 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             <LocalClient embedded />
           </section>
         )}
-        {!standalone && (
-          <section className="intro-workspace">
-            <h2>{copy.workspaceHeading}</h2>
-            <p>{copy.workspaceDescription}</p>
-            <Link href="/">{copy.workspace}</Link>
-          </section>
-        )}
-        <details className="intro-markdown-example">
-          <summary>Markdown</summary>
-          <MarkdownPreview source={markdownSample} />
-        </details>
       </main>
       <footer className="intro-footer">
         <span>docsnest</span>

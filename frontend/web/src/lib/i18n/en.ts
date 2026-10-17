@@ -1,5 +1,14 @@
 import type { vi } from './vi';
 export const en = {
+  authModeLabel: 'Account access',
+  authWorkspaceLabel: 'YOUR WRITING WORKSPACE',
+  authWorkspaceHeadline: 'A home for your next idea.',
+  authWorkspaceDescription:
+    'From the first draft to the version you share. Keep your writing together in docsnest.',
+  authOrganizeBenefit: 'A place for every document',
+  authHistoryBenefit: 'Earlier versions, within reach',
+  authSharingBenefit: 'Share with the people you choose',
+  authLocalNote: 'Just exploring? Write locally, then download your draft.',
   newItem: 'New',
   searchCurrentLibrary: 'Search this library',
   clearSearch: 'Clear search',
@@ -175,6 +184,13 @@ export const en = {
   share: 'Share',
   shareDocument: 'Share document',
   insertContent: 'Insert content',
+  imageSize: 'Image size',
+  imageWidth: 'Width (px)',
+  imageHeight: 'Height (px)',
+  keepImageRatio: 'Keep aspect ratio',
+  applyImageSize: 'Apply',
+  imageResizeHint:
+    'Select an image in the document to resize. This changes image resolution; you can undo it.',
   insertImage: 'Insert image',
   noDocumentsYet: 'No documents yet.',
   unsaved: 'Unsaved',

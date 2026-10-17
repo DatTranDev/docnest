@@ -1,4 +1,13 @@
 export const vi = {
+  authModeLabel: 'Truy cập tài khoản',
+  authWorkspaceLabel: 'KHÔNG GIAN VIẾT CỦA BẠN',
+  authWorkspaceHeadline: 'Nơi ý tưởng thành bản thảo.',
+  authWorkspaceDescription:
+    'Từ dòng đầu tiên đến phiên bản bạn chia sẻ. Giữ những gì bạn viết cùng nhau trong docsnest.',
+  authOrganizeBenefit: 'Mỗi tài liệu đều có chỗ riêng',
+  authHistoryBenefit: 'Dễ dàng tìm lại phiên bản trước',
+  authSharingBenefit: 'Chia sẻ với người bạn chọn',
+  authLocalNote: 'Muốn thử trước? Viết trên máy rồi tải bản thảo xuống.',
   newItem: 'Mới',
   searchCurrentLibrary: 'Tìm trong thư viện hiện tại',
   clearSearch: 'Xóa tìm kiếm',
@@ -173,6 +182,13 @@ export const vi = {
   share: 'Chia sẻ',
   shareDocument: 'Chia sẻ tài liệu',
   insertContent: 'Chèn nội dung',
+  imageSize: 'Kích thước ảnh',
+  imageWidth: 'Rộng (px)',
+  imageHeight: 'Cao (px)',
+  keepImageRatio: 'Giữ tỉ lệ',
+  applyImageSize: 'Áp dụng',
+  imageResizeHint:
+    'Chọn ảnh trong tài liệu để chỉnh kích thước. Thao tác thay đổi độ phân giải ảnh; có thể hoàn tác.',
   insertImage: 'Chèn ảnh',
   noDocumentsYet: 'Chưa có tài liệu.',
   unsaved: 'Chưa lưu',

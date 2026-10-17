@@ -7,6 +7,7 @@ import '@/app/globals.css';
 import '@/app/workspace.css';
 import '@/app/preferences.css';
 import '@/app/local-tools.css';
+import '@/app/public-pages.css';
 const stored = document.cookie
   .split('; ')
   .find((item) => item.startsWith(LOCALE_COOKIE + '='))

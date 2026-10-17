@@ -392,11 +392,6 @@ export default function WorkspaceScreen() {
         <main>
           <ErrorNotice message={error} onClose={() => setError('')} />
           <ErrorNotice message={documentSession.recoveryError} />
-          {active && showFiles && (
-            <button className="return-editor" onClick={() => setShowFiles(false)}>
-              <Icon name="chevron" size={15} /> {t(MESSAGE.returnToEditor)}
-            </button>
-          )}
           {(!active || showFiles) && (
             <WorkspaceLibrary
               key={scope}

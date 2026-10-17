@@ -79,7 +79,7 @@ async function main() {
       'Viết, lưu và chia sẻ công việc của bạn.',
     );
     await page.screenshot({ path: `${reports}/local-intro.png`, fullPage: true });
-    await page.getByRole('link', { name: 'Bắt đầu viết →', exact: true }).click();
+    await page.getByRole('link', { name: 'Bắt đầu viết', exact: true }).click();
     await expect(page.getByRole('tab', { name: 'Văn bản', exact: true })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -278,6 +278,13 @@ async function main() {
     );
     assert.ok(docHtml.toString('utf8').includes('<table>'));
     await page.screenshot({ path: `${reports}/local-document-dark.png`, fullPage: true });
+    stage = 'image resize';
+    await require('./image-resize.cjs')(page, upload, download, reports);
+    await upload({
+      name: 'roundtrip.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: docx,
+    });
     await rich.press('Control+Home');
     await rich.pressSequentially('Changed ');
     page.removeAllListeners('dialog');

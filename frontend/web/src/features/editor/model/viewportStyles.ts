@@ -35,6 +35,7 @@ class ImageWidget extends WidgetType {
   toDOM() {
     const image = document.createElement('img');
     image.className = 'editor-inline-image';
+    image.dataset.imageId = this.id;
     image.alt = this.alt;
     image.src = this.url;
     image.width = this.width;

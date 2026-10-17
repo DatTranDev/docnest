@@ -337,8 +337,8 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 78px;
-  padding: 13px 28px;
+  min-height: 68px;
+  padding: 10px 22px;
 }
 .editor-heading-main,
 .editor-heading-actions {
@@ -1906,4 +1906,32 @@ p {
     margin: 32px 12px;
     padding: 26px 22px;
   }
+}
+
+.image-size-tools {
+  padding: 10px 22px;
+  border-bottom: 1px solid #dfe6f0;
+  font-size: 13px;
+}
+.image-size-tools form {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.image-size-tools label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.image-size-tools input[type='number'] {
+  width: 82px;
+  min-height: 34px;
+}
+.image-size-tools small {
+  flex-basis: 100%;
+  color: #697a90;
+}
+.editor-inline-image {
+  cursor: pointer;
 }

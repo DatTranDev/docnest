@@ -9,6 +9,7 @@ import './globals.css';
 import './workspace.css';
 import './preferences.css';
 import './local-tools.css';
+import './public-pages.css';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   return {

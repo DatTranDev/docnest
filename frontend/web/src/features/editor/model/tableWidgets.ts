@@ -116,6 +116,17 @@ class TableWidget extends WidgetType {
       cell.oninput = () => this.input(cell, view);
       cell.onkeydown = (event) => this.key(event, cell, view);
       cell.onclick = (event) => {
+        const target = event.target as HTMLElement;
+        if (target.matches('img[data-image-id]')) {
+          const image = this.source.model.images.images.find(
+            (entry) => entry.id === target.dataset.imageId,
+          );
+          if (image) {
+            event.preventDefault();
+            view.dispatch({ selection: EditorSelection.single(image.from, image.from + 1) });
+          }
+          return;
+        }
         if (
           !this.source.readOnly &&
           !event.ctrlKey &&
@@ -174,6 +185,8 @@ class TableWidget extends WidgetType {
       if (image) {
         const node = document.createElement('img');
         node.src = imageUrls.get(image);
+        node.dataset.imageId = image.id;
+        node.className = 'editor-inline-image';
         node.loading = 'lazy';
         node.decoding = 'async';
         node.alt = this.source.imageAlt;
