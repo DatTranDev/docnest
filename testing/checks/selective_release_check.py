@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import yaml
 
@@ -18,12 +19,92 @@ sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from detect_affected import BACKENDS, affected, resolve, selection
 from digest_manifest import NAMES, validate_manifest
 from release_manifest import merge_state, scan_records
-from routine_release import validate_live
+from rolling_policy import validate_compatibility
+from routine_release import plan, validate_live
 from routine_rollout import verify_unrelated
 from service_config import CONFIG_KEYS, config_hash
 
 
 class ImpactTests(unittest.TestCase):
+    def test_editor_design_document_is_not_a_wire_contract(self):
+        document = "docs/04_EDITOR_ENGINE.md"
+        self.assertEqual(affected([document])["images"], [])
+        self.assertFalse(affected([document])["coordinated"])
+        for contract in (
+            "docs/contracts/openapi.yaml",
+            "docs/contracts/events/document.version.saved.v1.schema.json",
+            "docs/contracts/native-manifest.schema.json",
+            "backend/common/src/main/java/vn/editor/common/codec/NativeCodec.java",
+            "backend/common/src/main/java/vn/editor/common/contracts/Envelope.java",
+        ):
+            with self.subTest(contract=contract):
+                impact = affected([document, contract])
+                self.assertEqual(impact["images"], list(NAMES))
+                self.assertTrue(impact["coordinated"])
+                with self.assertRaisesRegex(ValueError, "Protocol/native changes"):
+                    validate_compatibility(impact)
+
+    def test_real_git_editor_document_and_ui_pass_release_planning(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            os.chdir(temporary)
+            try:
+
+                def git(*args):
+                    return subprocess.check_output(
+                        ["git", *args], stderr=subprocess.DEVNULL, text=True
+                    ).strip()
+
+                def commit(message):
+                    git("add", "-A")
+                    git("commit", "-m", message)
+                    return git("rev-parse", "HEAD")
+
+                def release(base, head):
+                    with patch.dict(
+                        os.environ, {"GITHUB_SHA": head, "GOOGLE_CLIENT_ID": ""}
+                    ):
+                        return plan({"commit": base, "googleClientId": ""})
+
+                git("init", "-b", "main")
+                git("config", "user.email", "fixture@example.invalid")
+                git("config", "user.name", "Release policy fixture")
+                document = Path("docs/04_EDITOR_ENGINE.md")
+                document.parent.mkdir(parents=True)
+                document.write_text("Existing native format specification.\n")
+                ui = Path("frontend/web/src/features/editor/components/EditorPane.tsx")
+                ui.parent.mkdir(parents=True)
+                ui.write_text("export const label = 'Editor';\n")
+                baseline = commit("deployed baseline")
+                document.write_text(
+                    "Existing native format specification.\n"
+                    "Image resizing changes resolution and supports undo.\n"
+                )
+                doc_head = commit("describe image sizing UI")
+                impact = release(baseline, doc_head)
+                self.assertEqual(impact["images"], [])
+                self.assertEqual(impact["applications"], [])
+                self.assertFalse(impact["coordinated"])
+                ui.write_text("export const label = 'Image size';\n")
+                ui_head = commit("add image sizing UI")
+                impact = release(baseline, ui_head)
+                self.assertEqual(impact["images"], ["web"])
+                self.assertEqual(impact["applications"], ["web"])
+                self.assertEqual(impact["migrations"], [])
+                self.assertFalse(impact["coordinated"])
+                contract = Path("docs/contracts/native-manifest.schema.json")
+                contract.parent.mkdir(parents=True)
+                contract.write_text('{"type":"object"}\n')
+                contract_head = commit("change native contract alongside docs and UI")
+                with self.assertRaisesRegex(ValueError, "Protocol/native changes"):
+                    release(baseline, contract_head)
+                contract.rename(Path("docs/archived-native-schema.json"))
+                moved_head = commit("move native contract out of contract directory")
+                with self.assertRaisesRegex(ValueError, "Protocol/native changes"):
+                    release(contract_head, moved_head)
+            finally:
+                os.chdir(previous)
+
     def test_document_only_and_schema_scope(self):
         impact = affected(["backend/document-service/src/main/java/Example.java"])
         self.assertEqual(impact["images"], ["document-service"])

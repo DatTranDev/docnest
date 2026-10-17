@@ -46,9 +46,7 @@ def affected(paths):
             or path.startswith((".mvn/", "mvnw"))
         ):
             images.update(BACKENDS)
-        elif path.startswith("docs/contracts/") or path in (
-            "docs/04_EDITOR_ENGINE.md",
-        ):
+        elif path.startswith("docs/contracts/"):
             images.update(NAMES)
             coordinated = True
         elif path.startswith(("frontend/", "tooling/lint-glob/")) or path in (
