@@ -19,6 +19,7 @@ import type { EditorController } from '../model/EditorController';
 import { STYLE_BITS } from '../model/constants';
 import { ParagraphTools } from './ParagraphTools';
 import { CharacterFormattingTools } from './CharacterFormattingTools';
+import { TextStyleSelect } from './TextStyleSelect';
 import { PagedPreview } from './PagedPreview';
 import { ImageSizeTools } from './ImageSizeTools';
 
@@ -276,6 +277,12 @@ export function EditorPane({
             <Icon name="redo" />
           </button>
         </div>
+        <TextStyleSelect
+          character={character}
+          mask={mask}
+          readOnly={active.readOnly}
+          controller={controller}
+        />
         <div className="tool-group format-group" aria-label={t(MESSAGE.textFormatting)}>
           <button
             className="tool-icon format-button"
@@ -311,12 +318,10 @@ export function EditorPane({
             <u>U</u>
           </button>
         </div>
-        <details className="toolbar-more-format">
-          <summary>{t(MESSAGE.textFormatting)} ▾</summary>
-          <div className="toolbar-more-panel">
+        <ToolMenu label={t(MESSAGE.textFormatting)} closeOnSelect={false}>
+          <div className="advanced-format-tools">
             <CharacterFormattingTools
               character={character}
-              mask={mask}
               readOnly={active.readOnly}
               controller={controller}
             />
@@ -328,7 +333,25 @@ export function EditorPane({
               onError={onError}
             />
           </div>
-        </details>
+        </ToolMenu>
+        <button
+          className="tool-icon"
+          aria-label={t(MESSAGE.bulletList)}
+          title={t(MESSAGE.bulletList)}
+          aria-pressed={active.model.formatting.paragraphAt(lineStart).list === 'bullet'}
+          disabled={active.readOnly}
+          onMouseDown={keepSelection}
+          onClick={() =>
+            controller.current?.formatParagraph({
+              list:
+                active.model.formatting.paragraphAt(lineStart).list === 'bullet'
+                  ? undefined
+                  : 'bullet',
+            })
+          }
+        >
+          • ≡
+        </button>
         <div className="tool-group alignment-group" aria-label={t(MESSAGE.paragraphAlignment)}>
           {(
             [
@@ -352,7 +375,29 @@ export function EditorPane({
             </button>
           ))}
         </div>
-        <div className="tool-group" aria-label={t(MESSAGE.insertContent)}>
+        <div className="tool-spacer" />
+        <ToolMenu label={t(MESSAGE.file)} icon="download">
+          <button
+            className={`tool-text${searchOpen ? ' is-active' : ''}`}
+            aria-expanded={searchOpen}
+            aria-controls="document-search"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            <Icon name="search" /> {t(MESSAGE.findReplace)}{' '}
+          </button>
+          <button
+            className="tool-text"
+            aria-pressed={pagePreview}
+            onClick={() => setPagePreview(!pagePreview)}
+          >
+            {pagePreview ? t(MESSAGE.closePagePreview) : t(MESSAGE.pagePreview)}
+          </button>
+          {!localOnly && (
+            <button className="tool-text" onClick={onHistory}>
+              <Icon name="history" /> {t(MESSAGE.version)}{' '}
+            </button>
+          )}
+
           <button
             className="tool-text"
             disabled={active.readOnly}
@@ -377,31 +422,7 @@ export function EditorPane({
               event.target.value = '';
             }}
           />
-        </div>
-        <div className="tool-group">
-          <button
-            className={`tool-text${searchOpen ? ' is-active' : ''}`}
-            aria-expanded={searchOpen}
-            aria-controls="document-search"
-            onClick={() => setSearchOpen(!searchOpen)}
-          >
-            <Icon name="search" /> {t(MESSAGE.findReplace)}{' '}
-          </button>
-        </div>
-        <div className="tool-spacer" />
-        <button
-          className="tool-text"
-          aria-pressed={pagePreview}
-          onClick={() => setPagePreview(!pagePreview)}
-        >
-          {pagePreview ? t(MESSAGE.closePagePreview) : t(MESSAGE.pagePreview)}
-        </button>
-        {!localOnly && (
-          <button className="tool-text" onClick={onHistory}>
-            <Icon name="history" /> {t(MESSAGE.version)}{' '}
-          </button>
-        )}
-        <ToolMenu label={t(MESSAGE.file)} icon="download">
+          <div className="menu-divider" />
           <button disabled={active.readOnly} onClick={() => importInput.current?.click()}>
             <Icon name="upload" /> {t(MESSAGE.importTxtNative)}{' '}
           </button>

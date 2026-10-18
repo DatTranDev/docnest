@@ -1,4 +1,10 @@
 export const vi = {
+  authPreviewTitle: 'Chỗ nhỏ cho ý tưởng lớn',
+  authPreviewIntro: 'Dự án hay bắt đầu từ vài dòng chữ. Hãy cho ý tưởng một nơi để lớn lên.',
+  authPreviewHeading: 'Bước tiếp theo',
+  authPreviewStepOne: 'Ghi lại ý tưởng đầu tiên',
+  authPreviewStepTwo: 'Cùng hoàn thiện bản thảo',
+  authPreviewCaption: 'Minh họa không gian viết của bạn',
   authModeLabel: 'Truy cập tài khoản',
   authWorkspaceLabel: 'KHÔNG GIAN VIẾT CỦA BẠN',
   authWorkspaceHeadline: 'Nơi ý tưởng thành bản thảo.',

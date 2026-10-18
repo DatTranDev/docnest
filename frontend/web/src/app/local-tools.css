@@ -21,9 +21,9 @@
   border-color: var(--ui-border);
 }
 .local-site button.primary {
-  color: #fff;
-  background: #315edc;
-  border-color: #315edc;
+  color: var(--ui-on-primary);
+  background: var(--ui-primary);
+  border-color: var(--ui-primary);
 }
 .site-header {
   min-height: 84px;
@@ -103,7 +103,7 @@
   padding: 12px 24px;
   border-radius: 9px;
   color: #fff !important;
-  background: #315edc;
+  background: var(--ui-primary);
   font-weight: 600;
 }
 .intro-words small {
@@ -1327,8 +1327,8 @@
 }
 .json-result-actions button:first-child {
   color: #fff;
-  background: #315edc;
-  border-color: #315edc;
+  background: var(--ui-primary);
+  border-color: var(--ui-primary);
 }
 .json-workbench .source-editor .cm-editor {
   height: min(430px, 45dvh);

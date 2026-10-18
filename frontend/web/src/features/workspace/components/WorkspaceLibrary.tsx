@@ -109,9 +109,11 @@ export function WorkspaceLibrary({
           {scope === 'mine' && (
             <>
               <button className="primary library-new-document" onClick={onNewDocument}>
+                <Icon name="plus" size={18} />
                 {t(MESSAGE.newDocument)}
               </button>
               <button className="library-import" onClick={onImport}>
+                <Icon name="upload" size={18} />
                 {t(MESSAGE.importFile)}
               </button>
             </>
@@ -263,11 +265,6 @@ export function WorkspaceLibrary({
                   }}
                 >
                   {t(MESSAGE.clearFilters)}
-                </button>
-              )}
-              {scope === 'mine' && !query && kind === 'all' && (
-                <button className="primary" onClick={onNewDocument}>
-                  {t(MESSAGE.newDocument)}
                 </button>
               )}
             </div>

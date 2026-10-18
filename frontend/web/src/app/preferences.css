@@ -1,23 +1,58 @@
+/* Shared chrome tokens. Document paper/formatting colours remain independent. */
 :root {
-  --ui-bg: #f6f8fc;
+  --ui-font: Inter, 'Segoe UI', Arial, sans-serif;
+  --ui-bg: #f8fafc;
   --ui-surface: #fff;
-  --ui-tile: #edf2f8;
-  --ui-ink: #202124;
-  --ui-muted: #5f6368;
-  --ui-border: #d9e0e9;
-  --ui-selected: #c2e7ff;
-  --ui-accent: #0b57d0;
+  --ui-tile: #f1f5f9;
+  --ui-ink: #0f172a;
+  --ui-muted: #526176;
+  --ui-border: #dce2eb;
+  --ui-selected: #eef0ff;
+  --ui-accent: #4056d6;
+  --ui-primary: #4056d6;
+  --ui-primary-hover: #3246b8;
+  --ui-on-primary: #fff;
+  --ui-focus: #4056d6;
+  --ui-danger: #b42332;
+  --ui-danger-bg: #ffedf0;
+  --ui-warning: #785319;
+  --ui-warning-bg: #fff4d4;
+  --ui-success: #246343;
+  --ui-success-bg: #e7f5ed;
+  --ui-overlay: #0f172a80;
+  --ui-radius-control: 8px;
+  --ui-radius-card: 12px;
+  --ui-radius-panel: 16px;
+  --ui-shadow: 0 8px 28px #0f172a18;
+  --ui-motion: 150ms;
+  --ui-space-1: 4px;
+  --ui-space-2: 8px;
+  --ui-space-3: 12px;
+  --ui-space-4: 16px;
+  --ui-space-6: 24px;
+  --ui-space-8: 32px;
   color-scheme: light;
 }
 :root[data-theme='dark'] {
-  --ui-bg: #171a20;
-  --ui-surface: #22262e;
-  --ui-tile: #2c323d;
-  --ui-ink: #e5e9f0;
-  --ui-muted: #a7b0bf;
-  --ui-border: #434c5a;
-  --ui-selected: #234969;
-  --ui-accent: #a3c8ff;
+  --ui-bg: #161b25;
+  --ui-surface: #202735;
+  --ui-tile: #2a3343;
+  --ui-ink: #edf1f8;
+  --ui-muted: #b2bdd0;
+  --ui-border: #424c60;
+  --ui-selected: #2d3659;
+  --ui-accent: #a8b7ff;
+  --ui-primary: #5065dc;
+  --ui-primary-hover: #4054c9;
+  --ui-focus: #b6c3ff;
+  --ui-danger: #ffabb5;
+  --ui-danger-bg: #422730;
+  --ui-warning: #f2d391;
+  --ui-warning-bg: #3b3221;
+  --ui-success: #9fdbb8;
+  --ui-success-bg: #213f32;
+  --ui-overlay: #080d19b3;
+  --ui-shadow: 0 8px 28px #00000040;
   color-scheme: dark;
 }
 .app {
@@ -40,7 +75,7 @@ select {
   cursor: pointer;
 }
 .type-filter {
-  gap: 8px;
+  gap: var(--ui-space-2);
   border: 0;
   padding: 0;
 }
@@ -59,7 +94,7 @@ select {
   }
   select {
     align-items: center;
-    gap: 16px;
+    gap: var(--ui-space-4);
   }
   select::picker-icon {
     content: '';
@@ -83,12 +118,12 @@ select {
     color: var(--ui-ink);
     background: var(--ui-surface);
     border: 1px solid var(--ui-border);
-    border-radius: 12px;
+    border-radius: var(--ui-radius-card);
     box-shadow: 0 8px 28px #00000024;
   }
   select option {
     display: flex;
-    gap: 12px;
+    gap: var(--ui-space-3);
     padding: 10px 12px;
     min-height: 38px;
     border-radius: 7px;
@@ -106,6 +141,9 @@ select {
   }
   select option:disabled {
     opacity: 0.5;
+  }
+  select option[hidden] {
+    display: none;
   }
   select option::checkmark {
     color: var(--ui-accent);
@@ -133,13 +171,13 @@ select {
   transform: none;
 }
 .settings-dialog::backdrop {
-  background: #131b2a80;
+  background: var(--ui-overlay);
 }
 .settings-heading {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--ui-space-4);
 }
 .settings-dialog h2 {
   margin-bottom: 12px;
@@ -152,7 +190,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--ui-space-4);
   margin: 28px 0;
 }
 .theme-options {
@@ -171,7 +209,7 @@ select {
   gap: 10px;
   padding: 10px;
   border: 1px solid var(--ui-border);
-  border-radius: 12px;
+  border-radius: var(--ui-radius-card);
   cursor: pointer;
   font-size: 12px;
 }
@@ -184,7 +222,7 @@ select {
   top: 12px;
   right: 12px;
   margin: 0;
-  accent-color: #0b57d0;
+  accent-color: var(--ui-primary);
 }
 .theme-sample {
   display: grid;
@@ -295,10 +333,10 @@ select {
 .billing-cycle {
   display: flex;
   background: #d4e3fa;
-  padding: 4px;
+  padding: var(--ui-space-1);
   border-radius: 10px;
   margin: 22px 0 12px;
-  gap: 4px;
+  gap: var(--ui-space-1);
 }
 .billing-cycle button {
   flex: 1;
@@ -320,7 +358,7 @@ select {
 }
 .billing-checkout {
   width: 100%;
-  padding: 12px;
+  padding: var(--ui-space-3);
 }
 .billing-pro .billing-checkout-note {
   font-size: 11px;
@@ -345,117 +383,10 @@ select {
 .billing-actions button {
   font-size: 12px;
 }
-/* Keep the editable and print pages white: stored document colours stay faithful. */
-:root[data-theme='dark'] body {
-  background: var(--ui-bg);
-  color: var(--ui-ink);
-}
-:root[data-theme='dark'] .workspace,
-:root[data-theme='dark'] .auth {
-  background: var(--ui-surface);
-}
-:root[data-theme='dark'] .header-account .language-selector {
-  color: var(--ui-muted);
-}
-:root[data-theme='dark'] .name-sort,
-:root[data-theme='dark'] .workspace-breadcrumb button,
-:root[data-theme='dark'] .back-to-files {
-  background: transparent;
-  color: var(--ui-ink);
-}
-:root[data-theme='dark'] .sidebar-bottom,
-:root[data-theme='dark'] .view-switch,
-:root[data-theme='dark'] .library-list .file {
-  border-color: var(--ui-border);
-}
-:root[data-theme='dark'] .folder-type {
-  color: var(--ui-muted);
-}
-:root[data-theme='dark'] h1,
-:root[data-theme='dark'] h2,
-:root[data-theme='dark'] h3 {
-  color: var(--ui-ink);
-}
-:root[data-theme='dark'] button,
-:root[data-theme='dark'] input,
-:root[data-theme='dark'] .panel,
-:root[data-theme='dark'] .action-menu-popover,
-:root[data-theme='dark'] .tool-menu-panel {
-  color: var(--ui-ink);
-  background: var(--ui-surface);
-  border-color: var(--ui-border);
-}
-:root[data-theme='dark'] .primary {
-  background: #3977d5;
-  color: #fff;
-  border-color: #3977d5;
-}
-:root[data-theme='dark'] button:hover {
-  background: var(--ui-tile);
-}
-:root[data-theme='dark'] .sidebar > button,
-:root[data-theme='dark'] .sidebar-bottom button {
-  background: transparent;
-  color: var(--ui-muted);
-}
-:root[data-theme='dark'] .sidebar > button.selected {
-  background: var(--ui-selected);
-  color: var(--ui-ink);
-}
-:root[data-theme='dark'] .workspace-search,
-:root[data-theme='dark'] .editor-toolbar,
-:root[data-theme='dark'] .search {
-  background: var(--ui-tile);
-  color: var(--ui-ink);
-  border-color: var(--ui-border);
-}
-:root[data-theme='dark'] .workspace-search input {
-  background: transparent;
-}
-:root[data-theme='dark'] .new-menu .action-menu-trigger,
-:root[data-theme='dark'] .editor-section {
-  background: var(--ui-surface);
-  border-color: var(--ui-border);
-}
-:root[data-theme='dark'] .editor-heading,
-:root[data-theme='dark'] .editor-footer,
-:root[data-theme='dark'] .tool-group {
-  border-color: var(--ui-border);
-}
-:root[data-theme='dark'] .editor-canvas {
-  background: var(--ui-bg);
-}
+/* Paper stays white to preserve stored text colours and print semantics. */
 :root[data-theme='dark'] .editor-page {
   color: #202124;
   color-scheme: light;
-}
-:root[data-theme='dark'] .file-name,
-:root[data-theme='dark'] .action-menu-trigger,
-:root[data-theme='dark'] .view-switch button {
-  background: transparent;
-  color: var(--ui-ink);
-}
-:root[data-theme='dark'] .file:hover,
-:root[data-theme='dark'] .action-menu-popover button:hover {
-  background: var(--ui-tile);
-}
-:root[data-theme='dark'] .document-cover,
-:root[data-theme='dark'] .document-cover:hover {
-  background: #fff;
-}
-:root[data-theme='dark'] .document-cover .preview-placeholder {
-  color: #647083;
-}
-:root[data-theme='dark'] .library-count,
-:root[data-theme='dark'] .file-access,
-:root[data-theme='dark'] .file-kind,
-:root[data-theme='dark'] .file-preview,
-:root[data-theme='dark'] .sidebar-label,
-:root[data-theme='dark'] .muted,
-:root[data-theme='dark'] .document-card-footer,
-:root[data-theme='dark'] .editor-meta,
-:root[data-theme='dark'] .tool-label {
-  color: var(--ui-muted);
 }
 :root[data-theme='dark'] .billing-pro {
   background: #233b5b;
@@ -507,7 +438,7 @@ select {
 .settings-dialog {
   width: min(600px, calc(100vw - 24px));
   padding: 0;
-  border-radius: 12px;
+  border-radius: var(--ui-radius-card);
 }
 .settings-heading {
   align-items: center;
@@ -519,7 +450,7 @@ select {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: #0e2050;
+  color: var(--ui-ink);
   font-size: 21px;
   font-weight: 700;
 }
@@ -532,7 +463,7 @@ select {
   padding: 26px 28px 30px;
 }
 .settings-content h2 {
-  color: #0e2050;
+  color: var(--ui-ink);
   font-size: 30px;
 }
 .settings-field {
@@ -545,7 +476,7 @@ select {
   width: 100%;
 }
 .theme-options {
-  gap: 12px;
+  gap: var(--ui-space-3);
 }
 .theme-options legend {
   margin-bottom: 14px;
@@ -563,8 +494,8 @@ select {
   margin: 30px 0 0;
   padding: 14px 16px;
   border-radius: 7px;
-  background: #e2f5eb;
-  color: #17613c;
+  background: var(--ui-success-bg);
+  color: var(--ui-success);
   font-size: 13px;
 }
 @media (max-width: 600px) {
@@ -573,5 +504,11 @@ select {
   }
   .settings-content {
     padding: 22px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ui-motion: 0ms;
   }
 }

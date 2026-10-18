@@ -2,6 +2,7 @@
 import { useState, type RefObject } from 'react';
 import type { ParagraphFormat, PageSettings } from '@ted/editor-core';
 import { ToolMenu } from '@/components/ui/ToolMenu';
+import { ModalDialog } from '@/components/ui/ModalDialog';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { EditorController } from '../model/EditorController';
 export function ParagraphTools({
@@ -167,18 +168,18 @@ export function ParagraphTools({
         </button>
       </ToolMenu>
       {dialog && (
-        <div className="modal">
+        <ModalDialog
+          title={t(
+            dialog === 'link'
+              ? MESSAGE.hyperlink
+              : dialog === 'table'
+                ? MESSAGE.insertTable
+                : MESSAGE.headerFooter,
+          )}
+          onClose={() => setDialog(null)}
+          className="structure-dialog"
+        >
           <form
-            className="dialog structure-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label={t(
-              dialog === 'link'
-                ? MESSAGE.hyperlink
-                : dialog === 'table'
-                  ? MESSAGE.insertTable
-                  : MESSAGE.headerFooter,
-            )}
             onSubmit={(e) => {
               e.preventDefault();
               run(() => {
@@ -300,7 +301,7 @@ export function ParagraphTools({
               </button>
             </div>
           </form>
-        </div>
+        </ModalDialog>
       )}
     </>
   );

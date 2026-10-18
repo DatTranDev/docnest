@@ -2,15 +2,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon, type IconName } from './Icon';
 
+const focusableControls =
+  'button:not(:disabled), select:not(:disabled), input:not(:disabled), summary';
+
 /** Native details with a viewport-positioned popup and keyboard/outside dismissal. */
 export function ToolMenu({
   label,
   icon,
   children,
+  closeOnSelect = true,
 }: {
   label: string;
   icon?: IconName;
   children: ReactNode;
+  closeOnSelect?: boolean;
 }) {
   const details = useRef<HTMLDetailsElement>(null),
     popup = useRef<HTMLDivElement>(null);
@@ -43,10 +48,11 @@ export function ToolMenu({
   }, [open]);
   useEffect(() => {
     if (!open) return;
-    popup.current
-      ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+    Array.from(popup.current?.querySelectorAll<HTMLElement>(focusableControls) ?? [])
+      .find((item) => item.getClientRects().length > 0)
       ?.focus({ preventScroll: true });
     const outside = (event: PointerEvent) => {
+      if (details.current?.querySelector('dialog[open]')) return;
       if (event.target instanceof Node && !details.current?.contains(event.target)) {
         if (details.current) details.current.open = false;
       }
@@ -60,25 +66,34 @@ export function ToolMenu({
       className="tool-menu"
       onToggle={(event) => setOpen(event.currentTarget.open)}
       onBlur={(event) => {
+        if (event.currentTarget.querySelector('dialog[open]')) return;
         if (!event.currentTarget.contains(event.relatedTarget)) close();
       }}
       onKeyDown={(event) => {
-        if (event.key === 'Escape') {
+        if (event.target instanceof Element && event.target.closest('dialog[open]')) return;
+        if (event.key === 'Escape' && open) {
           event.preventDefault();
+          event.stopPropagation();
           close();
           details.current?.querySelector('summary')?.focus();
-        } else if (open && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+        } else if (
+          open &&
+          !(event.target instanceof HTMLInputElement) &&
+          !(event.target instanceof HTMLSelectElement) &&
+          ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
           const items = Array.from(
-            popup.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [],
-          );
-          const index = items.indexOf(document.activeElement as HTMLButtonElement);
+            popup.current?.querySelectorAll<HTMLElement>(focusableControls) ?? [],
+          ).filter((item) => item.getClientRects().length > 0);
+          const index = items.indexOf(document.activeElement as HTMLElement);
           const next =
             event.key === 'Home'
               ? 0
               : event.key === 'End'
                 ? items.length - 1
                 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-          event.preventDefault();
           items[next]?.focus();
         }
       }}
@@ -93,7 +108,7 @@ export function ToolMenu({
         className="tool-menu-panel"
         aria-label={label}
         onClick={(event) => {
-          if ((event.target as HTMLElement).closest('button')) {
+          if (closeOnSelect && (event.target as HTMLElement).closest('button')) {
             close();
             details.current?.querySelector('summary')?.focus();
           }

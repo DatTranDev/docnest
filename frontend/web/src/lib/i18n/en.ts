@@ -1,5 +1,11 @@
 import type { vi } from './vi';
 export const en = {
+  authPreviewTitle: 'A little room for big ideas',
+  authPreviewIntro: 'Every good project starts with a few words. Give yours a place to grow.',
+  authPreviewHeading: 'What comes next',
+  authPreviewStepOne: 'Capture the first idea',
+  authPreviewStepTwo: 'Shape a draft together',
+  authPreviewCaption: 'An example of your writing space',
   authModeLabel: 'Account access',
   authWorkspaceLabel: 'YOUR WRITING WORKSPACE',
   authWorkspaceHeadline: 'A home for your next idea.',

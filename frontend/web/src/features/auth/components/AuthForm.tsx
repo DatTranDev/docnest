@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/Icon';
 import { errorMessage } from '@/lib/http';
 import { login, loginWithGoogle, register as registerAccount } from '../api/auth';
 import type { User } from '../model/types';
+import { AuthProductPreview } from './AuthProductPreview';
 
 declare global {
   interface Window {
@@ -136,19 +137,7 @@ export function AuthForm({
             <span className="public-eyebrow">{t(MESSAGE.authWorkspaceLabel)}</span>
             <h2>{t(MESSAGE.authWorkspaceHeadline)}</h2>
             <p>{t(MESSAGE.authWorkspaceDescription)}</p>
-            <div className="auth-story-sheet" aria-hidden="true">
-              <Icon name="document" size={24} />
-              <span>docsnest</span>
-              <i />
-              <i />
-              <i />
-              <div>
-                <span>Aa</span>
-                <Icon name="folder" />
-                <Icon name="history" />
-                <Icon name="share" />
-              </div>
-            </div>
+            <AuthProductPreview />
             <ul className="auth-benefits">
               <li>
                 <Icon name="folder" />

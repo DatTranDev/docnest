@@ -492,63 +492,55 @@ export default function WorkspaceScreen() {
                 >
                   <Icon name="chevron" size={17} />
                 </button>
-                <div
-                  className="editor-mode-switch"
-                  role="tablist"
-                  aria-label={toolsCopy.viewAs}
-                  onKeyDown={(event) => {
-                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-                    const tabs = Array.from(
-                      event.currentTarget.querySelectorAll<HTMLButtonElement>(
-                        '[role="tab"]:not(:disabled)',
-                      ),
-                    );
-                    const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
-                    const next =
-                      event.key === 'Home'
-                        ? 0
-                        : event.key === 'End'
-                          ? tabs.length - 1
-                          : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) %
-                            tabs.length;
-                    event.preventDefault();
-                    tabs[next]?.focus();
-                    tabs[next]?.click();
-                  }}
-                >
-                  {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      id={`edit-mode-${mode}`}
-                      role="tab"
-                      aria-selected={editMode === mode}
-                      aria-controls="cloud-editor-panel"
-                      tabIndex={editMode === mode ? 0 : -1}
-                      onClick={() => setModeChoice({ documentId: active.document.id, mode })}
-                    >
-                      {toolsCopy[mode]}
-                    </button>
-                  ))}
-                  <button
-                    id="edit-mode-collaborate"
-                    role="tab"
-                    aria-selected={editMode === 'collaborate'}
-                    aria-controls="cloud-editor-panel"
-                    tabIndex={editMode === 'collaborate' ? 0 : -1}
-                    disabled={active.readOnly || !online || collaborationTooLarge}
-                    title={collaborationTooLarge ? t(MESSAGE.collaborationLimit) : undefined}
-                    onClick={() =>
-                      setModeChoice({ documentId: active.document.id, mode: 'collaborate' })
+                <label className="editor-mode-switch">
+                  <span>{toolsCopy.viewAs}</span>
+                  <select
+                    aria-label={toolsCopy.viewAs}
+                    value={editMode}
+                    onChange={(event) =>
+                      setModeChoice({
+                        documentId: active.document.id,
+                        mode: event.target.value as Exclude<EditMode, 'collaborate'>,
+                      })
                     }
                   >
-                    {t(MESSAGE.editTogether)}
-                  </button>
-                </div>
+                    {editMode === 'collaborate' && (
+                      <option value="collaborate" hidden disabled>
+                        {toolsCopy.document}
+                      </option>
+                    )}
+                    {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
+                      <option key={mode} value={mode}>
+                        {toolsCopy[mode]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="collaboration-action"
+                  aria-pressed={editMode === 'collaborate'}
+                  disabled={
+                    editMode !== 'collaborate' &&
+                    (active.readOnly || !online || collaborationTooLarge)
+                  }
+                  title={collaborationTooLarge ? t(MESSAGE.collaborationLimit) : undefined}
+                  onClick={() =>
+                    setModeChoice({
+                      documentId: active.document.id,
+                      mode: editMode === 'collaborate' ? 'document' : 'collaborate',
+                    })
+                  }
+                >
+                  <Icon name="shared" size={17} />
+                  {t(MESSAGE.editTogether)}
+                </button>
               </div>
               <div
                 id="cloud-editor-panel"
-                role="tabpanel"
-                aria-labelledby={`edit-mode-${editMode}`}
+                role="region"
+                aria-label={
+                  editMode === 'collaborate' ? t(MESSAGE.editTogether) : toolsCopy[editMode]
+                }
               >
                 {editMode !== 'document' && editMode !== 'collaborate' ? (
                   <SourceFilePane
