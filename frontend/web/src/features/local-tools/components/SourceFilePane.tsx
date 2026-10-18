@@ -20,6 +20,8 @@ import { JsonPanels } from './JsonPanels';
 
 export function SourceFilePane({
   active,
+  navigation,
+  collaborationAction,
   status,
   saving,
   online,
@@ -36,6 +38,8 @@ export function SourceFilePane({
   kindOverride,
 }: {
   active: ActiveDocument;
+  navigation?: ReactNode;
+  collaborationAction?: ReactNode;
   status: string;
   saving: boolean;
   online: boolean;
@@ -173,6 +177,7 @@ export function SourceFilePane({
       inert={status === MESSAGE.opening}
     >
       <div className="source-file-heading">
+        {navigation && <div className="source-heading-navigation">{navigation}</div>}
         <div>
           <EditableTitle
             title={active.document.title}
@@ -185,7 +190,8 @@ export function SourceFilePane({
         </div>
         <button
           className="primary"
-          disabled={active.readOnly || saving || !online}
+          disabled={active.readOnly || saving || !active.model.dirty || !online}
+          title={!active.model.dirty ? t(MESSAGE.saved) : undefined}
           onClick={() => void onSave()}
         >
           {t(MESSAGE.save)}
@@ -219,6 +225,7 @@ export function SourceFilePane({
             </button>
           </>
         )}
+        {collaborationAction}
         {active.revision === undefined && active.document.effectiveRole === 'OWNER' && (
           <button onClick={onShare}>{t(MESSAGE.share)}</button>
         )}

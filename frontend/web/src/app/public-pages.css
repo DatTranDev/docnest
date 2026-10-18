@@ -432,6 +432,9 @@
   color: #0f172a;
   font-size: 14px;
 }
+:root[data-theme='dark'] .intro-main .intro-demo-paper :is(h2, h3, p, li) {
+  color: #0f172a;
+}
 .intro-demo-paper li::marker {
   color: var(--ui-accent);
 }
@@ -618,5 +621,70 @@
   .auth button,
   .intro-main a {
     transition: none;
+  }
+}
+
+/* Keep the writing preview and the sign-in task equally deliberate. */
+.auth-story {
+  display: flex;
+  flex-direction: column;
+  padding: 46px 40px 40px;
+}
+.auth-content {
+  padding: 36px 40px;
+}
+.auth-story h2 {
+  max-width: 400px;
+  margin-bottom: 16px;
+}
+.auth-product-preview {
+  margin: 28px 0 0;
+}
+.auth-benefits {
+  gap: 14px;
+  margin-top: 24px;
+}
+.auth-mode {
+  margin-bottom: 26px;
+  border-radius: var(--ui-radius-control);
+}
+.auth .auth-mode button {
+  border-radius: calc(var(--ui-radius-control) - 3px);
+}
+.auth .auth-mode button[aria-pressed='true'] {
+  border-color: var(--ui-border);
+  box-shadow:
+    0 1px 3px #0f172a14,
+    inset 0 -2px var(--ui-primary);
+}
+.auth .auth-mode button:not([aria-pressed='true']):hover {
+  color: var(--ui-ink);
+  background: color-mix(in srgb, var(--ui-surface) 60%, transparent);
+}
+.auth .panel .auth-description {
+  margin-bottom: 22px;
+}
+.auth .auth-local-action {
+  margin-top: 24px;
+}
+.auth .auth-local-action:hover {
+  border-color: var(--ui-accent);
+  background: var(--ui-selected);
+}
+@media (max-width: 850px) {
+  .auth-content {
+    padding: 30px 28px;
+  }
+  .auth-story {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .auth-story,
+  .auth-content {
+    padding: 24px 20px;
+  }
+  .auth-mode {
+    margin-bottom: 20px;
   }
 }

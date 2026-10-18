@@ -300,9 +300,6 @@ export function AuthForm({
                 </button>
               </fieldset>
             </form>
-            <div className="auth-divider">
-              <span>{t(MESSAGE.or)}</span>
-            </div>
             <Link className="auth-local-action" href="/intro#editor">
               {t(MESSAGE.writeWithoutAccount)}
             </Link>

@@ -122,7 +122,7 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
       className="modal"
       role="dialog"
       aria-modal="true"
-      aria-label={t(MESSAGE.subscriptionPlans)}
+      aria-labelledby="billing-title"
       onKeyDown={(event) => {
         if (event.key === 'Escape') onClose();
         if (event.key === 'Tab') {
@@ -141,19 +141,15 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
         }
       }}
     >
-      <div className="panel billing-panel">
+      <div className="panel billing-panel" data-paid-available={enabled === true}>
         <div className="billing-heading">
-          <span className="billing-brand">docsnest</span>
+          <h2 id="billing-title">{t(MESSAGE.billingHeadline)}</h2>
           <button ref={close} onClick={onClose} aria-label={t(MESSAGE.closeSubscriptionPlans)}>
             {t(MESSAGE.close)}{' '}
           </button>
         </div>
-        <div className="billing-hero">
-          <h2>{t(MESSAGE.billingHeadline)}</h2>
-          <p>{t(MESSAGE.billingIntro)}</p>
-        </div>
         <ErrorNotice message={error} />
-        <p>
+        <p className="billing-current-plan">
           {t(MESSAGE.currentPlan)}{' '}
           <strong>{account ? localize(labels[account.plan]) : t(MESSAGE.loading)}</strong>
         </p>
@@ -174,8 +170,7 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
         {enabled === false && <p role="status">{t(MESSAGE.subscriptionUnavailable)}</p>}
         <div className="billing-options">
           <div className="billing-free">
-            <h3>{t(MESSAGE.freePlan)}</h3>
-            <p>{t(MESSAGE.freePlanCaption)}</p>
+            <h3>{t(MESSAGE.includedWithFree)}</h3>
             <ul className="billing-features">
               {[
                 MESSAGE.featureEditor,
@@ -189,9 +184,6 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
                 </li>
               ))}
             </ul>
-            {account?.plan === 'FREE' && (
-              <span className="current-plan-badge">{t(MESSAGE.currentPlanBadge)}</span>
-            )}
           </div>
           {enabled === true && (
             <div className="billing-pro">
@@ -200,7 +192,6 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
             </div>
           )}
         </div>
-        <p className="billing-free-note">{t(MESSAGE.featuresRemainFree)}</p>
         {enabled === true && (
           <div className="billing-actions">
             <button

@@ -413,11 +413,21 @@
 .json-mobile-switch {
   display: none;
 }
-.markdown-more {
-  display: none;
+.source-toolbar > .tool-menu summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font-size: 12px;
 }
-.markdown-advanced {
-  display: contents;
+.source-toolbar .tool-menu-panel button {
+  min-height: 40px;
+  font-size: 13px;
 }
 .site-header-overflow {
   display: none;
@@ -816,19 +826,48 @@
     gap: 14px;
   }
 }
-@media (max-width: 760px) {
-  .markdown-more {
-    display: inline-flex;
+@media (min-width: 761px) and (max-width: 900px) {
+  .site-header-editor {
+    flex-wrap: nowrap;
+    min-height: 56px;
+    padding: 8px 20px;
+    gap: 16px;
   }
-  .markdown-advanced {
+  .site-header-editor nav,
+  .site-header-editor .site-settings {
     display: none;
   }
-  .markdown-advanced.is-open {
-    display: flex;
-    flex-wrap: wrap;
-    order: 2;
-    width: 100%;
+  .site-header-editor .site-back-to-tools span {
+    display: none;
   }
+  .site-header-editor .site-header-overflow {
+    display: block;
+    position: relative;
+    margin-left: auto;
+  }
+  .site-header-editor .site-header-overflow summary {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    cursor: pointer;
+  }
+  .site-header-editor .site-header-overflow > div {
+    position: absolute;
+    right: 0;
+    z-index: 20;
+    display: grid;
+    gap: 8px;
+    min-width: 180px;
+    padding: 12px;
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    background: var(--ui-surface);
+    box-shadow: 0 8px 24px #15214026;
+  }
+}
+@media (max-width: 760px) {
   .local-view-switch button:nth-child(2) {
     display: none;
   }
@@ -1322,6 +1361,20 @@
 .local-only-editor .editor-heading-actions > button {
   min-height: 40px;
 }
+.local-only-editor .local-draft-status {
+  max-width: 260px;
+  color: var(--ui-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.local-only-editor .local-draft-status[data-pending='true'] {
+  padding: 7px 10px;
+  border: 1px solid color-mix(in srgb, var(--ui-warning) 35%, transparent);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-warning-bg);
+  color: var(--ui-warning);
+  font-weight: 650;
+}
 @media (max-width: 760px) {
   .source-file-pane {
     padding: 14px 12px;
@@ -1361,7 +1414,31 @@
   .local-only-editor .editor-heading-actions .tool-menu summary {
     justify-content: center;
   }
+  .local-only-editor .local-draft-status {
+    flex: 1 1 100%;
+    max-width: none;
+    order: 3;
+  }
   .local-only-editor .editor-title-input {
     width: min(300px, calc(100vw - 40px));
+  }
+}
+@media (max-width: 650px) {
+  .local-only-editor .editor-toolbar.mobile-open {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    max-height: 64px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 6px 12px;
+    scrollbar-width: thin;
+  }
+  .local-only-editor .editor-toolbar.mobile-open > * {
+    flex: 0 0 auto;
+  }
+  .local-only-editor .editor-toolbar.mobile-open .format-button:not(:last-child),
+  .local-only-editor .editor-toolbar.mobile-open .bullet-tool {
+    display: none;
   }
 }

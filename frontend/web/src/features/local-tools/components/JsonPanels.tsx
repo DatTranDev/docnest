@@ -41,6 +41,7 @@ export function JsonPanels({
   const outputRef = useRef<SourceHandle | null>(null);
   const automatic = useRef(false);
   const scratchEdited = useRef(false);
+  const resultIsFromEarlierSource = validation?.source !== source || !validation?.valid;
   useEffect(() => {
     if (scratchEdited.current) return;
     const timer = setTimeout(() => {
@@ -200,7 +201,7 @@ export function JsonPanels({
             )}
             {resultValid && !resultProblem && (
               <p className="json-valid" role="status">
-                {copy.validJson}
+                {resultIsFromEarlierSource ? copy.resultNotCurrent : copy.validJson}
               </p>
             )}
             <div className="pane-actions json-result-actions">

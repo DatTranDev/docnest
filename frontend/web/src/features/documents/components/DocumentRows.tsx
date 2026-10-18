@@ -30,6 +30,7 @@ export function DocumentRows({
   return (
     <>
       {documents.map((document) => {
+        const kind = sourceFileType(document.title) ?? 'document';
         const actions: MenuAction[] = trash
           ? []
           : [
@@ -66,22 +67,27 @@ export function DocumentRows({
             aria-label={document.title}
           >
             <button className="file-name" disabled={trash} onClick={() => onOpen(document)}>
-              <span className="file-type-icon document-type">
+              <span className={`file-type-icon document-type document-type-${kind}`}>
                 <Icon name="document" size={18} />
               </span>
               <span className="file-label">
                 <span title={document.title}>{document.title}</span>
                 {view === 'list' && <DocumentPreview document={document} />}
+                {view === 'list' && (
+                  <span className="mobile-file-access">
+                    {localize(roleLabel(document.effectiveRole))}
+                  </span>
+                )}
               </span>
             </button>
-            <span className="file-kind">
+            <span className={`file-kind file-kind-${kind}`}>
               {
                 {
                   markdown: 'Markdown',
                   json: 'JSON',
                   code: 'Code',
                   document: t(MESSAGE.documentType),
-                }[sourceFileType(document.title) ?? 'document']
+                }[kind]
               }
             </span>
             <span className="file-access">{localize(roleLabel(document.effectiveRole))}</span>

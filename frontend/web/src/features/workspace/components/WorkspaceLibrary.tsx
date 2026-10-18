@@ -86,6 +86,15 @@ export function WorkspaceLibrary({
         ? MESSAGE.sharedWithMe
         : MESSAGE.trash;
   const empty = !items.folders.length && !items.documents.length;
+  const visibleCount = items.folders.length + items.documents.length;
+  const countMessage =
+    effectiveKind !== 'folders' && items.folders.length === 0
+      ? visibleCount === 1
+        ? MESSAGE.oneDocumentShown
+        : MESSAGE.documentsShown
+      : visibleCount === 1
+        ? MESSAGE.oneItemShown
+        : MESSAGE.itemsShown;
   return (
     <section className={`workspace library-${view}`} aria-label={t(title)}>
       <div className="workspace-heading">
@@ -185,9 +194,7 @@ export function WorkspaceLibrary({
             <Icon name="close" size={15} />
           </button>
         )}
-        <span className="library-count">
-          {t(MESSAGE.itemsLoaded, { p0: items.folders.length + items.documents.length })}
-        </span>
+        <span className="library-count">{t(countMessage, { p0: visibleCount })}</span>
       </div>
       <div className="library-columns">
         <span className="name-sort">{t(MESSAGE.itemName)}</span>

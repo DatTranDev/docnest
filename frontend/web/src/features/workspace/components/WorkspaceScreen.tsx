@@ -188,6 +188,75 @@ export default function WorkspaceScreen() {
       throw failure;
     }
   };
+  const editorNavigation = active ? (
+    <nav className="editor-navigation" aria-label={t(MESSAGE.editorNavigation)}>
+      <button
+        className="back-to-files"
+        aria-label={t(MESSAGE.documentList)}
+        title={t(MESSAGE.documentList)}
+        onClick={() => setShowFiles(true)}
+      >
+        <Icon name="chevron" size={17} />
+      </button>
+      <label className="editor-mode-switch">
+        <span>{toolsCopy.viewAs}</span>
+        <span id="editor-mode-help" className="visually-hidden">
+          {toolsCopy.editorModeHelp}
+        </span>
+        <select
+          aria-label={toolsCopy.viewAs}
+          aria-describedby="editor-mode-help"
+          value={editMode}
+          onChange={(event) =>
+            setModeChoice({
+              documentId: active.document.id,
+              mode: event.target.value as Exclude<EditMode, 'collaborate'>,
+            })
+          }
+        >
+          {editMode === 'collaborate' && (
+            <option value="collaborate" hidden disabled>
+              {toolsCopy.document}
+            </option>
+          )}
+          {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
+            <option key={mode} value={mode}>
+              {toolsCopy[mode]}
+            </option>
+          ))}
+        </select>
+      </label>
+    </nav>
+  ) : null;
+  const collaborationAction =
+    active && active.revision === undefined ? (
+      <button
+        className="collaboration-action"
+        aria-label={t(
+          editMode === 'collaborate' ? MESSAGE.leaveCollaboration : MESSAGE.editTogether,
+        )}
+        aria-pressed={editMode === 'collaborate'}
+        disabled={
+          editMode !== 'collaborate' && (active.readOnly || !online || collaborationTooLarge)
+        }
+        title={
+          collaborationTooLarge
+            ? t(MESSAGE.collaborationLimit)
+            : t(editMode === 'collaborate' ? MESSAGE.leaveCollaboration : MESSAGE.editTogether)
+        }
+        onClick={() =>
+          setModeChoice({
+            documentId: active.document.id,
+            mode: editMode === 'collaborate' ? 'document' : 'collaborate',
+          })
+        }
+      >
+        <Icon name="shared" size={17} />
+        <span className="collaboration-label">
+          {t(editMode === 'collaborate' ? MESSAGE.leaveCollaboration : MESSAGE.editTogether)}
+        </span>
+      </button>
+    ) : null;
   if (session.loading) return <LoadingIndicator />;
   if (!session.user)
     return <AuthForm onLogin={session.onLogin} error={error} setError={setError} />;
@@ -259,7 +328,7 @@ export default function WorkspaceScreen() {
         <aside className="sidebar">
           <ActionMenu
             className="new-menu"
-            label={t(MESSAGE.newItem)}
+            label={t(MESSAGE.createOrImport)}
             actions={[
               {
                 label: t(MESSAGE.newDocument),
@@ -321,6 +390,7 @@ export default function WorkspaceScreen() {
           >
             <Icon name="plus" size={25} />
             <span>{t(MESSAGE.newItem)}</span>
+            <Icon name="chevron-down" size={15} />
           </ActionMenu>
           <input
             ref={importInput}
@@ -486,58 +556,6 @@ export default function WorkspaceScreen() {
           )}
           {active && (
             <div hidden={showFiles}>
-              <div className="editor-navigation">
-                <button
-                  className="back-to-files"
-                  aria-label={t(MESSAGE.documentList)}
-                  title={t(MESSAGE.documentList)}
-                  onClick={() => setShowFiles(true)}
-                >
-                  <Icon name="chevron" size={17} />
-                </button>
-                <label className="editor-mode-switch">
-                  <span>{toolsCopy.viewAs}</span>
-                  <select
-                    aria-label={toolsCopy.viewAs}
-                    value={editMode}
-                    onChange={(event) =>
-                      setModeChoice({
-                        documentId: active.document.id,
-                        mode: event.target.value as Exclude<EditMode, 'collaborate'>,
-                      })
-                    }
-                  >
-                    {editMode === 'collaborate' && (
-                      <option value="collaborate" hidden disabled>
-                        {toolsCopy.document}
-                      </option>
-                    )}
-                    {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
-                      <option key={mode} value={mode}>
-                        {toolsCopy[mode]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  className="collaboration-action"
-                  aria-pressed={editMode === 'collaborate'}
-                  disabled={
-                    editMode !== 'collaborate' &&
-                    (active.readOnly || !online || collaborationTooLarge)
-                  }
-                  title={collaborationTooLarge ? t(MESSAGE.collaborationLimit) : undefined}
-                  onClick={() =>
-                    setModeChoice({
-                      documentId: active.document.id,
-                      mode: editMode === 'collaborate' ? 'document' : 'collaborate',
-                    })
-                  }
-                >
-                  <Icon name="shared" size={17} />
-                  {t(MESSAGE.editTogether)}
-                </button>
-              </div>
               <div
                 id="cloud-editor-panel"
                 role="region"
@@ -549,6 +567,8 @@ export default function WorkspaceScreen() {
                   <SourceFilePane
                     key={`${active.document.id}:${editMode}`}
                     active={active}
+                    navigation={editorNavigation}
+                    collaborationAction={collaborationAction}
                     kindOverride={editMode}
                     status={documentSession.status}
                     saving={documentSession.saving}
@@ -585,6 +605,8 @@ export default function WorkspaceScreen() {
                 ) : (
                   <EditorPane
                     active={active}
+                    navigation={editorNavigation}
+                    collaborationAction={collaborationAction}
                     tick={documentSession.tick}
                     status={documentSession.status}
                     online={documentSession.online}

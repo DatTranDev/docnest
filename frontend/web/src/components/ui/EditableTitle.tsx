@@ -83,7 +83,7 @@ export function EditableTitle({
         type="button"
         className="editable-title-trigger"
         aria-label={`${label}: ${title}`}
-        title={label}
+        title={`${label}: ${title}`}
         onDoubleClick={startEditing}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === 'F2') {

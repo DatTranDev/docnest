@@ -97,7 +97,7 @@ export function SiteHeader({
       <details className="site-header-overflow">
         <summary aria-label={copy.navigation}>⋮</summary>
         <div>
-          {editor && <button onClick={onOpenFile}>{copy.upload}</button>}
+          {editor && onOpenFile && <button onClick={onOpenFile}>{copy.upload}</button>}
           <a href={workspaceUrl}>{initial ? copy.manageFiles : copy.login}</a>
           <a href={standalone ? './index.html' : '/intro'}>{copy.intro}</a>
           {!standalone && <a href="/intro#editor">{copy.local}</a>}

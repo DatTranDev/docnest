@@ -637,6 +637,7 @@ p {
   overflow-x: auto;
 }
 .editor-page {
+  position: relative;
   max-width: 840px;
   min-width: 550px;
   margin: 0 auto;
@@ -644,6 +645,17 @@ p {
   background: #fff;
   border: 1px solid #dfe4ec;
   box-shadow: 0 4px 20px #25345416;
+}
+.editor-empty-hint {
+  position: absolute;
+  top: 60px;
+  left: calc(clamp(32px, 5vw, 74px) + 12px);
+  color: #64748b;
+  font-size: 15px;
+  pointer-events: none;
+}
+.editor-page:focus-within .editor-empty-hint {
+  display: none;
 }
 .editor-host {
   height: max(540px, calc(100vh - 370px));
@@ -1307,6 +1319,10 @@ p {
   }
   .editor-page {
     padding: 24px 18px;
+  }
+  .editor-empty-hint {
+    top: 36px;
+    left: 30px;
   }
   .editor-host {
     min-width: 0;

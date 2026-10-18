@@ -1547,3 +1547,276 @@
     margin: 4px 8px 8px auto;
   }
 }
+
+/* Cloud navigation shares a compact header with document identity and actions. */
+.app-editing .editor-heading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  min-height: 64px;
+  padding: 8px 18px;
+}
+.app-editing .editor-heading-navigation,
+.app-editing .source-heading-navigation {
+  min-width: 0;
+}
+.app-editing .editor-navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+}
+.app-editing .back-to-files {
+  width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+}
+.app-editing .editor-mode-switch {
+  gap: 6px;
+  padding: 0;
+  white-space: nowrap;
+}
+.app-editing .editor-mode-switch select {
+  min-height: 40px;
+  max-width: 126px;
+}
+.app-editing .collaboration-action {
+  min-height: 40px;
+  margin: 0;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+.app-editing .document-mark {
+  display: none;
+}
+.app-editing .editor-heading-main {
+  min-width: 0;
+}
+.app-editing .editor-identity .editable-title-trigger {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-editing .editor-heading-actions {
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: auto;
+}
+.app-editing .editor-sharing-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.app-editing .editor-toolbar {
+  gap: 8px;
+  min-height: 48px;
+  padding: 5px 18px;
+}
+.app-editing .editor-canvas {
+  padding-top: 20px;
+}
+.app-editing .source-file-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ui-border);
+}
+.app-editing .source-file-heading > .source-heading-navigation {
+  margin: 0;
+}
+.app-editing .source-file-heading > div:nth-child(2) {
+  min-width: 0;
+}
+.app-editing .source-file-heading h2 {
+  max-width: min(28vw, 360px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ui-ink);
+  font-size: 18px;
+}
+@media (max-width: 1100px) {
+  .app-editing .editor-heading {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .app-editing .editor-heading-navigation {
+    grid-column: 1 / -1;
+  }
+  .app-editing .source-heading-navigation {
+    flex: 1 1 100%;
+  }
+}
+@media (max-width: 650px) {
+  .app-editing .editor-heading {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .app-editing .editor-heading-main,
+  .app-editing .editor-heading-actions {
+    flex: initial;
+    width: auto;
+  }
+  .app-editing .editor-heading-navigation {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .app-editing .editor-section:not(.historical-view) .editor-heading-actions {
+    display: contents;
+  }
+  .app-editing .editor-section:not(.historical-view) .editor-heading-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .app-editing .editor-heading-actions > .editor-action {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .app-editing .editor-sharing-actions {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
+    gap: 6px;
+  }
+  .app-editing .editor-mode-switch > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .app-editing .editor-mode-switch select {
+    max-width: 120px;
+  }
+  .app-editing .collaboration-action {
+    min-width: 44px;
+    margin: 0;
+    padding-inline: 8px;
+    font-size: 12px;
+  }
+  .app-editing .collaboration-label {
+    display: none;
+  }
+  .app-editing .editor-heading-actions {
+    gap: 6px;
+  }
+  .app-editing .editor-heading-actions button {
+    padding-inline: 9px;
+  }
+  .app-editing .source-file-heading h2 {
+    max-width: 100%;
+  }
+}
+
+/* Library controls share one scale; rows stay legible with sparse and dense data. */
+.workspace-heading {
+  margin-bottom: 20px;
+}
+.workspace-toolbar {
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.workspace-toolbar .type-filter,
+.workspace-toolbar .sort-filter .option-select-trigger,
+.workspace-toolbar .sort-direction,
+.workspace-toolbar .view-switch button {
+  min-height: 40px;
+}
+.workspace-toolbar .type-filter select {
+  min-height: 38px;
+}
+.library-count {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.library-list .file {
+  min-height: 72px;
+  border-radius: 8px;
+  transition:
+    background-color var(--ui-motion),
+    box-shadow var(--ui-motion);
+}
+.library-list .file:hover,
+.library-list .file:focus-within {
+  background: var(--ui-tile);
+}
+.library-list .file-name {
+  gap: 12px;
+  max-width: 100%;
+  font-size: 14px;
+  font-weight: 600;
+}
+.library-list .file-name:hover .file-label > span:first-child {
+  color: var(--ui-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.library-list .document-type {
+  width: 32px;
+  height: 36px;
+  border-radius: 7px;
+  background: var(--ui-selected);
+}
+.library-list .document-type-markdown,
+.library-list .document-type-code {
+  color: var(--ui-success);
+  background: var(--ui-success-bg);
+}
+.library-list .document-type-json {
+  color: var(--ui-warning);
+  background: var(--ui-warning-bg);
+}
+.library-list .file-kind {
+  justify-self: start;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: var(--ui-tile);
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.library-list .file-access {
+  font-size: 13px;
+}
+.mobile-file-access {
+  display: none;
+}
+.new-menu .action-menu-trigger {
+  gap: 9px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+.new-menu .action-menu-trigger > svg:last-child {
+  color: var(--ui-muted);
+}
+@media (max-width: 430px) {
+  .library-columns,
+  .library-list .file {
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+  .library-list .file-access,
+  .library-columns .column-access {
+    display: none;
+  }
+  .library-list .mobile-file-access {
+    display: block;
+    margin-top: 3px;
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-weight: 400;
+  }
+  .workspace-toolbar .library-count {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: start;
+    text-align: left;
+  }
+  .new-menu .action-menu-trigger > svg:last-child {
+    display: none;
+  }
+}

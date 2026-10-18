@@ -2,6 +2,7 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Icon } from '@/components/ui/Icon';
+import { ToolMenu } from '@/components/ui/ToolMenu';
 import { useI18n } from '@/lib/i18n';
 import { download, errorMessage } from '@/lib/http';
 import { sourceFileType } from '@/features/documents';
@@ -76,7 +77,6 @@ export default function LocalWorkbench({
     mobile.addEventListener('change', selectSource);
     return () => mobile.removeEventListener('change', selectSource);
   }, []);
-  const [mobileMarkdownTools, setMobileMarkdownTools] = useState(false);
   const [error, setError] = useState(''),
     [status, setStatus] = useState('');
   const dirty = useRef<Record<Mode, boolean>>({
@@ -196,7 +196,11 @@ export default function LocalWorkbench({
   return (
     <div className={`local-site${embedded ? ' intro-workbench-embed' : ''}`} data-mode={mode}>
       {!embedded && (
-        <SiteHeader standalone={standalone} editor onOpenFile={() => fileInput.current?.click()} />
+        <SiteHeader
+          standalone={standalone}
+          editor
+          onOpenFile={mode === 'document' ? undefined : () => fileInput.current?.click()}
+        />
       )}
       <WorkbenchRegion id="local-workbench" className="local-workbench" tabIndex={-1}>
         <div className="local-heading">
@@ -204,10 +208,12 @@ export default function LocalWorkbench({
             <h1>{copy.local}</h1>
             <p>{copy.deviceNote}</p>
           </div>
-          <button className="primary" onClick={() => fileInput.current?.click()}>
-            <Icon name="upload" />
-            {copy.upload}
-          </button>
+          {mode !== 'document' && (
+            <button className="primary" onClick={() => fileInput.current?.click()}>
+              <Icon name="upload" />
+              {copy.upload}
+            </button>
+          )}
           <input
             hidden
             type="file"
@@ -319,15 +325,8 @@ export default function LocalWorkbench({
             <button onClick={() => markdown.current?.wrap('_', '_', 'text')}>
               <i>{copy.italic}</i>
             </button>
-            <button
-              className="markdown-more"
-              aria-expanded={mobileMarkdownTools}
-              onClick={() => setMobileMarkdownTools((open) => !open)}
-            >
-              {copy.format}
-            </button>
-            <div className={`markdown-advanced${mobileMarkdownTools ? ' is-open' : ''}`}>
-              <button onClick={() => markdown.current?.prefix('## ')}>{copy.heading}</button>
+            <button onClick={() => markdown.current?.prefix('## ')}>{copy.heading}</button>
+            <ToolMenu label={copy.moreFormatting}>
               <button onClick={() => markdown.current?.prefix('> ')}>{copy.quote}</button>
               <button onClick={() => markdown.current?.prefix('- ')}>{copy.list}</button>
               <button onClick={() => markdown.current?.prefix('- [ ] ')}>{copy.task}</button>
@@ -352,13 +351,13 @@ export default function LocalWorkbench({
               >
                 {copy.table}
               </button>
-              <button onClick={() => markdown.current?.undo()} aria-label={copy.undo}>
-                <Icon name="undo" />
+              <button onClick={() => markdown.current?.undo()}>
+                <Icon name="undo" /> {copy.undo}
               </button>
-              <button onClick={() => markdown.current?.redo()} aria-label={copy.redo}>
-                <Icon name="redo" />
+              <button onClick={() => markdown.current?.redo()}>
+                <Icon name="redo" /> {copy.redo}
               </button>
-            </div>
+            </ToolMenu>
             <div className="local-view-switch">
               {(['source', 'split', 'preview'] as const).map((value) => (
                 <button key={value} aria-pressed={view === value} onClick={() => setView(value)}>
