@@ -4,6 +4,7 @@ import { useToolsCopy } from '../model/copy';
 import { SiteHeader } from './SiteHeader';
 import { Icon } from '@/components/ui/Icon';
 import { LocalClient } from './LocalClient';
+import { SiteFooter } from './SiteFooter';
 export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
   const copy = useToolsCopy();
   const edit = (mode?: string) =>
@@ -68,7 +69,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             </figcaption>
           </figure>
         </section>
-        <section className="intro-features" aria-label={copy.featureHeading}>
+        <section id="features" className="intro-features" aria-label={copy.featureHeading}>
           <div className="intro-section-heading">
             <h2>{copy.featureHeading}</h2>
           </div>
@@ -116,10 +117,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
           </section>
         )}
       </main>
-      <footer className="intro-footer">
-        <span>docsnest</span>
-        <a href={edit()}>{copy.openEditor}</a>
-      </footer>
+      <SiteFooter standalone={standalone} introduction />
     </div>
   );
 }

@@ -648,7 +648,7 @@ p {
 }
 .editor-empty-hint {
   position: absolute;
-  top: 60px;
+  top: 80px;
   left: calc(clamp(32px, 5vw, 74px) + 12px);
   color: #64748b;
   font-size: 15px;
@@ -667,6 +667,7 @@ p {
 }
 .editor-host .cm-content {
   caret-color: #285bd2;
+  padding-top: 24px;
 }
 .editor-section .cm-editor {
   font-size: 15px;
@@ -1321,7 +1322,7 @@ p {
     padding: 24px 18px;
   }
   .editor-empty-hint {
-    top: 36px;
+    top: 56px;
     left: 30px;
   }
   .editor-host {

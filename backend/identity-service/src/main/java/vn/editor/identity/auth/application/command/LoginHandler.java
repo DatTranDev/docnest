@@ -38,7 +38,9 @@ public final class LoginHandler implements LoginService {
     RegistrationPolicy.validatePassword(command.password(), false);
     Account account = accounts.findByEmail(email);
     boolean matches =
-        passwords.matches(command.password(), account == null ? dummyHash : account.passwordHash());
+        passwords.matches(
+            command.password(),
+            account == null || account.passwordHash() == null ? dummyHash : account.passwordHash());
     if (account == null || !matches) throw AuthenticationFailure.credentials();
     account.requireActive();
     return transactions.execute(

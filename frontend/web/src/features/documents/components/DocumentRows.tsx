@@ -1,11 +1,14 @@
 'use client';
+import { useEffect, useMemo, useState } from 'react';
 import { MESSAGE, useI18n } from '@/lib/i18n';
+import { Avatar } from '@/components/ui/Avatar';
 import { DocumentPreview } from './DocumentPreview';
 import { Icon } from '@/components/ui/Icon';
 import { ActionMenu, type MenuAction } from '@/components/ui/ActionMenu';
 import { roleLabel } from '@/components/ui/roleLabel';
 import type { DocumentInfo } from '../model/types';
 import { sourceFileType } from '../model/sourceFiles';
+import { publicProfile, type PublicProfile } from '../api/publicProfiles';
 export function DocumentRows({
   documents,
   trash,
@@ -26,11 +29,38 @@ export function DocumentRows({
   onRestore: (document: DocumentInfo) => void;
 }) {
   const { t, localize, countLabel } = useI18n();
+  const [owners, setOwners] = useState<Record<string, PublicProfile>>({});
+  const ownerIds = useMemo(
+    () => [
+      ...new Set(
+        documents.filter((item) => item.effectiveRole !== 'OWNER').map((item) => item.ownerUserId),
+      ),
+    ],
+    [documents],
+  );
+  useEffect(() => {
+    let active = true;
+    void Promise.all(
+      ownerIds.map(async (id) => {
+        try {
+          return [id, await publicProfile(id)] as const;
+        } catch {
+          return null;
+        }
+      }),
+    ).then((pairs) => {
+      if (active) setOwners(Object.fromEntries(pairs.filter((pair) => pair !== null)));
+    });
+    return () => {
+      active = false;
+    };
+  }, [ownerIds]);
 
   return (
     <>
       {documents.map((document) => {
         const kind = sourceFileType(document.title) ?? 'document';
+        const owner = document.effectiveRole === 'OWNER' ? undefined : owners[document.ownerUserId];
         const actions: MenuAction[] = trash
           ? []
           : [
@@ -90,7 +120,10 @@ export function DocumentRows({
                 }[kind]
               }
             </span>
-            <span className="file-access">{localize(roleLabel(document.effectiveRole))}</span>
+            <span className="file-access">
+              {owner && <Avatar name={owner.displayName} src={owner.avatarUrl} size={23} />}
+              {localize(roleLabel(document.effectiveRole))}
+            </span>
             {trash && view === 'list' ? (
               <button className="restore-row-button" onClick={() => onRestore(document)}>
                 {t(MESSAGE.restore)}
@@ -112,7 +145,10 @@ export function DocumentRows({
                   <DocumentPreview document={document} paper />
                 </button>
                 <div className="document-card-footer">
-                  <span>{localize(roleLabel(document.effectiveRole))}</span>
+                  <span className="document-owner-meta">
+                    {owner && <Avatar name={owner.displayName} src={owner.avatarUrl} size={23} />}
+                    {localize(roleLabel(document.effectiveRole))}
+                  </span>
                   {typeof document.preview?.wordCount === 'number' && (
                     <span>{countLabel(document.preview.wordCount, 'words')}</span>
                   )}

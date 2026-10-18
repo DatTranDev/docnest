@@ -18,8 +18,13 @@ public final class RoomCommandHandler implements RoomCommandService {
   public RoomRepository.Page join(UUID id, long revision, byte[] seed, String bearer) {
     RoomPolicy.update(seed);
     var access = documents.check(id, bearer);
-    if (!access.writable()) throw new RoomFailure("COLLABORATION_READ_ONLY");
     if (access.headRevision() != revision) throw new RoomFailure("COLLABORATION_HEAD_CHANGED");
+    // Viewers may enter an existing room but cannot create its initial CRDT seed.
+    if (!access.writable()) {
+      var room = rooms.read(id, 0);
+      if (room.headRevision() != revision) throw new RoomFailure("COLLABORATION_HEAD_CHANGED");
+      return room;
+    }
     var room = rooms.join(id, revision, seed);
     if (room.headRevision() != revision) throw new RoomFailure("COLLABORATION_HEAD_CHANGED");
     return room;

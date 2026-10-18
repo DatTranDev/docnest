@@ -140,6 +140,7 @@ public class SharingController {
             view.updatedAt());
     if (view.email() != null) result.put("email", view.email());
     if (view.displayName() != null) result.put("displayName", view.displayName());
+    if (view.avatarUrl() != null) result.put("avatarUrl", view.avatarUrl());
     return result;
   }
 }

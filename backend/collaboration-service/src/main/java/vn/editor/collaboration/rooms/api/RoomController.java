@@ -7,15 +7,20 @@ import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import vn.editor.collaboration.rooms.application.command.PresenceCommandService;
 import vn.editor.collaboration.rooms.application.command.RoomCommandService;
+import vn.editor.collaboration.rooms.application.port.PresenceRepository;
 import vn.editor.collaboration.rooms.application.port.RoomRepository;
+import vn.editor.collaboration.rooms.application.query.PresenceQueryService;
 import vn.editor.collaboration.rooms.application.query.RoomQueryService;
 import vn.editor.collaboration.rooms.domain.RoomFailure;
 import vn.editor.collaboration.rooms.domain.RoomPolicy;
@@ -25,10 +30,49 @@ import vn.editor.collaboration.rooms.domain.RoomPolicy;
 public class RoomController {
   private final RoomCommandService commands;
   private final RoomQueryService queries;
+  private final PresenceCommandService presenceCommands;
+  private final PresenceQueryService presenceQueries;
 
-  public RoomController(RoomCommandService commands, RoomQueryService queries) {
+  public RoomController(
+      RoomCommandService commands,
+      RoomQueryService queries,
+      PresenceCommandService presenceCommands,
+      PresenceQueryService presenceQueries) {
     this.commands = commands;
     this.queries = queries;
+    this.presenceCommands = presenceCommands;
+    this.presenceQueries = presenceQueries;
+  }
+
+  public record PresenceUpdate(Integer anchor, Integer head) {}
+
+  @PostMapping("/presence/{sessionId}")
+  public ResponseEntity<?> heartbeat(
+      @PathVariable UUID id,
+      @PathVariable UUID sessionId,
+      @RequestBody PresenceUpdate update,
+      @AuthenticationPrincipal Jwt jwt) {
+    presenceCommands.heartbeat(
+        id,
+        sessionId,
+        UUID.fromString(jwt.getSubject()),
+        update.anchor(),
+        update.head(),
+        jwt.getTokenValue());
+    return ResponseEntity.noContent().build();
+  }
+
+  @GetMapping("/presence")
+  public java.util.List<PresenceRepository.Member> presence(
+      @PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+    return presenceQueries.list(id, jwt.getTokenValue());
+  }
+
+  @DeleteMapping("/presence/{sessionId}")
+  public ResponseEntity<?> leave(
+      @PathVariable UUID id, @PathVariable UUID sessionId, @AuthenticationPrincipal Jwt jwt) {
+    presenceCommands.leave(id, sessionId, UUID.fromString(jwt.getSubject()));
+    return ResponseEntity.noContent().build();
   }
 
   @PostMapping(value = "/join", consumes = "application/octet-stream")

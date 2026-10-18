@@ -73,10 +73,62 @@ public class JdbcAccountCommandDao implements AccountCommandRepository {
   }
 
   @Override
-  public void linkGoogleSubject(String subject, String userId) {
+  public void linkGoogleSubject(String subject, String userId, AccountEmail providerEmail) {
+    try {
+      jdbc.update(
+          "INSERT INTO google_identities(google_subject,user_id,provider_email,created_at) VALUES(?,?,?,UTC_TIMESTAMP(6))",
+          subject,
+          userId,
+          providerEmail.value());
+    } catch (DuplicateKeyException collision) {
+      throw new AuthenticationFailure(
+          AuthenticationFailure.Reason.IDENTITY_CONFLICT, "Google identity is already linked");
+    }
+  }
+
+  @Override
+  public boolean hasGoogleIdentity(String userId) {
+    return jdbc.queryForObject(
+            "SELECT COUNT(*) FROM google_identities WHERE user_id=?", Long.class, userId)
+        > 0;
+  }
+
+  @Override
+  public void unlinkGoogleIdentity(String userId) {
+    jdbc.update("DELETE FROM google_identities WHERE user_id=?", userId);
     jdbc.update(
-        "INSERT INTO google_identities(google_subject,user_id,created_at) VALUES(?,?,UTC_TIMESTAMP(6))",
-        subject,
+        "UPDATE users SET google_picture_url=NULL,avatar_source=CASE WHEN custom_avatar IS NOT NULL THEN 'CUSTOM' ELSE 'GENERATED' END,avatar_updated_at=UTC_TIMESTAMP(6) WHERE id=?",
+        userId);
+  }
+
+  @Override
+  public void setPassword(String userId, String hash) {
+    jdbc.update(
+        "UPDATE users SET password_hash=?,updated_at=UTC_TIMESTAMP(6) WHERE id=?", hash, userId);
+  }
+
+  @Override
+  public void updateGooglePicture(String userId, String pictureUrl) {
+    if (pictureUrl == null || pictureUrl.length() > 1024) return;
+    jdbc.update(
+        "UPDATE users SET google_picture_url=?,avatar_source=CASE WHEN custom_avatar IS NOT NULL THEN 'CUSTOM' ELSE 'GOOGLE' END,avatar_updated_at=UTC_TIMESTAMP(6) WHERE id=?",
+        pictureUrl,
+        userId);
+  }
+
+  @Override
+  public void setCustomAvatar(String userId, byte[] image, String mime) {
+    jdbc.update(
+        "UPDATE users SET custom_avatar=?,custom_avatar_mime=?,avatar_source='CUSTOM',avatar_updated_at=UTC_TIMESTAMP(6) WHERE id=?",
+        image,
+        mime,
+        userId);
+  }
+
+  @Override
+  public void removeCustomAvatar(String userId) {
+    jdbc.update(
+        "UPDATE users SET custom_avatar=NULL,custom_avatar_mime=NULL,avatar_source=CASE WHEN google_picture_url IS NOT NULL THEN 'GOOGLE' ELSE 'GENERATED' END,avatar_updated_at=UTC_TIMESTAMP(6) WHERE id=?",
         userId);
   }
 
@@ -95,6 +147,18 @@ public class JdbcAccountCommandDao implements AccountCommandRepository {
         "ACTIVE".equals(row.get("status")),
         created instanceof Timestamp stamp
             ? stamp.toInstant()
-            : ((LocalDateTime) created).toInstant(ZoneOffset.UTC));
+            : ((LocalDateTime) created).toInstant(ZoneOffset.UTC),
+        (String) row.get("avatar_source"),
+        avatarUrl(row));
+  }
+
+  private String avatarUrl(Map<String, Object> row) {
+    String source = (String) row.get("avatar_source");
+    if ("CUSTOM".equals(source))
+      return "/api/v1/avatars/"
+          + row.get("id")
+          + "?v="
+          + row.get("avatar_updated_at").toString().replaceAll("[^0-9]", "");
+    return "GOOGLE".equals(source) ? (String) row.get("google_picture_url") : null;
   }
 }

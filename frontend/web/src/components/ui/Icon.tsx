@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 export type IconName =
   | 'document'
+  | 'globe'
   | 'folder'
   | 'shared'
   | 'trash'
@@ -33,6 +34,13 @@ export type IconName =
   | 'align-justify';
 
 const shapes: Record<IconName, ReactNode> = {
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <ellipse cx="12" cy="12" rx="4" ry="9" />
+      <path d="M3 12h18" />
+    </>
+  ),
   document: (
     <>
       <path d="M7 3h7l4 4v14H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />

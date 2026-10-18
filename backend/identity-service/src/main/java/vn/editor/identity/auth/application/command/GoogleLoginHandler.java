@@ -5,16 +5,14 @@ import java.util.UUID;
 import vn.editor.identity.auth.application.port.AccountCommandRepository;
 import vn.editor.identity.auth.application.port.GoogleIdentity;
 import vn.editor.identity.auth.application.port.GoogleIdentityVerifier;
-import vn.editor.identity.auth.application.port.PasswordHashes;
 import vn.editor.identity.auth.application.port.Transactions;
 import vn.editor.identity.auth.domain.Account;
-import vn.editor.identity.auth.domain.AccountEmail;
+import vn.editor.identity.auth.domain.AuthenticationFailure;
 import vn.editor.identity.auth.domain.RefreshSession;
 import vn.editor.identity.auth.domain.RegistrationPolicy;
 
 public final class GoogleLoginHandler implements GoogleLoginService {
   private final AccountCommandRepository accounts;
-  private final PasswordHashes passwords;
   private final Transactions transactions;
   private final SessionIssuer issuer;
   private final GoogleIdentityVerifier identities;
@@ -23,14 +21,12 @@ public final class GoogleLoginHandler implements GoogleLoginService {
 
   public GoogleLoginHandler(
       AccountCommandRepository accounts,
-      PasswordHashes passwords,
       Transactions transactions,
       SessionIssuer issuer,
       GoogleIdentityVerifier identities,
       Clock clock,
       int maximumAccounts) {
     this.accounts = accounts;
-    this.passwords = passwords;
     this.transactions = transactions;
     this.issuer = issuer;
     this.identities = identities;
@@ -41,41 +37,54 @@ public final class GoogleLoginHandler implements GoogleLoginService {
   @Override
   public AuthenticationSession handle(String credential) {
     GoogleIdentity identity = identities.verify(credential);
-    String subject = identity.subject();
-    AccountEmail email = identity.email();
-    String googleName = identity.displayName();
+    try {
+      return signIn(identity);
+    } catch (AuthenticationFailure duplicate) {
+      // A concurrent callback may have committed the subject or email while this
+      // transaction was waiting on a unique index. Resolve the final owner anew.
+      Account linked = accounts.findByGoogleSubject(identity.subject());
+      if (linked != null) return signIn(identity);
+      if (duplicate.reason() != AuthenticationFailure.Reason.EMAIL_ALREADY_REGISTERED
+          && duplicate.reason() != AuthenticationFailure.Reason.IDENTITY_CONFLICT) throw duplicate;
+      throw new AuthenticationFailure(
+          AuthenticationFailure.Reason.GOOGLE_LINK_REQUIRED,
+          "Sign in with your existing account to link Google");
+    }
+  }
+
+  private AuthenticationSession signIn(GoogleIdentity identity) {
     return transactions.execute(
         () -> {
-          Account account = accounts.findByGoogleSubject(subject);
+          Account account = accounts.findByGoogleSubject(identity.subject());
           if (account == null) {
-            account = accounts.findByEmail(email);
-            if (account == null) {
-              accounts.lockRegistrationQuota();
-              RegistrationPolicy.requireCapacity(
-                  accounts.emailExists(email), accounts.countAccounts(), maximumAccounts);
-              String displayName = googleName;
-              if (displayName == null || displayName.isBlank()) displayName = email.value();
-              if (displayName.codePointCount(0, displayName.length()) > 100)
-                displayName = displayName.substring(0, displayName.offsetByCodePoints(0, 100));
-              RegistrationPolicy.validateDisplayName(displayName);
-              account =
-                  new Account(
-                      UUID.randomUUID().toString(),
-                      email,
-                      passwords.encode(UUID.randomUUID().toString() + UUID.randomUUID()),
-                      displayName,
-                      true,
-                      clock.instant());
-              accounts.insert(account);
-            } else {
-              account = accounts.lockById(account.id());
-              account.requireActive();
-            }
-            accounts.linkGoogleSubject(subject, account.id());
+            accounts.lockRegistrationQuota();
+            if (accounts.emailExists(identity.email()))
+              throw new AuthenticationFailure(
+                  AuthenticationFailure.Reason.GOOGLE_LINK_REQUIRED,
+                  "Sign in with your existing account to link Google");
+            RegistrationPolicy.requireCapacity(false, accounts.countAccounts(), maximumAccounts);
+            String displayName = identity.displayName();
+            if (displayName == null || displayName.isBlank())
+              displayName = identity.email().value();
+            if (displayName.codePointCount(0, displayName.length()) > 100)
+              displayName = displayName.substring(0, displayName.offsetByCodePoints(0, 100));
+            RegistrationPolicy.validateDisplayName(displayName);
+            account =
+                new Account(
+                    UUID.randomUUID().toString(),
+                    identity.email(),
+                    null,
+                    displayName,
+                    true,
+                    clock.instant());
+            accounts.insert(account);
+            accounts.linkGoogleSubject(identity.subject(), account.id(), identity.email());
           } else {
             account = accounts.lockById(account.id());
             account.requireActive();
           }
+          accounts.updateGooglePicture(account.id(), identity.pictureUrl());
+          account = accounts.lockById(account.id());
           return issuer.issue(
               account,
               UUID.randomUUID().toString(),

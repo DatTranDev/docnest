@@ -170,7 +170,12 @@ function isPrefix(path, prefix) {
 
 function upstreamOrigin(path, config) {
   const pathname = path.split('?')[0];
-  if (isPrefix(pathname, '/api/v1/auth') || isPrefix(pathname, '/.well-known'))
+  if (
+    isPrefix(pathname, '/api/v1/auth') ||
+    isPrefix(pathname, '/api/v1/users') ||
+    isPrefix(pathname, '/api/v1/avatars') ||
+    isPrefix(pathname, '/.well-known')
+  )
     return config.identityOrigin;
   if (isPrefix(pathname, '/api/v1/jobs')) return config.processingOrigin;
   if (isPrefix(pathname, '/api/v1/collaboration')) return config.collaborationOrigin;
@@ -253,6 +258,7 @@ async function nextReady(config, isNextAlive) {
 }
 
 export function createGateway(config, { isNextAlive = () => true } = {}) {
+  const upgradedSockets = new Set();
   const server = http.createServer(async (req, res) => {
     let path;
     let forwarding;
@@ -410,12 +416,73 @@ export function createGateway(config, { isNextAlive = () => true } = {}) {
   server.requestTimeout = config.requestTimeoutMs;
   server.headersTimeout = Math.min(30_000, config.requestTimeoutMs);
   server.keepAliveTimeout = 5000;
-  server.on('upgrade', (_req, socket) =>
-    socket.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n'),
-  );
+  server.on('upgrade', (req, socket, head) => {
+    let path;
+    try {
+      path = requestPath(req.url);
+      const origin = new URL(String(req.headers.origin));
+      if (
+        !path ||
+        !/^\/api\/v1\/collaboration\/[0-9a-f-]{36}\/socket$/i.test(path) ||
+        origin.host.toLowerCase() !== String(req.headers.host).toLowerCase() ||
+        !['http:', 'https:'].includes(origin.protocol) ||
+        req.headers['sec-websocket-version'] !== '13' ||
+        !/^[A-Za-z0-9+/]{22}==$/.test(String(req.headers['sec-websocket-key']))
+      )
+        throw new Error('Invalid socket request');
+    } catch {
+      socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
+      return;
+    }
+    const target = new URL(path, config.collaborationOrigin);
+    const transport = target.protocol === 'https:' ? https : http;
+    const upstream = transport.request(target, {
+      method: 'GET',
+      agent: false,
+      headers: {
+        connection: 'Upgrade',
+        upgrade: 'websocket',
+        'sec-websocket-key': req.headers['sec-websocket-key'],
+        'sec-websocket-version': '13',
+        origin: req.headers.origin,
+        host: target.host,
+      },
+    });
+    upstream.on('upgrade', (response, remote, remoteHead) => {
+      if (response.statusCode !== 101 || !response.headers['sec-websocket-accept']) {
+        remote.destroy();
+        socket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n');
+        return;
+      }
+      socket.write(
+        `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${response.headers['sec-websocket-accept']}\r\n\r\n`,
+      );
+      if (head.length) remote.write(head);
+      if (remoteHead.length) socket.write(remoteHead);
+      upgradedSockets.add(socket);
+      socket.pipe(remote).pipe(socket);
+      socket.on('close', () => {
+        upgradedSockets.delete(socket);
+        remote.destroy();
+      });
+      socket.on('error', () => remote.destroy());
+      remote.on('close', () => socket.destroy());
+      remote.on('error', () => socket.destroy());
+    });
+    upstream.on('response', (response) => {
+      response.resume();
+      socket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n');
+    });
+    upstream.on('error', () => socket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n'));
+    socket.on('close', () => upstream.destroy());
+    upstream.end();
+  });
   server.on('clientError', (_error, socket) => {
     if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
   });
+  server.closeUpgradedConnections = () => {
+    for (const socket of upgradedSockets) socket.destroy();
+  };
   return server;
 }
 
@@ -438,9 +505,11 @@ export async function launch(env = process.env) {
   const shutdown = async (exitCode) => {
     if (stopping) return;
     stopping = true;
+    server.closeUpgradedConnections();
     const closed = new Promise((done) => server.close(done));
     const force = setTimeout(() => {
       server.closeAllConnections();
+      server.closeUpgradedConnections();
       child.kill('SIGKILL');
     }, REQUEST_TIMEOUT_MS + 5_000);
     force.unref();

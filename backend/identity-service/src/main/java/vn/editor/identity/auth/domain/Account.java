@@ -8,7 +8,19 @@ public record Account(
     String passwordHash,
     String displayName,
     boolean active,
-    Instant createdAt) {
+    Instant createdAt,
+    String avatarSource,
+    String avatarUrl) {
+  public Account(
+      String id,
+      AccountEmail email,
+      String passwordHash,
+      String displayName,
+      boolean active,
+      Instant createdAt) {
+    this(id, email, passwordHash, displayName, active, createdAt, "GENERATED", null);
+  }
+
   public void requireActive() {
     if (!active) throw AuthenticationFailure.credentials();
   }

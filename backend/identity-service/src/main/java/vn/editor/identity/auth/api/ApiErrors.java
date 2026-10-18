@@ -14,8 +14,9 @@ public final class ApiErrors {
   public ResponseEntity<?> handle(AuthenticationFailure failure) {
     int status =
         switch (failure.reason()) {
-          case INVALID_EMAIL, INVALID_PASSWORD, INVALID_DISPLAY_NAME -> 400;
-          case EMAIL_ALREADY_REGISTERED -> 409;
+          case INVALID_EMAIL, INVALID_PASSWORD, INVALID_DISPLAY_NAME, INVALID_AVATAR -> 400;
+          case EMAIL_ALREADY_REGISTERED, GOOGLE_LINK_REQUIRED, IDENTITY_CONFLICT, LAST_CREDENTIAL ->
+              409;
           case ACCOUNT_QUOTA, RATE_LIMITED -> 429;
           case INVALID_CREDENTIALS -> 401;
           case ACCOUNT_UNAVAILABLE -> 404;

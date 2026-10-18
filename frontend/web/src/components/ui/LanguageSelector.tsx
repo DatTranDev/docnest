@@ -10,9 +10,11 @@ const languages = ['vi', 'en'] as const;
 export function LanguageSelector({
   onLocale,
   inlineMenu = false,
+  compact = false,
 }: {
   onLocale?: (locale: 'vi' | 'en') => void;
   inlineMenu?: boolean;
+  compact?: boolean;
 }) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -60,7 +62,7 @@ export function LanguageSelector({
         ref={trigger}
         className="language-selector-trigger"
         type="button"
-        aria-label={t(MESSAGE.language)}
+        aria-label={`${t(MESSAGE.language)}: ${locale === 'vi' ? t(MESSAGE.vietnamese) : t(MESSAGE.english)}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -79,7 +81,14 @@ export function LanguageSelector({
           }
         }}
       >
-        <span>{locale === 'vi' ? t(MESSAGE.vietnamese) : t(MESSAGE.english)}</span>
+        {compact && <Icon name="globe" size={17} />}
+        <span>
+          {compact
+            ? locale.toUpperCase()
+            : locale === 'vi'
+              ? t(MESSAGE.vietnamese)
+              : t(MESSAGE.english)}
+        </span>
         <span className="language-selector-chevron" aria-hidden="true">
           <Icon name="chevron-down" size={14} />
         </span>

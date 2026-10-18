@@ -29,7 +29,8 @@ public final class SharingQueryHandler implements SharingQueryService {
                 permission.role(),
                 permission.updatedAt(),
                 account.email(),
-                account.displayName()));
+                account.displayName(),
+                account.avatarUrl()));
       } catch (DomainException ex) {
         if (ex.status != 422 && ex.status != 503) throw ex;
         items.add(permission);

@@ -249,6 +249,167 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
         '503':
           $ref: '#/components/responses/ErrorResponse'
+  /api/v1/auth/google:
+    post:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: googleLogin
+      summary: Verify a Google ID token and sign in by provider subject
+      description: A verified email collision returns 409 GOOGLE_LINK_REQUIRED; no identity is linked.
+      security: []
+      parameters:
+        - { name: X-CSRF-TOKEN, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credential]
+              properties:
+                credential: { type: string, maxLength: 8192 }
+      responses:
+        '200':
+          {
+            description: Application session,
+            content:
+              { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } },
+          }
+        '409': { $ref: '#/components/responses/ErrorResponse' }
+  /api/v1/auth/google/link:
+    post:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: linkGoogle
+      summary: Reauthenticate the existing password account and explicitly link Google
+      security: []
+      parameters:
+        - { name: X-CSRF-TOKEN, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, credential]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                credential: { type: string }
+      responses:
+        '200':
+          {
+            description: Same canonical user session,
+            content:
+              { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } },
+          }
+        '409': { $ref: '#/components/responses/ErrorResponse' }
+  /api/v1/auth/methods:
+    get:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: getCredentialStatus
+      responses:
+        '200':
+          description: Current user's available sign-in methods
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hasPassword, googleLinked]
+                properties:
+                  hasPassword: { type: boolean }
+                  googleLinked: { type: boolean }
+  /api/v1/auth/password/setup:
+    post:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: setupPasswordWithGoogle
+      summary: Set or reset password after reauthenticating the linked Google subject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newPassword, googleCredential]
+              properties:
+                newPassword: { type: string, minLength: 12, maxLength: 128 }
+                googleCredential: { type: string }
+      responses:
+        '204': { description: Password set }
+  /api/v1/auth/google/unlink:
+    post:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: unlinkGoogle
+      summary: Reauthenticate with password and unlink Google, retaining a usable password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword]
+              properties:
+                currentPassword: { type: string }
+      responses:
+        '204': { description: Google unlinked }
+        '409': { $ref: '#/components/responses/ErrorResponse' }
+  /api/v1/auth/me/avatar:
+    put:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: uploadAvatar
+      summary: Upload a validated PNG or JPEG custom avatar (up to 1 MiB)
+      requestBody:
+        required: true
+        content:
+          image/png: { schema: { type: string, format: binary } }
+          image/jpeg: { schema: { type: string, format: binary } }
+      responses:
+        '204': { description: Avatar changed }
+    delete:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: removeAvatar
+      responses:
+        '204': { description: Custom avatar removed; Google or initials fallback applies }
+  /api/v1/avatars/{id}:
+    get:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: getAvatar
+      security: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          {
+            description: Canonical PNG avatar,
+            content: { image/png: { schema: { type: string, format: binary } } },
+          }
+        '404': { $ref: '#/components/responses/ErrorResponse' }
+  /api/v1/users/{id}/profile:
+    get:
+      tags: [Identity]
+      x-service: identity-service
+      operationId: getPublicProfile
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Display name and avatar metadata; excludes email and credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, displayName, avatarSource]
+                properties:
+                  id: { type: string, format: uuid }
+                  displayName: { type: string }
+                  avatarSource: { type: string, enum: [CUSTOM, GOOGLE, GENERATED] }
+                  avatarUrl: { type: string, nullable: true }
   /.well-known/jwks.json:
     get:
       tags:
@@ -1784,11 +1945,15 @@ components:
         displayName:
           type: string
           maxLength: 100
+        avatarSource: { type: string, enum: [CUSTOM, GOOGLE, GENERATED] }
+        avatarUrl: { type: string, nullable: true }
       additionalProperties: false
       required:
         - id
         - email
         - displayName
+        - avatarSource
+        - avatarUrl
     RegisterRequest:
       type: object
       properties:

@@ -1,5 +1,6 @@
 package vn.editor.identity.auth.infrastructure.security;
 
+import java.net.URI;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -39,12 +40,32 @@ public final class GoogleJwtIdentityVerifier implements GoogleIdentityVerifier {
       throw AuthenticationFailure.credentials();
     }
     if (!token.getAudience().contains(clientId)
+        || (token.getClaimAsString("azp") != null
+            && !clientId.equals(token.getClaimAsString("azp")))
         || !Boolean.TRUE.equals(token.getClaim("email_verified"))
         || token.getSubject() == null
         || token.getSubject().isBlank()) throw AuthenticationFailure.credentials();
     return new GoogleIdentity(
         token.getSubject(),
         new AccountEmail(token.getClaimAsString("email")),
-        token.getClaimAsString("name"));
+        token.getClaimAsString("name"),
+        safePicture(token.getClaimAsString("picture")));
+  }
+
+  private String safePicture(String raw) {
+    if (raw == null || raw.length() > 1024) return null;
+    try {
+      URI uri = URI.create(raw);
+      String host = uri.getHost();
+      return "https".equals(uri.getScheme())
+              && host != null
+              && (host.equals("googleusercontent.com") || host.endsWith(".googleusercontent.com"))
+              && uri.getRawUserInfo() == null
+              && (uri.getPort() == -1 || uri.getPort() == 443)
+          ? raw
+          : null;
+    } catch (IllegalArgumentException invalid) {
+      return null;
+    }
   }
 }

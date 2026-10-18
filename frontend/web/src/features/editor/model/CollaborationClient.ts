@@ -3,12 +3,23 @@ import { MESSAGE } from '@/lib/i18n/messages';
 import { SharedDocument, type Snapshot } from '@ted/editor-core';
 import { ApiError, binaryRequest, request } from '@/lib/http';
 import { CollaborationJournal, type PendingUpdate } from './CollaborationJournal';
+import { currentSession } from '@/features/auth';
 
 type Page = {
   headRevision: number;
   sequence: number;
   updates: { sequence: number; payload: string }[];
 };
+export type Collaborator = {
+  userId: string;
+  sessionId: string;
+  anchor: number | null;
+  head: number | null;
+  displayName: string;
+  avatarUrl: string | null;
+};
+type PresenceMember = Pick<Collaborator, 'userId' | 'sessionId' | 'anchor' | 'head'>;
+type PublicProfile = { displayName: string; avatarUrl: string | null };
 export class CollaborationClient {
   readonly shared = new SharedDocument();
   private pending: PendingUpdate[] = [];
@@ -23,6 +34,13 @@ export class CollaborationClient {
   private hydrated = false;
   private journal: CollaborationJournal;
   private readonly path: string;
+  private readonly sessionId = crypto.randomUUID();
+  private nextPresenceAt = 0;
+  private socket: WebSocket | null = null;
+  private socketReady = false;
+  private nextSocketAt = 0;
+  private profiles = new Map<string, PublicProfile>();
+  members: Collaborator[] = [];
   headRevision: number;
   status: string = MESSAGE.connecting;
   get available(): boolean {
@@ -36,6 +54,7 @@ export class CollaborationClient {
     private readonly project: () => void,
     private readonly changed: () => void,
     private readonly failed: (error: unknown) => void,
+    private readonly selection: () => { anchor: number; head: number },
   ) {
     this.path = `/api/v1/collaboration/${documentId}`;
     this.journal = new CollaborationJournal(`${userId}:${documentId}`);
@@ -65,7 +84,9 @@ export class CollaborationClient {
       for (const update of this.pending) this.shared.apply(update.payload);
       if (this.stopped) return;
       this.hydrated = true;
-      this.project();
+      // The first room update is the native document seed. Reprojecting that
+      // unchanged snapshot would mark a freshly opened document as unsaved.
+      if (this.cursor > 1 || this.pending.length) this.project();
       this.remoteChanged = false;
       this.unsubscribe = this.shared.onUpdate((payload) => {
         if (
@@ -82,6 +103,8 @@ export class CollaborationClient {
         void this.persistence.catch((error) => this.fail(error));
         this.setStatus(MESSAGE.syncing);
       });
+      await this.refreshPresence();
+      this.openSocket();
       this.schedule();
     } finally {
       seed.destroy();
@@ -135,6 +158,7 @@ export class CollaborationClient {
         this.pending.length ? MESSAGE.syncing : MESSAGE.collaborationSynced,
         previousHead !== this.headRevision,
       );
+      if (Date.now() >= this.nextPresenceAt) await this.refreshPresence();
     };
     this.active = work();
     try {
@@ -142,6 +166,27 @@ export class CollaborationClient {
     } finally {
       this.active = null;
     }
+  }
+
+  private async refreshPresence(): Promise<void> {
+    const cursor = this.selection();
+    await request<void>(`${this.path}/presence/${this.sessionId}`, 'POST', cursor);
+    const members = await request<PresenceMember[]>(`${this.path}/presence`);
+    for (const member of members) {
+      if (!this.profiles.has(member.userId)) {
+        const profile = await request<PublicProfile>(
+          `/api/v1/users/${member.userId}/profile`,
+        ).catch(() => ({ displayName: member.userId.slice(0, 8), avatarUrl: null }));
+        this.profiles.set(member.userId, profile);
+      }
+    }
+    if (this.stopped) return;
+    this.members = members.map((member) => ({
+      ...member,
+      ...this.profiles.get(member.userId)!,
+    }));
+    this.nextPresenceAt = Date.now() + 2500;
+    this.changed();
   }
 
   async save(
@@ -169,30 +214,61 @@ export class CollaborationClient {
   }
 
   private schedule(): void {
-    this.timer = setTimeout(() => {
-      if (this.stopped) return;
-      if (this.checkpointing) {
-        this.schedule();
-        return;
+    this.timer = setTimeout(
+      () => {
+        if (this.stopped) return;
+        if (!this.socket && Date.now() >= this.nextSocketAt) this.openSocket();
+        if (this.checkpointing) {
+          this.schedule();
+          return;
+        }
+        void this.sync()
+          .catch((error) => {
+            if (
+              (error instanceof ApiError &&
+                [400, 401, 403, 404, 409, 413].includes(error.status)) ||
+              (error instanceof Error &&
+                !(error instanceof TypeError) &&
+                !(error instanceof ApiError) &&
+                error.message !== 'COLLABORATION_CATCHING_UP')
+            )
+              this.fail(error);
+            else {
+              this.setStatus(MESSAGE.waitingForConnectionDraftRetained);
+            }
+          })
+          .finally(() => {
+            if (!this.stopped) this.schedule();
+          });
+      },
+      this.socketReady ? 2500 : COLLABORATION_LIMITS.pollMs,
+    );
+  }
+
+  private openSocket(): void {
+    if (this.stopped || this.socket || typeof WebSocket === 'undefined') return;
+    const address = new URL(`${this.path}/socket`, window.location.href);
+    address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(address);
+    this.socket = socket;
+    this.nextSocketAt = Date.now() + 5000;
+    socket.onopen = () => {
+      const token = currentSession()?.accessToken;
+      if (token && !this.stopped) socket.send(token);
+      else socket.close();
+    };
+    socket.onmessage = (event) => {
+      if (typeof event.data !== 'string' || this.stopped) return;
+      if (event.data.startsWith('READY:')) this.socketReady = true;
+      if (event.data.startsWith('UPDATE:')) void this.sync().catch(() => {});
+    };
+    socket.onclose = () => {
+      if (this.socket === socket) {
+        this.socket = null;
+        this.socketReady = false;
       }
-      void this.sync()
-        .catch((error) => {
-          if (
-            (error instanceof ApiError && [400, 401, 403, 404, 409, 413].includes(error.status)) ||
-            (error instanceof Error &&
-              !(error instanceof TypeError) &&
-              !(error instanceof ApiError) &&
-              error.message !== 'COLLABORATION_CATCHING_UP')
-          )
-            this.fail(error);
-          else {
-            this.setStatus(MESSAGE.waitingForConnectionDraftRetained);
-          }
-        })
-        .finally(() => {
-          if (!this.stopped) this.schedule();
-        });
-    }, COLLABORATION_LIMITS.pollMs);
+    };
+    socket.onerror = () => socket.close();
   }
 
   private fail(error: unknown): void {
@@ -208,7 +284,10 @@ export class CollaborationClient {
 
   destroy(): void {
     this.stopped = true;
+    this.socket?.close();
+    this.socket = null;
     clearTimeout(this.timer);
+    void request<void>(`${this.path}/presence/${this.sessionId}`, 'DELETE').catch(() => {});
     this.unsubscribe?.();
     void this.persistence.then(
       () => this.journal.close(),

@@ -1,6 +1,6 @@
 import { MESSAGE } from '@/lib/i18n/messages';
-import { configureAuthentication, request, resetCsrf } from '@/lib/http';
-import type { Session } from '../model/types';
+import { ApiError, configureAuthentication, csrfToken, request, resetCsrf } from '@/lib/http';
+import type { Session, User } from '../model/types';
 import { publishAccountInitial } from '../model/accountPresentation';
 let session: Session | null = null;
 let refreshing: Promise<Session | null> | null = null;
@@ -76,6 +76,70 @@ export async function loginWithGoogle(credential: string): Promise<Session> {
     publishAccountInitial(result.user.displayName);
     return session;
   });
+}
+export async function linkGoogle(
+  email: string,
+  password: string,
+  credential: string,
+): Promise<Session> {
+  const generation = ++sessionGeneration;
+  refreshing = null;
+  return mutateSessionCookie(async () => {
+    const result = await request<Session>('/api/v1/auth/google/link', 'POST', {
+      email,
+      password,
+      credential,
+    });
+    if (generation !== sessionGeneration)
+      throw new Error(MESSAGE.yourSessionHasChangedPleaseSignInAgain);
+    session = result;
+    publishAccountInitial(result.user.displayName);
+    return result;
+  });
+}
+export async function refreshProfile(): Promise<User> {
+  const user = await request<User>('/api/v1/auth/me');
+  if (session) session = { ...session, user };
+  return user;
+}
+export type CredentialStatus = { hasPassword: boolean; googleLinked: boolean };
+export async function credentialStatus(): Promise<CredentialStatus> {
+  return request<CredentialStatus>('/api/v1/auth/methods');
+}
+export async function uploadAvatar(file: File): Promise<User> {
+  if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 1024 * 1024)
+    throw new Error('INVALID_AVATAR');
+  const send = async (retry: boolean): Promise<void> => {
+    const protection = await csrfToken();
+    const response = await fetch('/api/v1/auth/me/avatar', {
+      method: 'PUT',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${session?.accessToken ?? ''}`,
+        [protection.headerName]: protection.token,
+        'Content-Type': file.type,
+      },
+      body: file,
+    });
+    if (response.status === 401 && retry && (await refresh())) return send(false);
+    if (!response.ok) {
+      const detail = (await response.json().catch(() => ({}))) as { code?: string };
+      throw new ApiError(response.status, detail.code ?? 'INVALID_AVATAR', 'Invalid avatar');
+    }
+  };
+  await send(true);
+  return refreshProfile();
+}
+export async function removeAvatar(): Promise<User> {
+  await request('/api/v1/auth/me/avatar', 'DELETE');
+  return refreshProfile();
+}
+export async function setupPassword(newPassword: string, googleCredential: string): Promise<void> {
+  await request('/api/v1/auth/password/setup', 'POST', { newPassword, googleCredential });
+}
+export async function unlinkGoogle(currentPassword: string): Promise<void> {
+  await request('/api/v1/auth/google/unlink', 'POST', { currentPassword });
 }
 export async function register(
   email: string,

@@ -6,8 +6,8 @@ import { ACCOUNT_INPUT_LIMITS } from '../model/constants';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
-import { errorMessage } from '@/lib/http';
-import { login, loginWithGoogle, register as registerAccount } from '../api/auth';
+import { ApiError, errorMessage } from '@/lib/http';
+import { linkGoogle, login, loginWithGoogle, register as registerAccount } from '../api/auth';
 import type { User } from '../model/types';
 import { AuthProductPreview } from './AuthProductPreview';
 
@@ -29,6 +29,7 @@ declare global {
               width: number;
               text: string;
               locale: string;
+              logo_alignment: 'center';
             },
           ) => void;
         };
@@ -50,6 +51,7 @@ export function AuthForm({
   const [register, setRegister] = useState(false),
     [busy, setBusy] = useState(false),
     [showPassword, setShowPassword] = useState(false),
+    [pendingGoogleLink, setPendingGoogleLink] = useState<string | null>(null),
     [fieldErrors, setFieldErrors] = useState({ displayName: '', email: '', password: '' });
   const errorNotice = useRef<HTMLParagraphElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -76,6 +78,7 @@ export function AuthForm({
         width,
         text: 'continue_with',
         locale,
+        logo_alignment: 'center',
       });
     };
     const mount = () => {
@@ -88,7 +91,13 @@ export function AuthForm({
           setError('');
           void loginWithGoogle(response.credential)
             .then((session) => onLogin(session.user))
-            .catch((failure) => setError(errorMessage(failure)))
+            .catch((failure) => {
+              if (failure instanceof ApiError && failure.code === 'GOOGLE_LINK_REQUIRED') {
+                setRegister(false);
+                setPendingGoogleLink(response.credential!);
+                setError('');
+              } else setError(errorMessage(failure));
+            })
             .finally(() => setBusy(false));
         },
       });
@@ -115,6 +124,7 @@ export function AuthForm({
     setFieldErrors((current) => ({ ...current, [field]: message }));
   const changeMode = (next: boolean) => {
     setRegister(next);
+    setPendingGoogleLink(null);
     setShowPassword(false);
     setError('');
     setFieldErrors({ displayName: '', email: '', password: '' });
@@ -144,25 +154,28 @@ export function AuthForm({
             </ul>
           </aside>
           <div className="auth-content">
-            <div className="auth-mode" role="group" aria-label={t(MESSAGE.authModeLabel)}>
-              <button
-                type="button"
-                aria-label={`${t(MESSAGE.signIn)}: ${t(MESSAGE.alreadyHaveAnAccount)}`}
-                aria-pressed={!register}
-                disabled={busy}
-                onClick={() => changeMode(false)}
-              >
-                {t(MESSAGE.signIn)}
-              </button>
-              <button
-                type="button"
-                aria-label={t(MESSAGE.createANewAccount)}
-                aria-pressed={register}
-                disabled={busy}
-                onClick={() => changeMode(true)}
-              >
-                {t(MESSAGE.createAccount)}
-              </button>
+            <div className="auth-controls">
+              <div className="auth-mode" role="group" aria-label={t(MESSAGE.authModeLabel)}>
+                <button
+                  type="button"
+                  aria-label={`${t(MESSAGE.signIn)}: ${t(MESSAGE.alreadyHaveAnAccount)}`}
+                  aria-pressed={!register}
+                  disabled={busy}
+                  onClick={() => changeMode(false)}
+                >
+                  {t(MESSAGE.signIn)}
+                </button>
+                <button
+                  type="button"
+                  aria-label={t(MESSAGE.createANewAccount)}
+                  aria-pressed={register}
+                  disabled={busy}
+                  onClick={() => changeMode(true)}
+                >
+                  {t(MESSAGE.createAccount)}
+                </button>
+              </div>
+              <LanguageSelector compact />
             </div>
             <h1 ref={heading} tabIndex={-1}>
               {register ? t(MESSAGE.createANewAccount) : t(MESSAGE.signIn)}
@@ -170,6 +183,14 @@ export function AuthForm({
             <p className="auth-description">
               {t(register ? MESSAGE.createAccountDescription : MESSAGE.signInDescription)}
             </p>
+            {pendingGoogleLink && (
+              <p role="status" className="auth-link-notice">
+                {t(MESSAGE.googleLinkRequired)}
+                <button type="button" onClick={() => setPendingGoogleLink(null)}>
+                  {t(MESSAGE.cancel)}
+                </button>
+              </p>
+            )}
             {googleClientId && (
               <div ref={googleButton} className="google-signin-button" inert={busy} />
             )}
@@ -191,7 +212,13 @@ export function AuthForm({
                 void (async () => {
                   if (register)
                     await registerAccount(email, password, String(data.get('displayName')));
-                  onLogin((await login(email, password)).user);
+                  onLogin(
+                    (
+                      await (pendingGoogleLink
+                        ? linkGoogle(email, password, pendingGoogleLink)
+                        : login(email, password))
+                    ).user,
+                  );
                 })()
                   .catch((e) => setError(errorMessage(e)))
                   .finally(() => setBusy(false));
@@ -293,9 +320,11 @@ export function AuthForm({
                 <button className="primary" disabled={busy}>
                   {busy
                     ? t(MESSAGE.processing)
-                    : register
-                      ? t(MESSAGE.createAccount)
-                      : t(MESSAGE.signIn)}
+                    : pendingGoogleLink
+                      ? t(MESSAGE.signInAndLinkGoogle)
+                      : register
+                        ? t(MESSAGE.createAccount)
+                        : t(MESSAGE.signIn)}
                   {!busy && <Icon name="chevron" size={18} />}
                 </button>
               </fieldset>
@@ -304,9 +333,6 @@ export function AuthForm({
               {t(MESSAGE.writeWithoutAccount)}
             </Link>
             <p className="auth-local-note">{t(MESSAGE.authLocalNote)}</p>
-            <div className="auth-language-footer">
-              <LanguageSelector />
-            </div>
           </div>
         </div>
       </div>

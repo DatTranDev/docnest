@@ -4,3 +4,5 @@ export * from './model/DraftStore';
 export { BenchmarkHarness } from './components/BenchmarkHarness';
 export { WorkerContractHarness } from './components/WorkerContractHarness';
 export { EditorPane } from './components/EditorPane';
+export { CollaboratorList } from './components/CollaboratorList';
+export type { Collaborator } from './model/CollaborationClient';

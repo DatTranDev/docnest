@@ -38,6 +38,7 @@ import type { DraftDelta } from './DraftStore';
 import { tableWidgetField, focusTableCell } from './tableWidgets';
 import { viewportStylePlugin } from './viewportStyles';
 import { CollaborationClient } from './CollaborationClient';
+import { collaboratorDecorations, setCollaborators } from './collaboratorDecorations';
 import { CLIPBOARD, STYLE_BITS } from './constants';
 import { DEFAULT_LOCALE, type Locale } from '@/config/locale';
 import { translate } from '@/lib/i18n/translate';
@@ -127,6 +128,7 @@ export class EditorController {
         extensions: [
           styles,
           tableWidgetField(this, refresh),
+          collaboratorDecorations,
           this.language.of([]),
           this.sourceSyntax.of([]),
           this.lineWrap.of(EditorView.lineWrapping),
@@ -688,14 +690,21 @@ export class EditorController {
     userId: string,
     headRevision: number,
   ): Promise<void> {
-    if (this.readOnly || this.collaboration) return;
+    if (this.collaboration) return;
     this.blockCollaboration(true);
     const connection = new CollaborationClient(
       documentId,
       userId,
       headRevision,
       () => this.projectShared(),
-      () => this.selectionChanged(),
+      () => {
+        this.view.dispatch({
+          effects: setCollaborators.of(
+            connection.members.filter((member) => member.userId !== userId),
+          ),
+        });
+        this.selectionChanged();
+      },
       (error) => {
         this.blockCollaboration(true);
         window.dispatchEvent(
@@ -707,6 +716,10 @@ export class EditorController {
           }),
         );
       },
+      () => ({
+        anchor: this.view.state.selection.main.anchor,
+        head: this.view.state.selection.main.head,
+      }),
     );
     this.collaboration = connection;
     try {
@@ -715,9 +728,13 @@ export class EditorController {
     } catch (error) {
       connection.destroy();
       this.collaboration = null;
-      this.blockCollaboration(false);
+      this.blockCollaboration(true);
       throw error;
     }
+  }
+
+  requireCollaboration(): void {
+    this.blockCollaboration(true);
   }
 
   async saveCollaboration() {
@@ -753,8 +770,10 @@ export class EditorController {
 
   private projectShared(): void {
     if (!this.collaboration || this.destroyed) return;
+    const observedOnly = this.readOnly && !this.model.dirty;
     const snapshot = this.collaboration.shared.snapshot(this.model.snapshot());
     const changes = applySharedSnapshot(this.model, snapshot);
+    if (observedOnly) this.model.savedContentToken = this.model.contentToken;
     this.sharedProjection = true;
     try {
       const ranges = [{ from: 0, to: changes.length, newFrom: 0, newTo: this.model.text.length }];

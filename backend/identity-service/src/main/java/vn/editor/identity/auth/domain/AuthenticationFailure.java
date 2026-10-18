@@ -11,7 +11,11 @@ public final class AuthenticationFailure extends RuntimeException {
     ACCOUNT_UNAVAILABLE,
     USER_NOT_REGISTERED,
     INVALID_SERVICE_CALLER,
-    RATE_LIMITED
+    RATE_LIMITED,
+    GOOGLE_LINK_REQUIRED,
+    IDENTITY_CONFLICT,
+    LAST_CREDENTIAL,
+    INVALID_AVATAR
   }
 
   private final Reason reason;

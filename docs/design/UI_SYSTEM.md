@@ -17,17 +17,21 @@ Keep workspace chrome in the existing Inter/Segoe UI/Arial stack. The public int
 ## Layout and actions
 
 - The desktop header is 64px high, search is bounded to 580px, and the sidebar is 232px wide. Selected navigation has a visible inset indicator.
+- The public introduction header is 68px high and aligns with the hero's 1280px container and responsive gutters. Keep its logo lockup compact, mark the current destination with a thin underline, and use a quiet globe/locale-code language trigger and secondary outlined sign-in action.
+- Authentication uses a content-sized form card with a 16px radius, independent of the desktop product illustration. Keep compact mode tabs and language access at the top, neutral inputs with clear focus, one filled submit action, and local editing as a quiet navigation link.
 - The library heading exposes New document and secondary Import actions. The existing New menu retains folder creation and file-type actions. Empty states direct attention to the heading instead of repeating the primary action.
 - Document cards show title, type, paper preview and readable role/word-count metadata. Title and preview are separate document-opening regions; the action menu remains independent. Folders share the card border/radius language with a compact layout.
 - At narrow widths cards use an adaptive column count with a 220px preferred minimum. List names truncate; preview and metadata remain at least 12px. Important touch controls and action-menu triggers have 44px hit areas.
 - The existing responsive layout changes around 1100px and 760px for the workspace, with a narrower 430px treatment; public pages and settings have their own content-driven breaks. At tablet widths, preserve usable content and reduce secondary chrome before shrinking the writing surface. At mobile widths, use one readable content column or pane switch, allow filters to wrap, and avoid page-level horizontal scrolling.
-- Editor representations use a native Edit as selector. Collaboration is a separate toggle; leaving it remains available when entering would be disabled by connectivity, permissions or document size.
+- Editor representations use a native Edit as selector. Current signed-in workspace documents join collaboration automatically within the room size limit; the compact header shows title, save/sync state and active collaborator avatars beside Share. Share controls permissions and invitations only.
 - Undo/redo, text style, B/I/U, lists and alignment remain immediately available on desktop. Advanced typography and insertion tools use the formatting panel. File groups find/replace, page preview, history, image insertion and file operations; Download retains all export formats. Manual Save and eligible-owner Share remain in the header.
 - Formatting panels reuse viewport-positioned `ToolMenu`, with outside dismissal, Escape/focus return and native input/select keys. Nested menus handle their own keys. Structural forms use the shared native modal dialog for focus containment and Escape dismissal.
 
 ## Components, states and interaction
 
 Use the shared header, action menu, native dialog, selects and notices before making new variants. A primary filled button marks the next task; secondary actions can be outlined or quiet. Search and forms need persistent labels, nearby validation and a clear way to recover. Lists and cards must keep names, types, permissions and independent action targets legible; do not use repeated decorative cards when rows communicate dense information better.
+
+The shared Avatar component uses a custom image first, then a Google profile image, then initials. It retains a readable initials fallback while loading or when an image fails. Active collaborator avatars use a stable user color around the image; cursors and selections use the same color and always show the collaborator name.
 
 For each changed surface, account for loading, first-use empty, filtered empty, success, warning, error, disabled, selected, hover, keyboard focus and permission-denied states as applicable. Distinguish a failed request from an empty library. Describe local drafts as in-tab and downloadable; say cloud content is saved only after commit. Keep unavailable actions visibly unavailable with a reason or next step. Dialogs return focus, menus support Escape, and overlays must not obscure the focused control.
 

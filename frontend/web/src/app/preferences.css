@@ -258,6 +258,48 @@ select {
   margin: 24px 0 0;
   font-size: 12px;
 }
+.settings-account-section {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--ui-border);
+}
+.settings-account-section h3,
+.settings-account-section p {
+  margin: 0;
+}
+.settings-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.settings-profile-row > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.settings-avatar-upload {
+  display: grid;
+  gap: 7px;
+  font-weight: 650;
+}
+.settings-avatar-upload input {
+  max-width: 100%;
+  font-weight: 400;
+}
+.settings-account-section .settings-field {
+  display: grid;
+  gap: 7px;
+  margin: 4px 0;
+}
+.settings-account-section .settings-field input {
+  width: 100%;
+  min-height: 42px;
+}
+.settings-account-section .google-signin-button {
+  width: min(360px, 100%);
+}
 .billing-panel {
   width: min(560px, 100%);
   padding: 28px;

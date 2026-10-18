@@ -16,7 +16,19 @@ public interface AccountCommandRepository {
 
   Account findByGoogleSubject(String subject);
 
-  void linkGoogleSubject(String subject, String userId);
+  void linkGoogleSubject(String subject, String userId, AccountEmail providerEmail);
+
+  boolean hasGoogleIdentity(String userId);
+
+  void unlinkGoogleIdentity(String userId);
+
+  void setPassword(String userId, String hash);
+
+  void updateGooglePicture(String userId, String pictureUrl);
+
+  void setCustomAvatar(String userId, byte[] image, String mime);
+
+  void removeCustomAvatar(String userId);
 
   Account lockById(String id);
 }

@@ -48,6 +48,8 @@ export default defineConfig({
       input: {
         index: path.resolve(import.meta.dirname, 'local-site/index.html'),
         editor: path.resolve(import.meta.dirname, 'local-site/editor.html'),
+        privacy: path.resolve(import.meta.dirname, 'local-site/privacy.html'),
+        terms: path.resolve(import.meta.dirname, 'local-site/terms.html'),
       },
     },
   },

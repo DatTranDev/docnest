@@ -1,6 +1,6 @@
 # docsnest — Text Editor
 
-A web editor for large text documents with formatting, folders, sharing, version history and exports. The local stack uses Next.js/CodeMirror, five Spring Boot services, MySQL, Kafka and Redis. The Collaboration service adds opt-in concurrent editing with Yjs CRDT.
+A web editor for large text documents with formatting, folders, sharing, version history and exports. The local stack uses Next.js/CodeMirror, five Spring Boot services, MySQL, Kafka and Redis. The Collaboration service provides automatic concurrent editing with Yjs CRDT for signed-in workspace documents within its size limit.
 
 For current project status and benchmark results, see [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md). Cloud setup instructions are in [docs/CLOUD_SETUP_HANDOFF.md](docs/CLOUD_SETUP_HANDOFF.md); cloud resources are not created by local commands.
 
@@ -24,7 +24,7 @@ Choose **Tiếng Việt** or **English** in the language selector on the login, 
 
 Formatting includes font/size/color, bold/italic/underline, highlight, strikethrough, super/subscript, paragraph alignment, title/heading appearance presets and clear formatting. Select an inserted image to edit its pixel width/height, with an optional aspect-ratio lock and undo/redo. Resizing changes the encoded image resolution and is retained by native save/reopen. Native files preserve formatting; TXT exports plain text and HTML preserves supported styles. Heading presets currently set appearance, without an outline or table of contents. Lists, indentation/line spacing, hyperlinks, editable tables, stored page breaks and plain-text headers/footers are supported. A4 preview shows page settings; File exports DOCX/PDF through Processing. Office exports are bounded to 200,000 UTF-16 units and 2,000 paragraphs; use TXT/HTML for larger documents. Import accepts TXT/native only. Tables have one canonical paragraph per cell; Tab/Enter moves between cells. PDF uses bundled Noto fonts rather than exact Microsoft-font metrics.
 
-For concurrent editing, share a document with another account as **EDITOR**, then both users open it and choose **Cùng chỉnh sửa**. Collaboration currently supports up to 200,000 UTF-16 units; the normal large-file editor retains its existing limits. See [protocol and current limitations](docs/contracts/collaboration.md). Cloud templates include the service; deployment and real GCS validation remain pending.
+For concurrent editing, share a document with another account as **EDITOR** and open it in both accounts. Owners/editors can edit together automatically; viewers observe live changes. Collaboration currently supports up to 200,000 UTF-16 units; the normal large-file editor retains its existing limits. See [protocol and current limitations](docs/contracts/collaboration.md). Cloud templates include the service; deployment and real GCS validation remain pending.
 
 For subscription setup, see [docs/STRIPE_SETUP.md](docs/STRIPE_SETUP.md). The workspace has a **Gói dịch vụ** panel. Stripe test keys are optional for local editing; live billing is not enabled. Payment orchestrates subscription entitlements with transactional outbox/inbox across the four other services.
 
@@ -100,7 +100,7 @@ Local files remain in the current session; download to retain work. Editing need
 
 Authenticated file management supports `.md`, `.markdown`, `.json`, `.js`, `.ts`, `.jsx`, `.tsx`, `.py`, `.html` and `.css`: create/import, edit with source highlighting, save versions, download the original text format, share/view, recover offline drafts and detect conflicting revisions. Markdown opens with synchronized preview; JSON opens with both panes. File types are inferred from title extensions; renaming without a supported extension retains the previous suffix. Source bytes use the existing canonical snapshot/upload protocol internally, with BOM/CRLF export preferences, ACL and optimistic revision checks. Existing titles without these suffixes use the rich editor. No schema/API/native-format migration was added.
 
-Signed-in document editors offer Document, Markdown, Code, JSON and Edit together tabs. Double-click the title to rename it. The same document model and save action are used across editing modes; the collaboration tab is available for writable documents within the collaboration size limit.
+Signed-in document editors offer Document, Markdown, Code and JSON views. Double-click the title to rename it. The same document model and save action are used across editing modes; collaboration starts on opening a current document within the collaboration size limit.
 
 Build/serve the independent site without Java, MySQL, Kafka, Redis or a Next.js server:
 

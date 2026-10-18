@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Account Collaboration API
   version: 1.0.0
-  description: Bounded Yjs update relay and native checkpoints. See collaboration.md.
+  description: Bounded Yjs update relay and native checkpoints. The authenticated WebSocket notification protocol is documented in collaboration.md.
 security:
   - bearerAuth: []
 paths:
@@ -97,6 +97,45 @@ paths:
                 properties:
                   revision: { type: integer, format: int64, minimum: 1 }
         default: { $ref: '#/components/responses/Failure' }
+  /api/v1/collaboration/{id}/presence:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+    get:
+      operationId: listCollaborators
+      responses:
+        '200':
+          description: Authorized live sessions; entries expire after 15 seconds without heartbeat
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PresenceMember' }
+        default: { $ref: '#/components/responses/Failure' }
+  /api/v1/collaboration/{id}/presence/{sessionId}:
+    parameters:
+      - $ref: '#/components/parameters/DocumentId'
+      - in: path
+        name: sessionId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: heartbeatCollaborator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                anchor: { type: integer, minimum: 0, maximum: 200000, nullable: true }
+                head: { type: integer, minimum: 0, maximum: 200000, nullable: true }
+      responses:
+        '204': { description: Presence renewed after current Document ACL check }
+        default: { $ref: '#/components/responses/Failure' }
+    delete:
+      operationId: leaveCollaborationPresence
+      responses:
+        '204': { description: Presence removed }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
@@ -119,6 +158,14 @@ components:
               code: { type: string }
               message: { type: string }
   schemas:
+    PresenceMember:
+      type: object
+      required: [userId, sessionId, anchor, head]
+      properties:
+        userId: { type: string, format: uuid }
+        sessionId: { type: string, format: uuid }
+        anchor: { type: integer, nullable: true }
+        head: { type: integer, nullable: true }
     Page:
       type: object
       additionalProperties: false

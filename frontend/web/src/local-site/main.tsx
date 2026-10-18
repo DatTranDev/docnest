@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import { I18nProvider } from '@/lib/i18n';
 import { LOCALE_COOKIE, normalizeLocale } from '@/config/locale';
-import { SiteIntro } from '@/features/local-tools';
+import { SiteIntro, SitePolicy } from '@/features/local-tools';
 import LocalWorkbench from '@/features/local-tools/components/LocalWorkbench';
 import '@/app/globals.css';
 import '@/app/workspace.css';
@@ -17,6 +17,10 @@ createRoot(document.getElementById('root')!).render(
   <I18nProvider initialLocale={locale}>
     {location.pathname.endsWith('editor.html') ? (
       <LocalWorkbench standalone />
+    ) : location.pathname.endsWith('privacy.html') ? (
+      <SitePolicy kind="privacy" standalone />
+    ) : location.pathname.endsWith('terms.html') ? (
+      <SitePolicy kind="terms" standalone />
     ) : (
       <SiteIntro standalone />
     )}

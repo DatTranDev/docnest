@@ -27,7 +27,7 @@ import {
 import { EditorPane } from '@/features/editor';
 import { SourceFilePane } from '@/features/local-tools';
 import { useToolsCopy } from '@/lib/i18n/tools';
-import { COLLABORATION_TEXT_LIMIT, importTxt } from '@ted/editor-core';
+import { importTxt } from '@ted/editor-core';
 import { ExportJobsPanel, useExportJobs } from '@/features/export-jobs';
 import {
   createFolder,
@@ -40,6 +40,7 @@ import {
 import { ShareDialog } from '@/features/sharing';
 import { ErrorNotice } from '@/components/ui/ErrorNotice';
 import { Icon } from '@/components/ui/Icon';
+import { Avatar } from '@/components/ui/Avatar';
 import { ActionMenu } from '@/components/ui/ActionMenu';
 import { LoadingIndicator } from '@/components/ui/LoadingIndicator';
 import { ModalDialog } from '@/components/ui/ModalDialog';
@@ -54,7 +55,7 @@ import { usePreferences } from '../hooks/usePreferences';
 import { WorkspaceLibrary } from './WorkspaceLibrary';
 import { useWorkspaceContents } from '../hooks/useWorkspaceContents';
 import type { MoveTarget, Scope } from '../model/types';
-type EditMode = 'document' | 'markdown' | 'code' | 'json' | 'collaborate';
+type EditMode = 'document' | 'markdown' | 'code' | 'json';
 export default function WorkspaceScreen() {
   const router = useRouter();
   const { t } = useI18n();
@@ -90,7 +91,6 @@ export default function WorkspaceScreen() {
   const [sortBy, setSortBy] = useState<DocumentSortBy>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [modeChoice, setModeChoice] = useState<{ documentId: string; mode: EditMode } | null>(null);
-  const collaborationRequested = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => setSearchQuery(query.trim()), 250);
@@ -120,22 +120,6 @@ export default function WorkspaceScreen() {
     active && modeChoice?.documentId === active.document.id
       ? modeChoice.mode
       : (active && sourceFileType(active.document.title)) || 'document';
-  const collaborationTooLarge =
-    !!active && active.model.text.text.length > COLLABORATION_TEXT_LIMIT;
-  const collaborate = documentSession.collaborate;
-  useEffect(() => {
-    if (editMode !== 'collaborate') {
-      collaborationRequested.current = null;
-      return;
-    }
-    if (!active || active.readOnly || showFiles || !online) return;
-    if (collaborationRequested.current === active.document.id) return;
-    const frame = requestAnimationFrame(() => {
-      collaborationRequested.current = active.document.id;
-      void collaborate();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [active, collaborate, editMode, online, showFiles]);
   const exports = useExportJobs(documentSession.activeRef, documentSession.save, setError);
   const mutate = useCallback(
     async (operation: () => Promise<unknown>) => {
@@ -210,15 +194,10 @@ export default function WorkspaceScreen() {
           onChange={(event) =>
             setModeChoice({
               documentId: active.document.id,
-              mode: event.target.value as Exclude<EditMode, 'collaborate'>,
+              mode: event.target.value as EditMode,
             })
           }
         >
-          {editMode === 'collaborate' && (
-            <option value="collaborate" hidden disabled>
-              {toolsCopy.document}
-            </option>
-          )}
           {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
             <option key={mode} value={mode}>
               {toolsCopy[mode]}
@@ -228,35 +207,6 @@ export default function WorkspaceScreen() {
       </label>
     </nav>
   ) : null;
-  const collaborationAction =
-    active && active.revision === undefined ? (
-      <button
-        className="collaboration-action"
-        aria-label={t(
-          editMode === 'collaborate' ? MESSAGE.leaveCollaboration : MESSAGE.editTogether,
-        )}
-        aria-pressed={editMode === 'collaborate'}
-        disabled={
-          editMode !== 'collaborate' && (active.readOnly || !online || collaborationTooLarge)
-        }
-        title={
-          collaborationTooLarge
-            ? t(MESSAGE.collaborationLimit)
-            : t(editMode === 'collaborate' ? MESSAGE.leaveCollaboration : MESSAGE.editTogether)
-        }
-        onClick={() =>
-          setModeChoice({
-            documentId: active.document.id,
-            mode: editMode === 'collaborate' ? 'document' : 'collaborate',
-          })
-        }
-      >
-        <Icon name="shared" size={17} />
-        <span className="collaboration-label">
-          {t(editMode === 'collaborate' ? MESSAGE.leaveCollaboration : MESSAGE.editTogether)}
-        </span>
-      </button>
-    ) : null;
   if (session.loading) return <LoadingIndicator />;
   if (!session.user)
     return <AuthForm onLogin={session.onLogin} error={error} setError={setError} />;
@@ -316,9 +266,7 @@ export default function WorkspaceScreen() {
               },
             ]}
           >
-            <span className="account-avatar">
-              {Array.from(session.user.displayName.trim())[0]?.toLocaleUpperCase()}
-            </span>
+            <Avatar name={session.user.displayName} src={session.user.avatarUrl} size={32} />
             <span className="account-name">{session.user.displayName}</span>
             <Icon name="chevron-down" size={15} />
           </ActionMenu>
@@ -556,19 +504,13 @@ export default function WorkspaceScreen() {
           )}
           {active && (
             <div hidden={showFiles}>
-              <div
-                id="cloud-editor-panel"
-                role="region"
-                aria-label={
-                  editMode === 'collaborate' ? t(MESSAGE.editTogether) : toolsCopy[editMode]
-                }
-              >
-                {editMode !== 'document' && editMode !== 'collaborate' ? (
+              <div id="cloud-editor-panel" role="region" aria-label={toolsCopy[editMode]}>
+                {editMode !== 'document' ? (
                   <SourceFilePane
                     key={`${active.document.id}:${editMode}`}
                     active={active}
                     navigation={editorNavigation}
-                    collaborationAction={collaborationAction}
+                    collaborators={documentSession.collaborators}
                     kindOverride={editMode}
                     status={documentSession.status}
                     saving={documentSession.saving}
@@ -606,8 +548,8 @@ export default function WorkspaceScreen() {
                   <EditorPane
                     active={active}
                     navigation={editorNavigation}
-                    collaborationAction={collaborationAction}
                     tick={documentSession.tick}
+                    collaborators={documentSession.collaborators}
                     status={documentSession.status}
                     online={documentSession.online}
                     saving={documentSession.saving}
@@ -695,6 +637,7 @@ export default function WorkspaceScreen() {
           documentId={active.document.id}
           documentTitle={active.document.title}
           ownerName={session.user.displayName}
+          ownerAvatarUrl={session.user.avatarUrl}
           onClose={() => setShare(false)}
         />
       )}
@@ -769,6 +712,8 @@ export default function WorkspaceScreen() {
       )}
       {settings && (
         <SettingsDialog
+          user={session.user}
+          onUserUpdated={session.onProfileUpdate}
           theme={preferences.theme}
           sessionOnly={preferences.sessionOnly}
           onLocale={(locale) => preferences.update({ locale })}

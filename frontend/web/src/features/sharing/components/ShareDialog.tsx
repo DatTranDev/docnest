@@ -5,6 +5,7 @@ import { OptionSelect } from '@/components/ui/OptionSelect';
 import { useState, useEffect, useCallback } from 'react';
 import { errorMessage } from '@/lib/http';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { Avatar } from '@/components/ui/Avatar';
 import {
   listSharing,
   grantAccess,
@@ -18,11 +19,13 @@ export function ShareDialog({
   documentId,
   documentTitle,
   ownerName,
+  ownerAvatarUrl,
   onClose,
 }: {
   documentId: string;
   documentTitle?: string;
   ownerName?: string;
+  ownerAvatarUrl?: string | null;
   onClose: () => void;
 }) {
   const { t, localeTag, errorText } = useI18n();
@@ -117,9 +120,7 @@ export function ShareDialog({
         <p className="muted">{t(MESSAGE.shareNoEmail)}</p>
         {ownerName && (
           <div className="share-person-row">
-            <span className="share-person-avatar" aria-hidden="true">
-              {ownerName.slice(0, 1).toUpperCase()}
-            </span>
+            <Avatar name={ownerName} src={ownerAvatarUrl} size={32} />
             <span className="share-person-name">
               {ownerName} ({t(MESSAGE.ownerLabel).toLowerCase()})
             </span>
@@ -128,9 +129,7 @@ export function ShareDialog({
         )}
         {permissions.map((p) => (
           <div className="share-person-row" key={p.granteeUserId}>
-            <span className="share-person-avatar" aria-hidden="true">
-              {(p.displayName ?? p.email ?? '?').slice(0, 1).toUpperCase()}
-            </span>
+            <Avatar name={p.displayName ?? p.email ?? '?'} src={p.avatarUrl} size={32} />
             <span className="share-person-name">{p.email ?? p.displayName ?? p.granteeUserId}</span>
             <OptionSelect
               disabled={busy}

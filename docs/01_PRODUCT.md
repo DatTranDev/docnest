@@ -73,7 +73,7 @@ Proposed limits: 10 test accounts, 100 documents per account, 100 folders per ac
 
 # Account collaboration extension (ADR027)
 
-Account owners/editors may opt into **Cùng chỉnh sửa** for a document. All participants explicitly join the same room. Concurrent text and supported formatting edits merge with CRDT identities, and undo affects the caller's local actions. Read-only public links remain outside collaboration. Current limits and pending cloud/recovery work are recorded in `contracts/collaboration.md` and the sole status checkpoint.
+Authenticated owners/editors automatically join the same room when they open a current workspace document within the collaboration size limit. Viewers observe live changes without write permission. Concurrent text and supported formatting edits merge with CRDT identities, and undo affects the caller's local actions. Read-only public links remain outside collaboration. Current limits and pending cloud/recovery work are recorded in `contracts/collaboration.md` and the sole status checkpoint.
 
 ## Subscription extension (ADR028)
 

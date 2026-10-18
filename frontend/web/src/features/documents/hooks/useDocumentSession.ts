@@ -3,7 +3,14 @@ import { DOCUMENT_TIMING } from '../model/constants';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { decodeNative, EditorModel, encodeNative, sha256, type Snapshot } from '@ted/editor-core';
+import {
+  COLLABORATION_TEXT_LIMIT,
+  decodeNative,
+  EditorModel,
+  encodeNative,
+  sha256,
+  type Snapshot,
+} from '@ted/editor-core';
 import type { User } from '@/features/auth';
 import {
   checkpoint,
@@ -12,6 +19,7 @@ import {
   restoreDraft,
   DraftWriter,
   EditorController,
+  type Collaborator,
   type DraftMeta,
 } from '@/features/editor';
 import { ApiError, errorMessage } from '@/lib/http';
@@ -38,6 +46,7 @@ export function useDocumentSession(
     [draft, setDraft] = useState<DraftMeta | null>(null),
     [recoveryError, setRecoveryError] = useState(''),
     [saving, setSaving] = useState(false);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const online = useOnlineStatus();
   const activeRef = useLatest(active),
     userRef = useLatest(user),
@@ -111,6 +120,7 @@ export function useDocumentSession(
       setError('');
       setStatus(MESSAGE.opening);
       setDraft(null);
+      setCollaborators([]);
       try {
         if (activeRef.current) await preserve(activeRef.current);
         const latest = await getDocument(d.id),
@@ -171,6 +181,12 @@ export function useDocumentSession(
       await checkAccess();
       if (activeRef.current?.readOnly) throw new Error(MESSAGE.youCannotEditThisDocument);
       const collaborative = controller.current?.collaboration;
+      if (
+        !collaborative &&
+        initial.revision === undefined &&
+        initial.model.text.length <= COLLABORATION_TEXT_LIMIT
+      )
+        throw new Error('COLLABORATION_UNAVAILABLE');
       let revision: number;
       if (collaborative) {
         const saved = await controller.current!.saveCollaboration();
@@ -285,17 +301,22 @@ export function useDocumentSession(
       document.model,
       editorElement.current,
       (delta) => {
-        if (delta) draftWriter.current?.track(delta, document.model.snapshot());
+        if (delta && !document.readOnly)
+          draftWriter.current?.track(delta, document.model.snapshot());
         setTick((value) => value + 1);
-        lastEdit.current = Date.now();
-        dirtySince.current = document.model.dirty ? dirtySince.current || Date.now() : 0;
-        changeCount.current++;
+        if (!document.readOnly) {
+          lastEdit.current = Date.now();
+          dirtySince.current = document.model.dirty ? dirtySince.current || Date.now() : 0;
+          changeCount.current++;
+        }
         setStatus(
-          navigator.onLine
-            ? document.model.dirty
-              ? MESSAGE.unsaved
-              : MESSAGE.saved
-            : MESSAGE.offline,
+          document.readOnly && controller.current?.collaboration && !document.model.dirty
+            ? MESSAGE.collaborationSynced
+            : navigator.onLine
+              ? document.model.dirty
+                ? MESSAGE.unsaved
+                : MESSAGE.saved
+              : MESSAGE.offline,
         );
       },
       selectedReadOnly,
@@ -312,15 +333,47 @@ export function useDocumentSession(
           setActive(updated);
         }
         setTick((value) => value + 1);
+        setCollaborators(controller.current?.collaboration?.members ?? []);
       },
     );
     instance.setLanguage(currentLocale.current);
     controller.current = instance;
+    if (document.revision === undefined && document.model.text.length <= COLLABORATION_TEXT_LIMIT)
+      instance.requireCollaboration();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+    const join = () => {
+      const current = activeRef.current;
+      const currentUser = userRef.current;
+      if (
+        disposed ||
+        !current ||
+        current.model !== instance.model ||
+        !currentUser ||
+        current.revision !== undefined ||
+        current.model.text.length > COLLABORATION_TEXT_LIMIT ||
+        !navigator.onLine
+      )
+        return;
+      void instance
+        .startCollaboration(current.document.id, currentUser.id, current.document.headRevision)
+        .catch((failure) => {
+          if (disposed) return;
+          if (current.readOnly && failure instanceof ApiError && failure.status === 404) {
+            retry = setTimeout(join, 2500);
+          } else setError(errorMessage(failure));
+        });
+    };
+    join();
+    window.addEventListener('online', join);
     return () => {
+      disposed = true;
+      clearTimeout(retry);
+      window.removeEventListener('online', join);
       instance.destroy();
       if (controller.current === instance) controller.current = null;
     };
-  }, [activeRef, selectedModel, selectedReadOnly, userRef, currentLocale, surfaceMode]);
+  }, [activeRef, selectedModel, selectedReadOnly, userRef, currentLocale, surfaceMode, setError]);
   useEffect(() => {
     const timer = setInterval(() => {
       const document = activeRef.current,
@@ -472,27 +525,11 @@ export function useDocumentSession(
       setTick((value) => value + 1);
     }
   }, [activeRef, translation]);
-  const collaborate = useCallback(async () => {
-    const a = activeRef.current,
-      user = userRef.current;
-    if (!a || !user || a.readOnly || !controller.current) return;
-    try {
-      if (a.model.dirty) await save();
-      if (a.model.dirty) throw new Error(MESSAGE.saveTheDocumentBeforeStartingCollaboration);
-      await controller.current.startCollaboration(
-        a.document.id,
-        user.id,
-        activeRef.current!.document.headRevision,
-      );
-      setTick((value) => value + 1);
-    } catch (error) {
-      setError(errorMessage(error));
-    }
-  }, [activeRef, userRef, save, setError]);
   return {
     active,
     activeRef,
     tick,
+    collaborators,
     status,
     online,
     draft,
@@ -510,6 +547,5 @@ export function useDocumentSession(
     recoverLocal,
     discardDraft,
     clearHistory,
-    collaborate,
   };
 }

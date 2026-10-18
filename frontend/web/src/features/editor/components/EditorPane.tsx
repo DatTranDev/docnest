@@ -22,6 +22,8 @@ import { CharacterFormattingTools } from './CharacterFormattingTools';
 import { TextStyleSelect } from './TextStyleSelect';
 import { PagedPreview } from './PagedPreview';
 import { ImageSizeTools } from './ImageSizeTools';
+import { CollaboratorList } from './CollaboratorList';
+import type { Collaborator } from '../model/CollaborationClient';
 
 interface EditorSurface {
   model: EditorModel;
@@ -32,9 +34,9 @@ interface EditorSurface {
 interface EditorPaneProps {
   localOnly?: boolean;
   navigation?: ReactNode;
-  collaborationAction?: ReactNode;
   active: EditorSurface;
   tick: number;
+  collaborators?: Collaborator[];
   status: string;
   online: boolean;
   saving: boolean;
@@ -62,9 +64,9 @@ function keepSelection(event: MouseEvent<HTMLButtonElement>) {
 export function EditorPane({
   localOnly = false,
   navigation,
-  collaborationAction,
   active,
   tick,
+  collaborators = [],
   status,
   online,
   saving,
@@ -219,7 +221,7 @@ export function EditorPane({
           )}
           {!localOnly && active.revision === undefined && (
             <div className="editor-sharing-actions">
-              {collaborationAction}
+              <CollaboratorList members={collaborators} />
               {active.document.effectiveRole === 'OWNER' && (
                 <button className="primary share-action" onClick={onShare}>
                   <Icon name="share" size={17} /> {t(MESSAGE.share)}{' '}

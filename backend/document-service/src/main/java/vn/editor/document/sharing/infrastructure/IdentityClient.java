@@ -23,7 +23,10 @@ public class IdentityClient implements AccountDirectory {
 
   private static Account account(Map<String, Object> body) {
     return new Account(
-        (String) body.get("id"), (String) body.get("email"), (String) body.get("displayName"));
+        (String) body.get("id"),
+        (String) body.get("email"),
+        (String) body.get("displayName"),
+        (String) body.get("avatarUrl"));
   }
 
   private final RestClient client;

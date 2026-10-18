@@ -4,10 +4,11 @@ The local lab uses one MySQL instance with identity_db, document_db, processing_
 
 ## identity_db
 
-| Table            | Responsibility and constraints                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------- |
-| users            | UNIQUE email_norm, password_hash, display_name, status and timestamps                             |
-| refresh_sessions | UNIQUE SHA256 token hash; family_id, expires_at, used_at, revoked_at; rotate within a transaction |
+| Table             | Responsibility and constraints                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| users             | UNIQUE email_norm, nullable password_hash, display_name, custom/Google avatar metadata and timestamps   |
+| google_identities | UNIQUE Google subject and user_id; verified provider email retained as metadata, never the identity key |
+| refresh_sessions  | UNIQUE SHA256 token hash; family_id, expires_at, used_at, revoked_at; rotate within a transaction       |
 
 Use Argon2id with at least 19 MiB of memory, 2 iterations and parallelism 1. The hash format includes the salt and parameters. Refresh tokens contain 32 random bytes encoded as base64url; store only SHA256, not the raw token. Keep the RS256 JWT key in secret/config storage, never in users or source code.
 
@@ -81,6 +82,8 @@ Processing V3 adds nullable ASCII `jobs.trace_id` for the originating validated 
 # Collaboration extension (ADR027)
 
 `backend/schema/collaboration/V1__collaboration.sql` is the Collaboration service's independent schema. `collaboration_rooms` records the native head revision, delivery cursor, byte quota and expiring checkpoint reservation. `collaboration_updates` records binary CRDT updates with unique `(document_id, operation_id)` and ordered `(document_id, sequence)`. User identity plus payload equality guard idempotent retries. Room creation and append serialize on one room row. The existing databases and applied migrations are unchanged; access checks use Document's API rather than cross-database SQL.
+
+Identity V5 keeps canonical user IDs and existing Google links, permits passwordless new Google accounts, records provider email, and adds custom image bytes/Google picture URL/avatar source metadata. The custom image is a bounded, canonical PNG owned by Identity. Existing V4 accounts retain their password hashes because V4 did not identify which linked accounts were Google-created. Collaboration V3 adds short-lived presence rows keyed by room and browser session; every heartbeat/list checks Document access, and scheduled expiry cleans abandoned sessions.
 
 ## payment_db and service-owned entitlements
 

@@ -6,7 +6,7 @@ import { syntaxHighlighting } from '@codemirror/language';
 import { classHighlighter } from '@lezer/highlight';
 import { exportTxt, type Snapshot } from '@ted/editor-core';
 import type { ActiveDocument } from '@/features/documents';
-import type { EditorController } from '@/features/editor';
+import { CollaboratorList, type Collaborator, type EditorController } from '@/features/editor';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import { EditableTitle } from '@/components/ui/EditableTitle';
 import { download } from '@/lib/http';
@@ -21,8 +21,8 @@ import { JsonPanels } from './JsonPanels';
 export function SourceFilePane({
   active,
   navigation,
-  collaborationAction,
   status,
+  collaborators,
   saving,
   online,
   controllerRef,
@@ -39,8 +39,8 @@ export function SourceFilePane({
 }: {
   active: ActiveDocument;
   navigation?: ReactNode;
-  collaborationAction?: ReactNode;
   status: string;
+  collaborators?: Collaborator[];
   saving: boolean;
   online: boolean;
   controllerRef: RefObject<EditorController | null>;
@@ -225,7 +225,7 @@ export function SourceFilePane({
             </button>
           </>
         )}
-        {collaborationAction}
+        {active.revision === undefined && <CollaboratorList members={collaborators ?? []} />}
         {active.revision === undefined && active.document.effectiveRole === 'OWNER' && (
           <button onClick={onShare}>{t(MESSAGE.share)}</button>
         )}

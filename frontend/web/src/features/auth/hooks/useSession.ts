@@ -31,5 +31,5 @@ export function useSession() {
     userGeneration.current++;
     setUser(user);
   }, []);
-  return { user, loading, onLogin, signOut };
+  return { user, loading, onLogin, onProfileUpdate: setUser, signOut };
 }
