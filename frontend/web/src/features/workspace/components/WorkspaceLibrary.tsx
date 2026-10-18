@@ -120,19 +120,6 @@ export function WorkspaceLibrary({
               </button>
             </>
           )}
-          <div className="view-switch" role="group" aria-label={t(MESSAGE.viewLayout)}>
-            {(['list', 'grid'] as const).map((layout) => (
-              <button
-                key={layout}
-                aria-label={t(layout === 'grid' ? MESSAGE.gridView : MESSAGE.listView)}
-                title={t(layout === 'grid' ? MESSAGE.gridView : MESSAGE.listView)}
-                aria-pressed={view === layout}
-                onClick={() => setView(layout)}
-              >
-                <Icon name={layout} size={19} />
-              </button>
-            ))}
-          </div>
         </div>
       </div>
       {scope === 'trash' && <p className="trash-restore-note">{t(MESSAGE.restoreAccessWarning)}</p>}
@@ -175,6 +162,19 @@ export function WorkspaceLibrary({
             <Icon name="arrow-up" size={17} />
           </span>
         </button>
+        <div className="view-switch" role="group" aria-label={t(MESSAGE.viewLayout)}>
+          {(['list', 'grid'] as const).map((layout) => (
+            <button
+              key={layout}
+              aria-label={t(layout === 'grid' ? MESSAGE.gridView : MESSAGE.listView)}
+              title={t(layout === 'grid' ? MESSAGE.gridView : MESSAGE.listView)}
+              aria-pressed={view === layout}
+              onClick={() => setView(layout)}
+            >
+              <Icon name={layout} size={19} />
+            </button>
+          ))}
+        </div>
         {query && (
           <button
             className="search-chip"
