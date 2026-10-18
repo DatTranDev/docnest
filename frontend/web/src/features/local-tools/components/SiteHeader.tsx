@@ -45,6 +45,9 @@ export function SiteHeader({
   };
   return (
     <header className={`site-header${editor ? ' site-header-editor' : ' site-header-intro'}`}>
+      <a className="skip-to-main" href={editor ? '#local-workbench' : '#intro-main'}>
+        {copy.skipToContent}
+      </a>
       <a className="brand" href={standalone ? './index.html' : '/intro'}>
         <span className="brand-icon">
           <Icon name="document" size={23} />

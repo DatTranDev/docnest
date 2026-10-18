@@ -13,6 +13,8 @@ Read `README.md`, `docs/AI_AGENT_GUIDE.md`, the relevant design documents, contr
 
 ## Frontend boundaries
 
+Before UI work, read `docs/design/UI_SYSTEM.md`, `docs/ui-workflow.md`, adjacent screens/components and the relevant design gallery or audit. Define the primary user task and state matrix before implementation. Reuse established tokens and primitives; use installed design/UX skills when relevant. Preserve responsive behavior, English/Vietnamese copy, keyboard/touch access, routes, contracts, state management and local/cloud persistence semantics. Follow `docs/visual-qa.md` when a browser is available, inspect rendered output, fix observed issues, and never claim visual QA from a successful build alone. Update the design system only for justified reusable decisions.
+
 - Use Next.js App Router with strict TypeScript. Keep routes thin and behavior under `features/auth`, `workspace`, `folders`, `documents`, `editor`, `sharing`, `export-jobs`, and `local-tools`. Local tools and their standalone static entry point must not initiate authenticated API requests or upload file contents.
 - Cross-feature imports use public `index.ts` files. Do not import another feature's private implementation. `lib`, `config`, and reusable UI components cannot depend on features. Keep the import graph acyclic.
 - `frontend/editor-core` stays independent of React, Next.js, and application features. Canonical text/style/history belong in editor-core and CodeMirror. Preserve viewport rendering, worker cancellation and snapshot consistency. React receives small UI state, not whole documents per keystroke.

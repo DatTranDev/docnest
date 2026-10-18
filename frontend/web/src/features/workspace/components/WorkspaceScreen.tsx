@@ -193,6 +193,9 @@ export default function WorkspaceScreen() {
     return <AuthForm onLogin={session.onLogin} error={error} setError={setError} />;
   return (
     <div className={`app${active && !showFiles ? ' app-editing' : ''}`}>
+      <a className="skip-to-main" href="#workspace-main">
+        {toolsCopy.skipToContent}
+      </a>
       <header className="app-header">
         <Link className="brand" href="/">
           <span className="brand-icon">
@@ -389,7 +392,7 @@ export default function WorkspaceScreen() {
             </div>
           )}
         </aside>
-        <main>
+        <main id="workspace-main" tabIndex={-1}>
           <ErrorNotice message={error} onClose={() => setError('')} />
           <ErrorNotice message={documentSession.recoveryError} />
           {(!active || showFiles) && (

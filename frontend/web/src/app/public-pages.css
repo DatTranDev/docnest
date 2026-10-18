@@ -1,37 +1,50 @@
 /* Public entry points share the application's semantic light/dark palette. */
 .public-state-page {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 100dvh;
   padding: 24px;
   background: var(--ui-bg);
   color: var(--ui-ink);
 }
 .public-state-card {
-  width: min(520px, 100%);
-  padding: clamp(28px, 5vw, 48px);
-  border: 1px solid var(--ui-border);
-  border-radius: var(--ui-radius-card);
-  background: var(--ui-surface);
-  box-shadow: var(--ui-shadow);
+  width: min(560px, 100%);
+  padding: 36px 0;
+  border-top: 1px solid var(--ui-border);
 }
 .public-state-brand {
   color: var(--ui-accent);
   font-weight: 750;
 }
 .public-state-card h1 {
-  margin: 24px 0;
-  font-size: clamp(28px, 5vw, 40px);
+  margin: 22px 0 32px;
+  font-family: 'docsnest Serif', Georgia, serif;
+  font-size: clamp(36px, 6vw, 50px);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 .public-state-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  margin-top: 28px;
+  gap: 12px 24px;
+  margin-top: 32px;
+}
+.public-state-actions .primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: var(--ui-radius-control);
+  text-decoration: none;
 }
 .public-state-actions a:not(.primary) {
   color: var(--ui-accent);
+  text-underline-offset: 3px;
 }
 .auth,
 .intro-main,
@@ -53,15 +66,6 @@
 .site-header-intro .site-header-overflow summary {
   min-width: 44px;
   min-height: 44px;
-}
-.public-eyebrow {
-  display: block;
-  margin-bottom: 20px;
-  color: var(--ui-accent);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  line-height: 1.6;
 }
 .auth a:focus-visible,
 .local-site a:focus-visible {
@@ -329,22 +333,24 @@
   color: var(--ui-danger);
 }
 .intro-main {
-  max-width: 1320px;
+  max-width: 1280px;
 }
 .intro-hero {
-  gap: 64px;
-  padding: 80px 0 72px;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(48px, 6vw, 88px);
+  padding: 88px 0 80px;
 }
 .intro-words h1 {
   color: var(--ui-ink);
-  font-size: clamp(42px, 4.6vw, 64px);
+  font-size: clamp(44px, 4.7vw, 66px);
   font-weight: 400;
-  line-height: 1.16;
+  line-height: 1.12;
+  letter-spacing: -0.028em;
   text-wrap: balance;
 }
 .intro-words p {
   font-size: 17px;
-  line-height: 1.75;
+  line-height: 1.65;
 }
 .intro-actions {
   gap: var(--ui-space-3);
@@ -364,8 +370,8 @@
 .intro-demo {
   min-width: 0;
   margin: 0;
-  border-radius: var(--ui-radius-panel);
-  box-shadow: 0 16px 40px #142d5210;
+  border-radius: 10px;
+  box-shadow: 0 20px 48px #142d521a;
 }
 .intro-demo-bar {
   gap: var(--ui-space-4);
@@ -409,6 +415,7 @@
   color: #0f172a;
 }
 .intro-main .intro-demo-paper h2 {
+  color: #0f172a;
   font:
     400 25px/1.4 'docsnest Serif',
     Georgia,
@@ -446,48 +453,80 @@
   background: var(--ui-accent);
 }
 .intro-features {
-  padding-bottom: 56px;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.75fr) minmax(0, 2fr);
+  gap: clamp(32px, 5vw, 72px);
+  padding: 42px 0 72px;
+  border-top: 1px solid var(--ui-border);
 }
 .intro-section-heading {
-  margin-bottom: 28px;
-}
-.intro-section-heading .public-eyebrow {
-  margin-bottom: 10px;
+  margin: 0;
 }
 .intro-section-heading h2 {
   margin-bottom: 0;
+  max-width: 260px;
+  font-family: 'docsnest Serif', Georgia, serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.intro-feature-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 32px;
+  margin: 0;
 }
 .intro-feature-list a {
-  padding: var(--ui-space-6);
-  border-radius: 14px;
+  display: block;
+  min-height: 128px;
+  padding: 13px 0 17px;
+  border: 0;
+  border-bottom: 1px solid var(--ui-border);
+  border-radius: 0;
+  background: transparent;
 }
 .intro-feature-list a:hover {
   border-color: var(--ui-accent);
-  background: var(--ui-tile);
+  background: transparent;
 }
 .intro-feature-list h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--ui-space-2);
+  gap: var(--ui-space-4);
   color: var(--ui-ink);
-  line-height: 1.5;
+  font-size: 17px;
+  line-height: 1.4;
 }
 .intro-feature-list h3 svg {
   flex: none;
   color: var(--ui-accent);
 }
 .intro-feature-list p {
-  font-size: 14px;
-  line-height: 1.7;
-}
-.intro-feature-mark {
-  margin-bottom: 24px;
-  background: var(--ui-tile);
+  max-width: 34ch;
+  font-size: 13px;
+  line-height: 1.55;
 }
 .intro-local {
+  gap: clamp(32px, 6vw, 90px);
   margin-bottom: 48px;
-  border: 1px solid var(--ui-border);
+  padding: 42px 0;
+  border: 0;
+  border-top: 1px solid var(--ui-border);
+  border-bottom: 1px solid var(--ui-border);
+  border-radius: 0;
+  background: transparent;
+}
+.intro-local h2 {
+  font-family: 'docsnest Serif', Georgia, serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.intro-local p {
+  margin-bottom: 20px;
+  line-height: 1.6;
 }
 .auth a,
 .auth button,
@@ -510,9 +549,6 @@
   .intro-hero {
     gap: var(--ui-space-8);
   }
-  .intro-feature-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 @media (max-width: 850px) {
   .auth-layout,
@@ -528,6 +564,13 @@
   .intro-hero {
     display: grid;
     padding: 48px 0;
+  }
+  .intro-features {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+  .intro-section-heading h2 {
+    max-width: none;
   }
   .intro-words h1,
   .intro-words p {
@@ -554,38 +597,20 @@
     letter-spacing: -1.5px;
   }
   .intro-demo {
-    display: block;
-  }
-  .intro-demo-bar {
-    padding: 14px;
-    font-size: 12px;
-  }
-  .intro-demo-toolbar {
-    gap: var(--ui-space-4);
-    padding: 10px 14px;
-  }
-  .intro-demo-content {
-    padding: 14px;
-  }
-  .intro-demo-paper {
-    min-height: 0;
-    padding: 24px 20px;
+    display: none;
   }
   .intro-feature-list {
     grid-template-columns: 1fr;
-    gap: var(--ui-space-3);
+    gap: 0;
   }
   .intro-feature-list a {
-    display: flex;
-    gap: var(--ui-space-4);
     min-height: 0;
-    padding: 20px;
-  }
-  .intro-feature-mark {
-    margin: 0;
+    padding: 17px 0;
   }
   .intro-local {
-    padding: 28px 24px;
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding: 30px 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {

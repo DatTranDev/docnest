@@ -198,7 +198,7 @@ export default function LocalWorkbench({
       {!embedded && (
         <SiteHeader standalone={standalone} editor onOpenFile={() => fileInput.current?.click()} />
       )}
-      <WorkbenchRegion className="local-workbench">
+      <WorkbenchRegion id="local-workbench" className="local-workbench" tabIndex={-1}>
         <div className="local-heading">
           <div>
             <h1>{copy.local}</h1>

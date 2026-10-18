@@ -13,6 +13,9 @@
 .local-site a {
   color: var(--ui-accent);
 }
+.local-site .skip-to-main {
+  color: var(--ui-on-primary);
+}
 .local-site button,
 .local-site input,
 .local-site select {
@@ -183,19 +186,6 @@
 .intro-feature-list a:hover h3 {
   color: var(--ui-accent);
 }
-.intro-feature-mark {
-  width: 62px;
-  height: 62px;
-  flex-shrink: 0;
-  border-radius: 14px;
-  background: var(--ui-selected);
-  display: grid;
-  place-items: center;
-  font:
-    24px Georgia,
-    serif;
-  color: var(--ui-accent);
-}
 .intro-feature-list h3 {
   margin: 0 0 8px;
   font-size: 20px;
@@ -224,23 +214,20 @@
   color: var(--ui-muted);
   margin-bottom: 26px;
 }
-.intro-file-stack {
+.intro-file-formats {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.intro-file-stack span {
-  display: block;
-  border: 1px solid var(--ui-border);
-  border-left: 4px solid var(--ui-accent);
-  padding: 16px 22px;
-  border-radius: 4px 9px 9px 4px;
-  font-size: 14px;
-}
-.intro-file-stack span:nth-child(2) {
-  margin-left: 24px;
-}
-.intro-file-stack span:nth-child(3) {
-  margin-left: 48px;
+.intro-file-formats li {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--ui-border);
+  color: var(--ui-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 .intro-workspace {
   padding: 54px 0 24px;
@@ -785,6 +772,9 @@
 .local-site .tool-menu summary {
   color: var(--ui-ink);
 }
+.local-site .editor-heading-actions > .tool-menu summary {
+  color: var(--ui-on-primary);
+}
 .local-print-frame {
   position: fixed;
   width: 1px;
@@ -1188,11 +1178,6 @@
   border-radius: 9px;
   background: var(--ui-surface);
 }
-.intro-feature-mark {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 12px;
-}
 .intro-feature-list h3 {
   margin-bottom: 5px;
   font-size: 16px;
@@ -1267,12 +1252,6 @@
     min-height: 78px;
     padding: 12px;
     border-radius: 7px;
-  }
-  .intro-feature-mark {
-    width: 42px;
-    height: 42px;
-    flex: none;
-    margin: 0 12px 0 0;
   }
   .intro-feature-list p {
     line-height: 1.35;

@@ -2,11 +2,17 @@
 
 The workspace uses a calm, content-first interface: one prominent document-creation action, quiet navigation and metadata, and a paper-white writing surface. Authentication previews the same editor language with illustrative, localized sample content.
 
+DocsNest serves people who need to start writing immediately or organize, save and share account documents. The primary action on the introduction is **Start writing**; in the library it is **New document**; in the editor it is the mode-appropriate **Save** or **Download**. Keep these actions recognizable while metadata and account controls remain secondary. The [screen gallery](ALL_SCREENS_DESIGN_GALLERY.md) shows the intended hierarchy, and [the latest UX review](UX_UI_REVIEW_2026-10-18.md) records observed risks. Gallery images are concepts, not proof of implemented behavior.
+
 ## Theme contract
 
 `frontend/web/src/app/preferences.css` owns semantic chrome tokens. Both light and dark themes define backgrounds (`--ui-bg`, `--ui-surface`, `--ui-tile`), text (`--ui-ink`, `--ui-muted`), borders, selected surfaces, focus, overlay, and success/warning/danger pairs. `--ui-accent` is the text/icon accent; filled actions use `--ui-primary`, `--ui-primary-hover` and `--ui-on-primary`. These roles are separate so dark-theme links can be lighter without reducing white button-label contrast.
 
 Use the shared `--ui-font` stack for interface text. Document fonts and stored formatting remain independent. Control/card/panel radii are 8/12/16px; spacing tokens follow 4/8/12/16/24/32px. Subtle transitions use `--ui-motion`, which becomes zero under reduced motion. Paper previews, editable pages and print sheets retain their own light foreground/background pairs in either theme.
+
+Use semantic roles rather than raw colors in shared chrome: background, surface, tile, ink, muted text, border, selected, accent, primary action, focus and success/warning/danger pairs. The current light base is cool gray (`#f8fafc`) with white surfaces (`#fff`), dark ink (`#0f172a`) and cobalt actions (`#4056d6`); the dark theme has its own role values. Check text contrast in both themes, aiming for at least 4.5:1 for ordinary text and 3:1 for large text and meaningful control boundaries. State meaning must not depend on color alone.
+
+Keep workspace chrome in the existing Inter/Segoe UI/Arial stack. The public introduction uses the bundled DocsNest serif for its large hero, while editable document typography follows the document's own formatting. Workspace titles are roughly 20–30px, public heroes reach 42–64px, main UI text is usually 14–17px and secondary metadata is usually 12–13px. Preserve line height and enough width for Vietnamese labels and long file names. Do not shrink essential editor controls or copy to force a fit. Prefer concise sentence-case copy in the English and Vietnamese catalogs.
 
 ## Layout and actions
 
@@ -14,9 +20,22 @@ Use the shared `--ui-font` stack for interface text. Document fonts and stored f
 - The library heading exposes New document and secondary Import actions. The existing New menu retains folder creation and file-type actions. Empty states direct attention to the heading instead of repeating the primary action.
 - Document cards show title, type, paper preview and readable role/word-count metadata. Title and preview are separate document-opening regions; the action menu remains independent. Folders share the card border/radius language with a compact layout.
 - At narrow widths cards use an adaptive column count with a 220px preferred minimum. List names truncate; preview and metadata remain at least 12px. Important touch controls and action-menu triggers have 44px hit areas.
+- The existing responsive layout changes around 1100px and 760px for the workspace, with a narrower 430px treatment; public pages and settings have their own content-driven breaks. At tablet widths, preserve usable content and reduce secondary chrome before shrinking the writing surface. At mobile widths, use one readable content column or pane switch, allow filters to wrap, and avoid page-level horizontal scrolling.
 - Editor representations use a native Edit as selector. Collaboration is a separate toggle; leaving it remains available when entering would be disabled by connectivity, permissions or document size.
 - Undo/redo, text style, B/I/U, lists and alignment remain immediately available on desktop. Advanced typography and insertion tools use the formatting panel. File groups find/replace, page preview, history, image insertion and file operations; Download retains all export formats. Manual Save and eligible-owner Share remain in the header.
 - Formatting panels reuse viewport-positioned `ToolMenu`, with outside dismissal, Escape/focus return and native input/select keys. Nested menus handle their own keys. Structural forms use the shared native modal dialog for focus containment and Escape dismissal.
+
+## Components, states and interaction
+
+Use the shared header, action menu, native dialog, selects and notices before making new variants. A primary filled button marks the next task; secondary actions can be outlined or quiet. Search and forms need persistent labels, nearby validation and a clear way to recover. Lists and cards must keep names, types, permissions and independent action targets legible; do not use repeated decorative cards when rows communicate dense information better.
+
+For each changed surface, account for loading, first-use empty, filtered empty, success, warning, error, disabled, selected, hover, keyboard focus and permission-denied states as applicable. Distinguish a failed request from an empty library. Describe local drafts as in-tab and downloadable; say cloud content is saved only after commit. Keep unavailable actions visibly unavailable with a reason or next step. Dialogs return focus, menus support Escape, and overlays must not obscure the focused control.
+
+Use `--ui-motion` for short state feedback and honor `prefers-reduced-motion`. Avoid decorative entrance sequences in writing flows. Keep icon meaning consistent, give icon-only controls accessible names and make meaningful touch targets about 44px. Preserve browser zoom, keyboard access and the correct `lang` for English/Vietnamese. Theme changes affect chrome; paper and stored formatting retain their intended readable colors.
+
+## Avoid
+
+Avoid decorative gradients, glowing borders, repeated identical cards, invented document statistics, generic marketing copy and inconsistent paper colors. Do not make account saving, collaboration or permissions look available in local mode. Do not infer functional or accessible behavior from the gallery artwork. Add screenshot-backed exceptions or corrections to the design review, then update this contract only when the rule applies across screens.
 
 ## Boundaries
 

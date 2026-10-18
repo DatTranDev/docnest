@@ -125,7 +125,6 @@ export function AuthForm({
       <div className="panel">
         <div className="auth-layout">
           <aside className="auth-story" aria-label={t(MESSAGE.authWorkspaceLabel)}>
-            <span className="public-eyebrow">{t(MESSAGE.authWorkspaceLabel)}</span>
             <h2>{t(MESSAGE.authWorkspaceHeadline)}</h2>
             <p>{t(MESSAGE.authWorkspaceDescription)}</p>
             <AuthProductPreview />

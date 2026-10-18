@@ -13,10 +13,9 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
   return (
     <div className="local-site">
       <SiteHeader standalone={standalone} />
-      <main className="intro-main">
+      <main id="intro-main" className="intro-main" tabIndex={-1}>
         <section className="intro-hero">
           <div className="intro-words">
-            <span className="public-eyebrow">{copy.introEyebrow}</span>
             <h1>{copy.headline}</h1>
             <p>{copy.description}</p>
             <div className="intro-actions">
@@ -71,7 +70,6 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
         </section>
         <section className="intro-features" aria-label={copy.featureHeading}>
           <div className="intro-section-heading">
-            <span className="public-eyebrow">{copy.toolsEyebrow}</span>
             <h2>{copy.featureHeading}</h2>
           </div>
           <div className="intro-feature-list">
@@ -80,16 +78,12 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
                 mode: 'document',
                 title: copy.richTitle,
                 description: copy.richDescription,
-                mark: 'Aa',
               },
-              { mode: 'markdown', title: 'Markdown', description: copy.mdDescription, mark: 'M↓' },
-              { mode: 'code', title: 'Code', description: copy.codeDescription, mark: '</>' },
-              { mode: 'json', title: 'JSON', description: copy.jsonDescription, mark: '{ }' },
+              { mode: 'markdown', title: 'Markdown', description: copy.mdDescription },
+              { mode: 'code', title: 'Code', description: copy.codeDescription },
+              { mode: 'json', title: 'JSON', description: copy.jsonDescription },
             ].map((feature) => (
               <a key={feature.mode} href={edit(feature.mode)}>
-                <span className="intro-feature-mark" aria-hidden="true">
-                  {feature.mark}
-                </span>
                 <div>
                   <h3>
                     {feature.title}
@@ -103,19 +97,18 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
         </section>
         <section className="intro-local">
           <div>
-            <span className="public-eyebrow">{copy.localEyebrow}</span>
             <h2>{copy.localHeading}</h2>
             <p>{copy.localDescription}</p>
             <a className="site-primary" href={edit()}>
               {copy.local}
             </a>
           </div>
-          <div className="intro-file-stack" aria-hidden="true">
-            <span>notes.md</span>
-            <span>snippet.ts</span>
-            <span>data.json</span>
-            <span>docsnest.tedoc</span>
-          </div>
+          <ul className="intro-file-formats">
+            <li>notes.md</li>
+            <li>snippet.ts</li>
+            <li>data.json</li>
+            <li>docsnest.tedoc</li>
+          </ul>
         </section>
         {!standalone && (
           <section id="editor" className="intro-live-editor" aria-label={copy.local}>

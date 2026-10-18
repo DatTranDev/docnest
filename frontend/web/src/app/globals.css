@@ -10,6 +10,29 @@
 body {
   margin: 0;
 }
+.skip-to-main {
+  position: fixed;
+  top: 8px;
+  left: 16px;
+  z-index: 1000;
+  padding: 10px 14px;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-primary);
+  color: var(--ui-on-primary);
+  text-decoration: none;
+  transform: translateY(calc(-100% - 16px));
+  transition: transform var(--ui-motion);
+}
+.skip-to-main:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+#intro-main,
+#local-workbench,
+#workspace-main {
+  scroll-margin-top: 76px;
+}
 button,
 .button,
 input,
