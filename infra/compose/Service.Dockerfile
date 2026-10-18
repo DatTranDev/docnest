@@ -6,11 +6,11 @@ COPY backend ./backend
 COPY docs/contracts ./docs/contracts
 FROM source AS build-all
 ARG MAVEN_PROJECTS=backend/identity-service,backend/document-service,backend/processing-service,backend/collaboration-service,backend/payment-service
-RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -ntp -pl "$MAVEN_PROJECTS" -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -ntp -pl "$MAVEN_PROJECTS" -am package -Dmaven.test.skip=true
 
 FROM source AS build
 ARG SERVICE
-RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -ntp -pl backend/${SERVICE} -am package -DskipTests
+RUN --mount=type=cache,target=/root/.m2,sharing=locked mvn -B -ntp -pl backend/${SERVICE} -am package -Dmaven.test.skip=true
 FROM eclipse-temurin:21-jre@sha256:cff19e6215689161eb6162c11b86b0c60ddf802164f2eaf48d570f8fb79a36c5 AS runtime
 ARG SECURITY_REFRESH
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* && groupadd --gid 10001 editor && useradd --uid 10001 --gid editor --create-home editor && mkdir -p /data/objects /data/keys && chown -R editor:editor /data

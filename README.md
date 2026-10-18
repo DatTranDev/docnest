@@ -30,24 +30,21 @@ For subscription setup, see [docs/STRIPE_SETUP.md](docs/STRIPE_SETUP.md). The wo
 
 ## Common commands
 
-| Command                                           | Purpose                                                              |
-| ------------------------------------------------- | -------------------------------------------------------------------- |
-| `python -X utf8 tooling/scripts/run.py up`        | Build and start the full app                                         |
-| `python -X utf8 tooling/scripts/run.py down`      | Stop it and keep its data                                            |
-| `python -X utf8 tooling/scripts/run.py build`     | Build Java and frontend code                                         |
-| `python -X utf8 tooling/scripts/run.py test`      | Run quality gates, service tests and frontend tests; Docker required |
-| `python -X utf8 tooling/scripts/run.py quality`   | Run formatting, lint, type and contract checks                       |
-| `python -X utf8 tooling/scripts/run.py smoke`     | Check a running local app and its services                           |
-| `python -X utf8 tooling/scripts/run.py benchmark` | Measure large-file browser workloads                                 |
-| `python -X utf8 tooling/scripts/run.py backup`    | Back up local app data                                               |
+| Command                                           | Purpose                                   |
+| ------------------------------------------------- | ----------------------------------------- |
+| `python -X utf8 tooling/scripts/run.py up`        | Build and start the full app              |
+| `python -X utf8 tooling/scripts/run.py down`      | Stop it and keep its data                 |
+| `python -X utf8 tooling/scripts/run.py build`     | Build Java and frontend code              |
+| `python -X utf8 tooling/scripts/run.py test`      | Run optional unit/static checks manually  |
+| `python -X utf8 tooling/scripts/run.py quality`   | Run optional formatting and source checks |
+| `python -X utf8 tooling/scripts/run.py benchmark` | Measure large-file browser workloads      |
+| `python -X utf8 tooling/scripts/run.py backup`    | Back up local app data                    |
 
-Development and test commands also need JDK 21 and Node 24. Install dependencies with `npm ci`; install Chromium with `npx playwright install chromium`. Python quality tools are pinned in `testing/checks/requirements-implementation.txt`. Full command details and recovery steps are in [testing/checks/README.md](testing/checks/README.md).
+Build commands also need JDK 21 and Node 24. Install dependencies with `npm ci`. Python quality tools are pinned in `testing/checks/requirements-implementation.txt`. Full command details and recovery steps are in [testing/checks/README.md](testing/checks/README.md).
 
-With the local app running, `node testing/checks/collaboration-browser.cjs` checks concurrent editing and recovery against real services. `node testing/benchmark/collaboration.cjs` measures the collaboration size boundary; its JS-heap measurement is separate from the full browser RAM benchmark.
+`node testing/benchmark/collaboration.cjs` measures the collaboration size boundary; its JS-heap measurement is separate from the full browser RAM benchmark.
 
-`node testing/checks/i18n-browser.cjs` checks both languages against the running application, including offline edits, save/reopen, image labels, public viewing and mobile layout.
-
-The workspace offers grid/list views, text previews, title search in the current library, item-type filters and keyboard-accessible action menus. `node testing/checks/workspace-browser.cjs` checks these against real services, including rename/move/trash/restore, viewer permissions, editor preservation and desktop/mobile layout. It uses the existing disposable smoke accounts and cleans up its own fixture folder/documents. Set `SMOKE_OWNER_EMAIL` when running the i18n browser check with a different smoke account.
+The workspace offers grid/list views, text previews, title search in the current library, item-type filters and keyboard-accessible action menus, with rename/move/trash/restore and viewer permissions.
 
 ## Where things live
 
@@ -74,9 +71,9 @@ The selected cloud runtime is **GKE in Singapore with fresh databases and dedica
 
 **Build & deploy** is the [one-button update](docs/GKE_ONE_CLICK.md) after one-time setup: choose `main` and run. It discovers the previous successful deployment automatically, builds/scans affected images and rolls out selected apps while keeping existing serving replicas. No JSON, digest, backup reference or service selection is entered. Without a retained baseline it builds all six images and creates the first V2 state. First-time cluster/Secrets/DNS setup remains an operator task.
 
-Push/PR always runs global quality/contracts/secrets/release-policy checks and selects Java/frontend tests and production/static builds from dependency-aware Git impact, without Docker. Java verification runs alongside frontend validation; the required `application` check aggregates both paths. Cloud image builds share one Maven reactor for the selected backends and retain BuildKit layers between successful runs; runtime OS packages are refreshed before scanning. Next compiler output and Python downloads are cached. Dependency vulnerability scans, Terraform and real-service Java tests run only with **runtime_checks** or **full_acceptance**. It does not rebuild the six Docker images or run the full application/browser suite. For a manual check, open GitHub Actions → **Validate application** → **Run workflow** and select a branch. Leave **full_acceptance** unchecked for the lighter checks; enable it for the full Docker, billing-saga and eight browser acceptance checks. These checks need no Google Cloud credentials.
+Push/PR and **Build & deploy** now require only successful builds for affected services: Maven packaging with `-Dmaven.test.skip=true`, production Next.js and the standalone static site. Browser, Testcontainers and service integration suites have been removed at the owner's request. The stable `application` check fails when a required build fails or is cancelled. There is no full-acceptance input, Docker test stack, browser login fixture or synthetic rollout traffic gate. Image security scans/provenance and operational migration/readiness/drain checks remain part of publishing and rolling deployment. Build success does not certify application behavior or performance.
 
-Cloud publication is internal to **Build & deploy**; separate build-only, reviewed-digest, routine and maintenance buttons are removed. Application updates never invoke a quiesced backup or scale apps to zero. Git/environment protections, immutable image provenance, exact-image scans, mixed-version migration review and real-service checks remain. [The release runbook](docs/CICD_SELECTIVE_RELEASES.md) covers automatic baseline recovery, config selection, rolling readiness and interruption handling. Publication now requires full browser/saga/recovery acceptance. Authenticated traffic, long requests and ingress drain preflight guard rollout. Independent backup/PITR, incident recovery, private metrics and optional availability setup are described in [release assurance](docs/RELEASE_RESILIENCE.md); cloud acceptance and cost approval remain explicit gates. Local checks do not prove production zero downtime.
+Cloud publication is internal to **Build & deploy**; separate build-only, reviewed-digest, routine and maintenance buttons are removed. Application updates never invoke a quiesced backup or scale apps to zero. Git/environment protections, immutable image provenance, exact-image scans, mixed-version migration review and real-service checks remain. [The release runbook](docs/CICD_SELECTIVE_RELEASES.md) covers automatic baseline recovery, config selection, rolling readiness and interruption handling. Publication requires successful builds and exact-image security scans. Ingress drain preflight and actual Kubernetes readiness guard rollout. Independent backup/PITR, incident recovery, private metrics and optional availability setup are described in [release assurance](docs/RELEASE_RESILIENCE.md); cloud acceptance and cost approval remain explicit gates. Local checks do not prove production zero downtime.
 
 The VM deployment executables are retired. Historical VM infrastructure/backup references remain for existing data/cutover inspection. No cleanup command in this change deletes live workloads, disks, volumes, buckets or GitHub environments.
 
@@ -89,8 +86,6 @@ The account menu opens Settings (Cài đặt): English/Vietnamese and Light/Dark
 The New menu imports TXT/native/DOCX into a new document. The editor File menu imports into the current editable document, with confirmation before replacing DOCX contents. Existing unsaved contents are checkpointed. Save the imported document before sharing/exporting it. File → Export DOCX or Export PDF starts the existing authenticated background job, and Download result retrieves the real output.
 
 DOCX import preserves supported Unicode text, headings, B/I/U, common character colours/fonts/sizes, highlight/strike/script, safe links, basic lists/paragraph spacing, rectangular tables with one paragraph per cell, inline PNG/JPEG, simple header/footer and PAGE fields. Files are bounded to 16 MiB compressed/32 MiB expanded, 512 ZIP entries, 200,000 UTF-16 units and 2,000 paragraphs. ZIP integrity, real expansion, XML, image and native-model limits are checked before replacing content. Complex sections, merged/nested/multiparagraph cells, tracked changes, content controls, embedded objects, floating drawings, references and unsupported fields are rejected without changing the editor. Exact Word page/font layout is not guaranteed. PDF import and legacy .doc import are outside this change.
-
-`node testing/checks/docsnest-browser.cjs` exercises native dropdown keyboard use, account-isolated settings and system appearance, responsive subscriptions, actual DOCX import/save/reopen/roundtrip and authenticated Kafka DOCX/PDF downloads against the running local services. It uses the existing disposable smoke accounts and cleans up only its own document ID. It does not execute a payment.
 
 ## Introduction and local tools
 
@@ -118,7 +113,3 @@ npm run preview:local
 Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. The bundled OFL Noto Serif font supports Vietnamese headings. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
 
 For a separate hosted application, set `NEXT_PUBLIC_APP_URL` to its URL before `npm run build:local`; this configures navigation links only. The local loopback default points to the application on port 8080. Local Compose accepts both `localhost:8080` and `127.0.0.1:8080` for auth CSRF. LOCAL uploads use the current gateway origin; signed cloud uploads retain their original URL and credential rules.
-
-`node testing/checks/local-tools-browser.cjs` serves the actual compiled output on an ephemeral port and checks real downloads/DOCX roundtrip, offline edits, safe Markdown, syntax colors, lossless JSON, retained editor DOM, both languages/themes and mobile; it asserts zero API/external requests. Run `npm run build:local` first and install the pinned Playwright Chromium. Backend services are unnecessary.
-
-`node testing/checks/source-files-browser.cjs` checks real managed MD/JSON/code saves/reopens/downloads, source edits, JSON results, filtering, offline recovery, conflicting revisions, viewer ACL, sign-in/avatar/logout and mobile against Compose. It serves the compiled standalone site on its own ephemeral port, uses the existing disposable smoke accounts and trashes only its own document IDs. It never logs credentials or document contents.

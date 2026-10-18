@@ -16,7 +16,7 @@ from release_manifest import merge_state, validate_provenance
 from rolling_policy import validate_compatibility
 from service_config import config_hash
 
-ACCEPTANCE_PROFILE = "full-8-browser-saga-online-sql-v1"
+ACCEPTANCE_PROFILE = "build-only-v1"
 
 
 def validation_required(state, commit, now=None):
@@ -195,6 +195,7 @@ def prepare(state, impact, *, reuse_acceptance=False):
     merged["acceptanceGate"] = (
         {
             "profile": ACCEPTANCE_PROFILE,
+            "tests": "NOT_RUN",
             "commit": os.environ["GITHUB_SHA"],
             "runUrl": os.environ["RUN_URL"],
             "completedAt": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -266,7 +267,7 @@ def main():
             != needs_validation
         ):
             raise ValueError(
-                "Acceptance proof expired after planning; start a fresh release"
+                "Build proof expired after planning; start a fresh release"
             )
         prepare(state, impact, reuse_acceptance=not needs_validation)
     elif os.environ.get("GITHUB_OUTPUT"):

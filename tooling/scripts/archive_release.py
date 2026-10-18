@@ -36,9 +36,12 @@ def evidence_sources(state, repository, current):
             re.escape(repository) + r"/actions/runs/[0-9]+", gate.get("runUrl", "")
         ):
             raise ValueError("Acceptance evidence belongs to another repository")
-        required.setdefault(gate["runUrl"].rsplit("/", 1)[1], set()).add(
-            "application-acceptance-evidence"
+        artifact = (
+            "deployment-evidence"
+            if gate.get("profile") == "build-only-v1"
+            else "application-acceptance-evidence"
         )
+        required.setdefault(gate["runUrl"].rsplit("/", 1)[1], set()).add(artifact)
     return required
 
 

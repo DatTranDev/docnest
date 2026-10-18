@@ -41,4 +41,4 @@ Build/scan/preflight lỗi: sửa nguyên nhân rồi chạy lại. Sau mutation
 
 Backup/restore là hoạt động độc lập. Nút deploy không tạo hoặc xác nhận recovery point. Online backup/PITR, restore drill và traffic/draining trên GKE vẫn cần operator kiểm chứng; YAML rolling update không chứng minh zero downtime. Xem kết quả thực tế tại [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
-The release-assurance update also needs two dedicated synthetic account Secrets and the reviewed existing BackendConfig/deploy Role before the next cloud run. These are one-time setup, not dispatch inputs. Follow [release assurance](RELEASE_RESILIENCE.md#one-time-release-setup); traffic checks fail before application mutation when setup is incomplete.
+The current owner-selected release profile is build-only. It does not require synthetic account Secrets or run browser/service integration tests. Image scans/provenance, migration policy, Kubernetes readiness and drain checks remain active. See [the release runbook](CICD_SELECTIVE_RELEASES.md).

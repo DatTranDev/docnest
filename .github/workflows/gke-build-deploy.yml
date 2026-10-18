@@ -31,10 +31,6 @@ jobs:
           GCS_SNAPSHOTS_BUCKET: ${{ vars.GCS_SNAPSHOTS_BUCKET }}
           GCS_RESULTS_BUCKET: ${{ vars.GCS_RESULTS_BUCKET }}
           TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
-          ROLLOUT_OWNER_EMAIL: ${{ secrets.ROLLOUT_OWNER_EMAIL }}
-          ROLLOUT_OWNER_PASSWORD: ${{ secrets.ROLLOUT_OWNER_PASSWORD }}
-          ROLLOUT_VIEWER_EMAIL: ${{ secrets.ROLLOUT_VIEWER_EMAIL }}
-          ROLLOUT_VIEWER_PASSWORD: ${{ secrets.ROLLOUT_VIEWER_PASSWORD }}
         run: |
           set -euo pipefail
           for key in GCP_PROJECT GCP_REGION GCP_ZONE GKE_CLUSTER GCP_WIF_PROVIDER GCP_CI_SERVICE_ACCOUNT GCP_DEPLOY_SERVICE_ACCOUNT WEB_ORIGIN GCS_SNAPSHOTS_BUCKET GCS_RESULTS_BUCKET TRUSTED_PROXY_CIDRS; do
@@ -43,16 +39,6 @@ jobs:
               exit 1
             fi
           done
-          for key in ROLLOUT_OWNER_EMAIL ROLLOUT_OWNER_PASSWORD ROLLOUT_VIEWER_EMAIL ROLLOUT_VIEWER_PASSWORD; do
-            if [ -z "${!key}" ]; then
-              echo "::error::Missing dedicated synthetic-account secret: $key"
-              exit 1
-            fi
-          done
-          if [ "$ROLLOUT_OWNER_EMAIL" = "$ROLLOUT_VIEWER_EMAIL" ]; then
-            echo '::error::Synthetic owner and viewer accounts must be different'
-            exit 1
-          fi
       - name: Discover successful deployment and affected services
         id: plan
         env:
@@ -74,7 +60,6 @@ jobs:
     needs: plan
     if: needs.plan.outputs.images == '[]' && needs.plan.outputs.validation_required == 'true'
     uses: ./.github/workflows/ci.yml
-    with: { runtime_checks: true, full_acceptance: true }
   deploy:
     needs: [plan, build, validate-config]
     if: ${{ always() && needs.plan.result == 'success' && ((needs.build.result == 'success' && needs.validate-config.result == 'skipped') || (needs.build.result == 'skipped' && (needs.validate-config.result == 'success' || (needs.validate-config.result == 'skipped' && needs.plan.outputs.validation_required == 'false')))) }}
@@ -100,10 +85,6 @@ jobs:
       REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       RELEASE_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}
-      ROLLOUT_OWNER_EMAIL: ${{ secrets.ROLLOUT_OWNER_EMAIL }}
-      ROLLOUT_OWNER_PASSWORD: ${{ secrets.ROLLOUT_OWNER_PASSWORD }}
-      ROLLOUT_VIEWER_EMAIL: ${{ secrets.ROLLOUT_VIEWER_EMAIL }}
-      ROLLOUT_VIEWER_PASSWORD: ${{ secrets.ROLLOUT_VIEWER_PASSWORD }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with: { fetch-depth: 0 }

@@ -1,5 +1,7 @@
 # Release assurance and independent recovery
 
+Current policy (2026-10-18): the owner selected build-only CI/deploy and removed browser/service integration suites. The synthetic account, traffic and old/new test setup below describes the earlier profile and remains a manual operator reference; it is not required or automatically invoked by the current release button. Immutable image scans/provenance, recovery fencing, migration policy and readiness/drain checks remain active. Historical full-acceptance receipts retain their original scope.
+
 Normal updates still use **Actions → Build & deploy → main → Run workflow**, without inputs. These changes add application acceptance, bounded traffic evidence and operator recovery. They do not provision infrastructure or certify production zero downtime. Execution results and outstanding gates belong only in [PROJECT_STATUS.md](PROJECT_STATUS.md).
 
 ## One-time release setup

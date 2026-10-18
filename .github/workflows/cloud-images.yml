@@ -18,9 +18,6 @@ permissions: { contents: read, id-token: write }
 jobs:
   validate:
     uses: ./.github/workflows/ci.yml
-    with:
-      runtime_checks: true
-      full_acceptance: true
   images:
     needs: validate
     if: github.ref == 'refs/heads/main'
@@ -73,8 +70,6 @@ jobs:
         run: python tooling/scripts/cloud_images.py build
       - name: Scan the exact selected images before publishing
         run: python tooling/scripts/cloud_images.py scan
-      - name: Verify old and new migration owners on candidate schemas
-        run: python testing/checks/mixed_migration_gate.py
       - name: Publish only scanned immutable images
         run: python tooling/scripts/cloud_images.py publish
       - name: Record per-service build provenance
@@ -96,5 +91,3 @@ jobs:
             testing/reports/image-secrets.json
             testing/reports/image-os-scan.json
             testing/reports/image-os/
-            testing/reports/mixed-version-gate.json
-            testing/reports/mixed-schema-*.json

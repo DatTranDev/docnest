@@ -33,87 +33,27 @@ def resource(objects, kind, name):
 
 def ci_modes():
     workflow = yaml.load(read(".github/workflows/ci.yml"), Loader=yaml.BaseLoader)
-    inputs = workflow["on"]["workflow_call"]["inputs"]
-    assert inputs["runtime_checks"]["default"] == "false"
-    assert inputs["full_acceptance"]["default"] == "false"
-    assert (
-        workflow["on"]["workflow_dispatch"]["inputs"]["full_acceptance"]["default"]
-        == "false"
+    assert not workflow["on"]["workflow_call"]
+    assert not workflow["on"]["workflow_dispatch"]
+    jobs = workflow["jobs"]
+    assert set(jobs) == {"changes", "backend-build", "frontend-build", "application"}
+    backend = "\n".join(step.get("run", "") for step in jobs["backend-build"]["steps"])
+    frontend = "\n".join(
+        step.get("run", "") for step in jobs["frontend-build"]["steps"]
     )
-    steps = {
-        step["run"]: step
-        for step in workflow["jobs"]["frontend-and-runtime"]["steps"]
-        if "run" in step
-    }
-    for core in (
-        "python tooling/scripts/run.py quality",
-        "npm test",
-        "npm run build",
-        "npm run build:local",
-    ):
-        if core == "python tooling/scripts/run.py quality":
-            assert (
-                steps[core]["if"]
-                == "${{ !inputs.runtime_checks && !inputs.full_acceptance }}"
-            )
-        elif core == "npm test":
-            assert "needs.changes.outputs.web" in steps[core]["if"]
-        else:
-            assert steps[core]["if"] == "needs.changes.outputs.web == 'true'", (
-                "Affected frontend build must run: " + core
-            )
-    assert workflow["jobs"]["cloud-preparation"]["if"] == (
-        "inputs.runtime_checks || inputs.full_acceptance"
-    )
-    basic_java = next(
-        step
-        for step in workflow["jobs"]["java-unit"]["steps"]
-        if step.get("name") == "Java build and unit tests (no Docker)"
-    )
-    assert (
-        workflow["jobs"]["java-unit"]["if"]
-        == "${{ !inputs.runtime_checks && !inputs.full_acceptance && needs.changes.outputs.backends != '[]' }}"
-    )
-    assert (
-        "verify" in basic_java["run"]
-        and "-Dtest=!IdentityMySqlTest" in basic_java["run"]
-    )
-    for runtime in (
-        "python tooling/scripts/run.py test",
-        "npm audit --audit-level=high",
-        "python testing/checks/dependency_scan.py",
-        "python testing/checks/validate_deployment.py",
-        "python testing/checks/digest_check.py",
-        "python testing/checks/scan_secrets.py",
-        "python testing/checks/mysql_bootstrap_check.py",
-        "python tooling/scripts/run.py up --verified-output",
-        "python testing/checks/migration_only.py",
-        "python tooling/scripts/run.py smoke",
-        "npm run worker-check",
-    ):
-        assert steps[runtime]["if"] == "inputs.runtime_checks || inputs.full_acceptance"
-    browser_steps = [key for key in steps if "-browser.cjs" in key]
-    assert len(browser_steps) == 8
-    for acceptance in (*browser_steps, "python testing/checks/billing_saga_check.py"):
-        assert steps[acceptance]["if"] == "inputs.full_acceptance"
-    assert steps["python tooling/scripts/run.py down"]["if"] == (
-        "always() && (inputs.runtime_checks || inputs.full_acceptance)"
-    )
-    aggregate = workflow["jobs"]["application"]
-    assert aggregate["if"] == "always()"
-    assert set(aggregate["needs"]) == {
-        "java-unit",
-        "frontend-and-runtime",
-        "cloud-preparation",
+    assert "package -Dmaven.test.skip=true" in backend
+    assert "npm run build" in frontend and "npm run build:local" in frontend
+    assert jobs["application"]["if"] == "always()"
+    assert set(jobs["application"]["needs"]) == {
         "changes",
+        "backend-build",
+        "frontend-build",
     }
-    assert workflow["jobs"]["frontend-and-runtime"]["needs"] == "changes"
     publish = yaml.load(
         read(".github/workflows/cloud-images.yml"), Loader=yaml.BaseLoader
     )
     assert publish["jobs"]["validate"]["uses"] == "./.github/workflows/ci.yml"
-    assert publish["jobs"]["validate"]["with"]["runtime_checks"] == "true"
-    assert publish["jobs"]["validate"]["with"]["full_acceptance"] == "true"
+    assert "with" not in publish["jobs"]["validate"]
     assert publish["jobs"]["images"]["needs"] == "validate"
 
 
@@ -285,30 +225,6 @@ def main():
         compose["services"]["identity-service"]["environment"]["KAFKA_USERNAME"]
         == "identity"
     )
-    ci = read(".github/workflows/ci.yml")
-    assert "python tooling/scripts/run.py test" in ci and "npm run build" in ci
-    assert "npm run worker-check" in ci and "migration_only.py" in ci
-    assert "billing_saga_check.py" in ci
-    assert "terraform -chdir=infra/gcp test" in ci
-    assert "workflow_dispatch:" in ci
-    assert "init -backend=false -input=false -lockfile=readonly" in ci
-    workflow = yaml.load(ci, Loader=yaml.BaseLoader)
-    artifacts = [
-        step["with"]
-        for step in workflow["jobs"]["frontend-and-runtime"]["steps"]
-        if step.get("uses", "").startswith("actions/upload-artifact@")
-    ]
-    assert len(artifacts) == 1
-    assert artifacts[0]["name"] == "application-acceptance-evidence"
-    assert set(artifacts[0]["path"].splitlines()) == {
-        "testing/reports/rollout-traffic.json",
-        "testing/reports/verified-fixtures.json",
-        "testing/reports/release-resilience.json",
-        "testing/reports/online-recovery.json",
-        "testing/reports/local-online-restore.json",
-        "testing/reports/online-backup-source-traffic.json",
-        "testing/reports/restored-application-traffic.json",
-    }, "Only bounded scalar reports may leave runtime acceptance; never SQL, keys, raw logs or images"
     ci_modes()
     quality = read("tooling/scripts/run.py")
     for gate in (
@@ -319,16 +235,15 @@ def main():
         "typecheck",
         "lint",
         "next-lint-glob.test.mjs",
-        "gateway.test.mjs",
     ):
-        assert gate in quality, "Missing CI quality gate: " + gate
+        assert gate in quality, "Missing optional quality command: " + gate
     cloud = yaml.safe_load(read("infra/gcp/compose.cloud.yaml"))
     caddy = cloud["services"]["https"]["volumes"][0].split(":", 1)[0]
     assert (ROOT / "infra/compose" / caddy).resolve().is_file()
     checks.extend(
         [
             "Kafka service ACL/auth configuration, authenticated controller and five independent service principals",
-            "CI core gates always run; cloud builds require full runtime/migration/smoke/Worker/browser/billing/recovery acceptance",
+            "CI requires selected backend/frontend builds; browser/integration suites removed",
             "cloud Compose TLS bind resolves relative to base Compose file",
         ]
     )

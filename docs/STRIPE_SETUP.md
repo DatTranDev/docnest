@@ -109,11 +109,7 @@ checks remain **PENDING** until actual sandbox credentials are configured:
   leased work/outbox recovery. Test signature tampering, version mismatch,
   anonymous access, and another user's request ID.
 
-`python testing/checks/billing_saga_check.py` requires Stripe disabled and tests
-five real local services using SQL-seeded test entitlement intents. It covers
-broker outage, complete replies, duplicates, restart, delayed commands and
-compensation. It is **not** a Stripe payment test. Java HTTP adapter contract
-tests use a loopback provider server; HMAC tests use synthetic signed bytes.
+Automated billing integration tests were removed with the owner-selected build-only release profile. Stripe provider acceptance remains a separate manual sandbox operation.
 
 Permanent entitlement rejection restores the previous entitlement at a higher
 generation and queues a period-end cancellation if a subscription exists. State

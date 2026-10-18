@@ -39,14 +39,19 @@ def verify(directory, expected=None, source_service=None):
         )
     ):
         raise ValueError("Availability evidence is missing or failed")
-    traffic = read("traffic.json")
-    if (
-        traffic.get("status") != "PASS"
-        or traffic.get("failedRequests") != 0
-        or traffic.get("committedVersions", 0) < 1
-        or traffic.get("verifiedExports", 0) < 1
-    ):
-        raise ValueError("Authenticated application evidence is missing or failed")
+    build_only = state.get("acceptanceGate", {}).get("profile") == "build-only-v1"
+    if build_only:
+        if state["acceptanceGate"].get("tests") != "NOT_RUN":
+            raise ValueError("Build-only evidence must declare tests NOT_RUN")
+    else:
+        traffic = read("traffic.json")
+        if (
+            traffic.get("status") != "PASS"
+            or traffic.get("failedRequests") != 0
+            or traffic.get("committedVersions", 0) < 1
+            or traffic.get("verifiedExports", 0) < 1
+        ):
+            raise ValueError("Authenticated application evidence is missing or failed")
     affected = read("affected.json")
     if source_service:
         if (
@@ -67,7 +72,11 @@ def verify(directory, expected=None, source_service=None):
         "status": "PASS",
         "selectedServices": selected,
         "unrelatedServicesPreserved": [name for name in NAMES if name not in selected],
-        "scope": "Recorded rollout and synthetic HTTP; separate GKE/CRDT/worker acceptance still required",
+        "scope": (
+            "Build-only release and recorded rollout readiness; functional tests NOT_RUN"
+            if build_only
+            else "Recorded rollout and synthetic HTTP; separate GKE/CRDT/worker acceptance still required"
+        ),
     }
 
 
@@ -86,7 +95,7 @@ def main():
     (args.directory / "scope-proof.json").write_text(
         json.dumps(result, indent=2) + "\n"
     )
-    print("PASS actual release scope and authenticated evidence")
+    print("PASS actual release scope and declared verification profile")
 
 
 if __name__ == "__main__":

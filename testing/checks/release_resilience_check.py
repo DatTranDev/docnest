@@ -27,7 +27,6 @@ from capacity_report import quantity, report as capacity_report
 from cloud_backup import DBS, load_manifest
 
 sys.path.insert(0, str(ROOT / "testing/checks"))
-from mixed_migration_gate import owners as migration_owners
 from mixed_version_check import run as isolated_command
 from archive_release import evidence_sources
 from backup_runtime_check import BackupRuntimeTests
@@ -253,19 +252,6 @@ class RecoveryTests(unittest.TestCase):
                 },
             )
             self.assertEqual(output.strip(), "True")
-
-    def test_migration_gate_cannot_skip_an_unbuilt_owner(self):
-        self.assertEqual(migration_owners({"impact": {"migrations": []}}, ["web"]), [])
-        self.assertEqual(
-            migration_owners(
-                {"impact": {"migrations": ["document-service"]}}, ["document-service"]
-            ),
-            ["document-service"],
-        )
-        with self.assertRaises(ValueError):
-            migration_owners({"impact": {"migrations": ["document-service"]}}, ["web"])
-        with self.assertRaises(ValueError):
-            migration_owners({"impact": {"migrations": ["web"]}}, ["web"])
 
     def test_current_state_reconciliation_requires_every_normalized_template(self):
         failed, baseline, before, live, compatibility = recovery_fixture()

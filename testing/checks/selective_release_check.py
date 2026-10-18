@@ -467,34 +467,30 @@ class ReleaseTests(unittest.TestCase):
             if os.name == "nt"
             else "bash"
         )
-        for runtime, backends in itertools.product(
+        for web, backends in itertools.product(
             ("true", "false"), ("[]", '["document-service"]')
         ):
-            for java, app, cloud in itertools.product(
-                ("success", "failure", "cancelled", "skipped"), repeat=3
+            for java, app in itertools.product(
+                ("success", "failure", "cancelled", "skipped"), repeat=2
             ):
                 env = {
                     **os.environ,
                     "CHANGES_RESULT": "success",
                     "BACKENDS": backends,
-                    "RUNTIME": runtime,
-                    "JAVA_RESULT": java,
-                    "APPLICATION_RESULT": app,
-                    "CLOUD_RESULT": cloud,
+                    "WEB": web,
+                    "BACKEND_RESULT": java,
+                    "FRONTEND_RESULT": app,
                 }
                 result = subprocess.run(
                     [bash, "-c", script], env=env, capture_output=True
                 )
-                expected = app == "success" and (
-                    java == "skipped" and cloud == "success"
-                    if runtime == "true"
-                    else java == ("skipped" if backends == "[]" else "success")
-                    and cloud == "skipped"
-                )
+                expected = java == (
+                    "skipped" if backends == "[]" else "success"
+                ) and app == ("success" if web == "true" else "skipped")
                 self.assertEqual(
                     result.returncode == 0,
                     expected,
-                    (runtime, backends, java, app, cloud),
+                    (web, backends, java, app),
                 )
         for status in ("failure", "cancelled", "skipped"):
             result = subprocess.run(

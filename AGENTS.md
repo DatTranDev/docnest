@@ -25,13 +25,9 @@ Java uses Spotless 3.10.3, Google Java Format 1.36.1, explicit imports, and Arch
 
 `node testing/checks/source-sizes.mjs` uses TypeScript and Java AST analysis to report handwritten files above 500 lines and functions/methods above 100 lines. Review each reported responsibility; thresholds are informational signals, not permission to split cohesive behavior mechanically or bypass correctness tests.
 
-Set `JAVA_HOME` to JDK 21. On Windows run `.\mvnw.cmd -B -ntp spotless:apply` to format and `.\mvnw.cmd -B -ntp verify` for format/build/tests/architecture. CI uses `./mvnw`.
+Set `JAVA_HOME` to JDK 21. Required automated verification is build-only, as explicitly selected by the owner on 2026-10-18: run `.\mvnw.cmd -B -ntp package '-Dmaven.test.skip=true'`, `npm run build`, and `npm run build:local`. CI uses `./mvnw`. Do not restore browser, Testcontainers, service integration, synthetic traffic or full-acceptance gates without a new owner request. Those suites and their dedicated helpers have been removed. Remaining unit/property and static policy checks are optional manual tools; they are not release requirements.
 
-Run `python testing/checks/java_imports.py`, `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run architecture`, `node --test testing/checks/next-lint-glob.test.mjs`, `node --test frontend/web/server/gateway.test.mjs`, `npm test`, and `npm run build`. `npm run format:write` applies frontend/document formatting. The scoped `tooling/lint-glob` adapter supports Next's actual `globSync` directory-resolver contract; preserve its contract tests.
-
-`python tooling/scripts/run.py format` applies POM/Java/frontend formatting. `python tooling/scripts/run.py quality` runs the repository quality gates. `python tooling/scripts/run.py test` runs quality, contract validation, Maven verification and frontend tests. Run from the repository root after prerequisites in README.md; these commands never provision cloud infrastructure.
-
-Meaningful changes require relevant unit/property, real-service integration, contract, and browser tests. Required races and persistence gates use actual MySQL/Kafka/Redis/storage behavior. Never substitute skipped tests, mocks, or invented benchmarks for those gates. Record commands and results; mark unavailable checks `NOT_RUN` with the blocker. Final reports follow execution.
+`python tooling/scripts/run.py build` packages Java without tests and builds the frontend. Formatting commands remain available: `python tooling/scripts/run.py format`, `npm run format:write`, and Maven Spotless. Optional `quality` and `test` commands do not run in CI/deploy. Preserve pinned tools and source boundaries; do not invent test results or treat a successful build as functional, persistence or performance acceptance. Record actual commands/results in `docs/PROJECT_STATUS.md`.
 
 ## Security, migrations, and cloud scope
 

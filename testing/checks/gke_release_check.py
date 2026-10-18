@@ -384,7 +384,7 @@ class ReleaseTests(unittest.TestCase):
         builder = workflows["cloud-images.yml"]
         self.assertEqual(set(builder["on"]), {"workflow_call"})
         self.assertEqual(builder["jobs"]["images"]["environment"], "cloud-gke")
-        self.assertEqual(builder["jobs"]["validate"]["with"]["runtime_checks"], "true")
+        self.assertNotIn("with", builder["jobs"]["validate"])
         for workflow in workflows.values():
             self.assertNotIn("GCP_BACKUP_SERVICE_ACCOUNT", json.dumps(workflow))
         rules = next(

@@ -120,7 +120,6 @@ def main():
             "format",
             "quality",
             "contracts",
-            "smoke",
             "benchmark",
             "infra-check",
             "backup",
@@ -211,7 +210,9 @@ def main():
     elif a.command == "down":
         compose("--profile", "app", "down", "--remove-orphans")
     elif a.command == "build":
-        execute([mvn, "-B", "-ntp", "package"], env=java_env())
+        execute(
+            [mvn, "-B", "-ntp", "package", "-Dmaven.test.skip=true"], env=java_env()
+        )
         execute([npm, "ci"])
         execute([npm, "run", "build"])
     elif a.command == "test":
@@ -242,8 +243,6 @@ def main():
         execute([npm, "run", "format:write"])
     elif a.command == "contracts":
         execute([sys.executable, "-X", "utf8", "testing/checks/validate_contracts.py"])
-    elif a.command == "smoke":
-        execute([sys.executable, "-X", "utf8", "testing/checks/smoke.py"])
     elif a.command == "infra-check":
         execute([sys.executable, "-X", "utf8", "testing/checks/infra_checks.py"])
     elif a.command == "benchmark":
@@ -416,7 +415,6 @@ def quality(npm):
             "--test",
             "testing/checks/frontend-boundaries.test.mjs",
             "testing/checks/next-lint-glob.test.mjs",
-            "frontend/web/server/gateway.test.mjs",
         ]
     )
     execute(["node", "testing/checks/source-sizes.mjs"], env=java_env())

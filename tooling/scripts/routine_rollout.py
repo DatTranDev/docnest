@@ -14,7 +14,6 @@ import yaml
 
 from digest_manifest import NAMES
 from drain_policy import policy as drain_policy, validate_backend, validate_web
-from rollout_traffic import TrafficMonitor
 from routine_release import (
     configuration_scope,
     evidence_inventory,
@@ -209,7 +208,6 @@ def main():
         name: before["deployments"][name]["templateSha256"] for name in NAMES
     }
     with ExitStack() as stack:
-        traffic = stack.enter_context(TrafficMonitor.environment())
         observer = stack.enter_context(AvailabilityMonitor(NAMES))
         config_path = Path("cloud-render/selected-config.yaml")
         config_path.write_text(
@@ -256,7 +254,6 @@ def main():
                 )
         # Every server dry-run must succeed before config, jobs or Pod templates change.
         observer.require_healthy()
-        traffic.require_healthy()
         if selected:
             state["mutationStarted"] = True
             write_json("deployment-evidence/environment-state.json", state)
@@ -266,7 +263,6 @@ def main():
         for obj in migrations:
             name = obj["metadata"]["name"]
             observer.require_healthy()
-            traffic.require_healthy()
             # Unique release names; never delete a different release's migration Job.
             run_stage(
                 ["kubectl", "create", "-f", "cloud-render/" + name + ".yaml"],
@@ -291,7 +287,6 @@ def main():
             if name not in selected:
                 continue
             observer.require_healthy()
-            traffic.require_healthy()
             run_stage(
                 ["kubectl", "apply", "-f", "cloud-render/" + name + ".yaml"],
                 stages,
@@ -343,7 +338,6 @@ def main():
         verify_unrelated(before, safe_after, selected)
         write_json("deployment-evidence/after.json", safe_after)
         observer.require_healthy()
-        traffic.require_healthy()
     if observer.failures:
         raise ValueError(
             "Rollout observation failed; environment state is not approved"
