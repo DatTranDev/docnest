@@ -16,10 +16,7 @@ on:
         value: ${{ jobs.images.outputs.release_json }}
 permissions: { contents: read, id-token: write }
 jobs:
-  validate:
-    uses: ./.github/workflows/ci.yml
   images:
-    needs: validate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 45

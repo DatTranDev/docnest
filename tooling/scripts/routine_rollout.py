@@ -23,6 +23,8 @@ from routine_release import (
     write_json,
 )
 
+MIGRATION_BATCH_SIZE = 2
+
 
 class AvailabilityMonitor:
     def __init__(
@@ -186,7 +188,10 @@ def main():
         "migrate-" + name + "-" + os.environ["RELEASE_ID"]
         for name in affected["migrations"]
     }
-    if {obj["metadata"]["name"] for obj in migrations} != expected_jobs:
+    if (
+        len(migrations) != len(expected_jobs)
+        or {obj["metadata"]["name"] for obj in migrations} != expected_jobs
+    ):
         raise ValueError("Rendered migration scope differs from reviewed impact")
     jobs = kubectl("get", "jobs", "-l", "application=text-editor")
     if any(obj.get("status", {}).get("active", 0) for obj in jobs.get("items", [])):
@@ -260,28 +265,34 @@ def main():
             run_stage(
                 ["kubectl", "apply", "-f", str(config_path)], stages, "apply-config"
             )
-        for obj in migrations:
-            name = obj["metadata"]["name"]
-            observer.require_healthy()
-            # Unique release names; never delete a different release's migration Job.
-            run_stage(
-                ["kubectl", "create", "-f", "cloud-render/" + name + ".yaml"],
-                stages,
-                name,
-            )
-            run_stage(
-                [
-                    "kubectl",
-                    "-n",
-                    "editor-lab",
-                    "wait",
-                    "--for=condition=complete",
-                    "--timeout=300s",
-                    "job/" + name,
-                ],
-                stages,
-                "wait-" + name,
-            )
+        for offset in range(0, len(migrations), MIGRATION_BATCH_SIZE):
+            batch = migrations[offset : offset + MIGRATION_BATCH_SIZE]
+            # Different owners use different databases; bound shared MySQL load to two Jobs.
+            for obj in batch:
+                name = obj["metadata"]["name"]
+                observer.require_healthy()
+                # Unique release names; never delete another release's migration Job.
+                run_stage(
+                    ["kubectl", "create", "-f", "cloud-render/" + name + ".yaml"],
+                    stages,
+                    name,
+                )
+            for obj in batch:
+                name = obj["metadata"]["name"]
+                observer.require_healthy()
+                run_stage(
+                    [
+                        "kubectl",
+                        "-n",
+                        "editor-lab",
+                        "wait",
+                        "--for=condition=complete",
+                        "--timeout=300s",
+                        "job/" + name,
+                    ],
+                    stages,
+                    "wait-" + name,
+                )
         # NAMES is backend-first, Web-last. Apply only selected desired state.
         for name in NAMES:
             if name not in selected:

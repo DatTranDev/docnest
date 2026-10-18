@@ -3,7 +3,7 @@
 Sau khi merge vào `main`: **GitHub → Actions → Build & deploy → Run workflow → main → Run workflow**.
 Không có ô nhập JSON, digest, backup reference hoặc danh sách service. GitHub vẫn áp dụng required reviewers nếu environment đã cấu hình.
 
-Workflow tự tìm lần deploy thành công gần nhất, xác định thay đổi từ commit đã deploy, build/test/scan/publish các image cần thiết rồi rolling update backend trước Web. Nó không pause app hoặc scale replica về 0. Chỉ Pod liên quan thay đổi; cluster, database, Kafka, Redis, PVC, DNS và Ingress hiện có được giữ nguyên.
+Workflow tự tìm lần deploy thành công gần nhất, xác định thay đổi từ commit đã deploy, build/scan/publish các image cần thiết rồi rolling update backend trước Web. Nó không pause app hoặc scale replica về 0. Chỉ Pod liên quan thay đổi; cluster, database, Kafka, Redis, PVC, DNS và Ingress hiện có được giữ nguyên.
 
 ## Cấu hình một lần
 

@@ -52,9 +52,8 @@ def ci_modes():
     publish = yaml.load(
         read(".github/workflows/cloud-images.yml"), Loader=yaml.BaseLoader
     )
-    assert publish["jobs"]["validate"]["uses"] == "./.github/workflows/ci.yml"
-    assert "with" not in publish["jobs"]["validate"]
-    assert publish["jobs"]["images"]["needs"] == "validate"
+    assert set(publish["jobs"]) == {"images"}
+    assert "needs" not in publish["jobs"]["images"]
 
 
 def main():

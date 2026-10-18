@@ -150,15 +150,16 @@ for name in [
                 "path": "/healthz" if isweb else "/actuator/health/liveness",
                 "port": 8080,
             },
-            "failureThreshold": 60,
-            "periodSeconds": 5,
+            "failureThreshold": 100,
+            "periodSeconds": 3,
         },
         "readinessProbe": {
             "httpGet": {
                 "path": "/healthz" if isweb else "/actuator/health/readiness",
                 "port": 8080,
             },
-            "periodSeconds": 10,
+            "periodSeconds": 3,
+            "failureThreshold": 10,
         },
         "livenessProbe": {
             "httpGet": {

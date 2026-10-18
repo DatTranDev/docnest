@@ -1,17 +1,22 @@
 """Build, scan and publish an allowlisted image selection; no deployment or provisioning."""
 
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import threading
 import time
 
 from detect_affected import selection
 from digest_manifest import validate_manifest
 from release_manifest import scan_records
+
+STAGE_LOCK = threading.Lock()
+PUBLISH_WORKERS = 3
 
 
 def run(*args, capture=False):
@@ -29,9 +34,6 @@ def run(*args, capture=False):
     finally:
         target = Path("testing/reports/cloud-build-stages.json")
         target.parent.mkdir(parents=True, exist_ok=True)
-        records = (
-            json.loads(target.read_text(encoding="utf-8")) if target.exists() else []
-        )
         # Only allowlisted scalar labels, never raw command arguments or output.
         services = [
             name
@@ -41,16 +43,33 @@ def run(*args, capture=False):
                 for value in args
             )
         ]
-        records.append(
-            {
-                "action": os.environ["CLOUD_BUILD_ACTION"],
-                "tool": Path(args[0]).name,
-                "services": services,
-                "durationSeconds": round(time.monotonic() - started, 2),
-                "exitCode": exit_code,
-            }
-        )
-        target.write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
+        record = {
+            "action": os.environ["CLOUD_BUILD_ACTION"],
+            "tool": Path(args[0]).name,
+            "services": services,
+            "durationSeconds": round(time.monotonic() - started, 2),
+            "exitCode": exit_code,
+        }
+        with STAGE_LOCK:
+            records = (
+                json.loads(target.read_text(encoding="utf-8"))
+                if target.exists()
+                else []
+            )
+            records.append(record)
+            target.write_text(json.dumps(records, indent=2) + "\n", encoding="utf-8")
+
+
+def publish_image(name, registry):
+    tag = f"{registry}/{name}:{os.environ['GITHUB_SHA']}"
+    run("docker", "push", tag)
+    refs = json.loads(
+        run("docker", "inspect", "--format", "{{json .RepoDigests}}", tag, capture=True)
+    )
+    candidates = [ref for ref in refs if ref.startswith(f"{registry}/{name}@sha256:")]
+    if len(candidates) != 1:
+        raise ValueError("Published image has an ambiguous immutable digest")
+    return name, candidates[0]
 
 
 def build(names, registry):
@@ -171,26 +190,14 @@ def main():
         scan_records(names)
     elif args.action == "publish":
         scans = scan_records(names)
-        images = {}
+        # Validate the complete selection before any parallel registry write.
         for name in names:
             tag = f"{registry}/{name}:{os.environ['GITHUB_SHA']}"
             actual = run("docker", "inspect", "--format", "{{.Id}}", tag, capture=True)
             if actual != scans[name]["imageId"]:
                 raise ValueError("Publish image differs from scanned image")
-            run("docker", "push", tag)
-            refs = json.loads(
-                run(
-                    "docker",
-                    "inspect",
-                    "--format",
-                    "{{json .RepoDigests}}",
-                    tag,
-                    capture=True,
-                )
-            )
-            images[name] = next(
-                ref for ref in refs if ref.startswith(f"{registry}/{name}@sha256:")
-            )
+        with ThreadPoolExecutor(max_workers=min(PUBLISH_WORKERS, len(names))) as pool:
+            images = dict(pool.map(lambda name: publish_image(name, registry), names))
         validate_manifest(images, project, region, partial=True)
         Path("image-digests.json").write_text(
             json.dumps(images, indent=2) + "\n", encoding="utf-8"
