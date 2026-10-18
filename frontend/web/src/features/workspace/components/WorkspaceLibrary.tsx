@@ -60,23 +60,25 @@ export function WorkspaceLibrary({
   const { t, localeTag } = useI18n();
   const [view, setView] = useLibraryView(scope);
   const [kind, setKind] = useState('all');
+  const effectiveKind = scope !== 'mine' && kind === 'folders' ? 'all' : kind;
   const items = useMemo(() => {
     const collator = new Intl.Collator(localeTag, { numeric: true, sensitivity: 'base' });
     const folderDirection = sortBy === 'name' && sortDirection === 'desc' ? -1 : 1;
     return {
       folders:
-        kind !== 'all' && kind !== 'folders'
+        effectiveKind !== 'all' && effectiveKind !== 'folders'
           ? []
           : [...folders].sort((a, b) => folderDirection * collator.compare(a.name, b.name)),
       documents:
-        kind === 'folders'
+        effectiveKind === 'folders'
           ? []
           : documents.filter(
               (document) =>
-                ['all', 'documents'].includes(kind) || sourceFileType(document.title) === kind,
+                ['all', 'documents'].includes(effectiveKind) ||
+                sourceFileType(document.title) === effectiveKind,
             ),
     };
-  }, [folders, documents, kind, localeTag, sortBy, sortDirection]);
+  }, [folders, documents, effectiveKind, localeTag, sortBy, sortDirection]);
   const title =
     scope === 'mine'
       ? MESSAGE.myDocuments
@@ -139,11 +141,11 @@ export function WorkspaceLibrary({
           <span>{t(MESSAGE.typeFilter)}</span>
           <select
             aria-label={t(MESSAGE.typeFilter)}
-            value={kind}
+            value={effectiveKind}
             onChange={(event) => setKind(event.target.value)}
           >
             <option value="all">{t(MESSAGE.allItems)}</option>
-            <option value="folders">{t(MESSAGE.folderPlural)}</option>
+            {scope === 'mine' && <option value="folders">{t(MESSAGE.folderPlural)}</option>}
             <option value="documents">{t(MESSAGE.documents)}</option>
             <option value="markdown">Markdown</option>
             <option value="json">JSON</option>
@@ -174,7 +176,11 @@ export function WorkspaceLibrary({
           </span>
         </button>
         {query && (
-          <button className="search-chip" onClick={onClearSearch}>
+          <button
+            className="search-chip"
+            aria-label={`${t(MESSAGE.clearSearch)}: ${query}`}
+            onClick={onClearSearch}
+          >
             <span>{query}</span>
             <Icon name="close" size={15} />
           </button>
@@ -237,27 +243,31 @@ export function WorkspaceLibrary({
               <Icon name={scope === 'trash' ? 'trash' : 'folder'} size={42} />
               <h2>
                 {t(
-                  query || kind !== 'all'
-                    ? MESSAGE.noMatchingItems
-                    : scope === 'trash'
-                      ? MESSAGE.trashIsEmpty
-                      : scope === 'shared'
-                        ? MESSAGE.nothingSharedYet
-                        : MESSAGE.yourSpaceForDocuments,
+                  hasMore && effectiveKind !== 'all'
+                    ? MESSAGE.noMatchingLoadedItems
+                    : query || effectiveKind !== 'all'
+                      ? MESSAGE.noMatchingItems
+                      : scope === 'trash'
+                        ? MESSAGE.trashIsEmpty
+                        : scope === 'shared'
+                          ? MESSAGE.nothingSharedYet
+                          : MESSAGE.yourSpaceForDocuments,
                 )}
               </h2>
               <p>
                 {t(
-                  query || kind !== 'all'
-                    ? MESSAGE.tryAnotherSearch
-                    : scope === 'mine'
-                      ? MESSAGE.createFirstItem
-                      : scope === 'trash'
-                        ? MESSAGE.deletedDocumentsAreRetainedFor14Days
-                        : MESSAGE.sharedItemsAppearHere,
+                  hasMore && effectiveKind !== 'all'
+                    ? MESSAGE.moreItemsMayMatchFilter
+                    : query || effectiveKind !== 'all'
+                      ? MESSAGE.tryAnotherSearch
+                      : scope === 'mine'
+                        ? MESSAGE.createFirstItem
+                        : scope === 'trash'
+                          ? MESSAGE.deletedDocumentsAreRetainedFor14Days
+                          : MESSAGE.sharedItemsAppearHere,
                 )}
               </p>
-              {(query || kind !== 'all') && (
+              {(query || effectiveKind !== 'all') && (
                 <button
                   onClick={() => {
                     setKind('all');
@@ -269,7 +279,7 @@ export function WorkspaceLibrary({
               )}
             </div>
           )}
-          {hasMore && kind !== 'folders' && (
+          {hasMore && effectiveKind !== 'folders' && (
             <div className="library-pagination">
               <button onClick={onLoadMore}>{t(MESSAGE.loadMore)}</button>
             </div>

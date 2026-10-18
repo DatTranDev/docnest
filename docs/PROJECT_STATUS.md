@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-16. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
+Last updated: 2026-10-18. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
 
 ## Application
 
@@ -1302,3 +1302,11 @@ Visual evidence uses an isolated local component preview with fictional document
 Unit/property suites, authenticated CRUD/sharing/export/history/collaboration regression, service integration, persistence and performance acceptance are NOT_RUN under the owner's build-only policy. No deleted suite was restored, no user account/document data was accessed, and no cloud image publication, deployment or paid-resource change occurred. Existing cloud/recovery gates and historical measured performance misses remain unchanged.
 
 Owner subsequently authorized committing/pushing this UI refresh and triggering the repository's Build & deploy workflow. Dispatch and rollout outcomes remain pending until observed; a queued run is not deployment acceptance.
+
+## Public-page UX follow-up, app icon and login cleanup — 2026-10-18
+
+Reviewed every user-facing route and reachable screen using the live public site, standalone static artifact, source and existing component screenshots; evidence limits for authenticated pages and valid public-share tokens are stated in `docs/design/UX_UI_REVIEW_2026-10-18.md`. Implemented F01–F09: correct initial editor-anchor positioning after local editor/font loading; explain that client-side kind filters cover loaded items and omit folders from scopes that have none; expose language and full download formats in the mobile public viewer; give 404/runtime error pages a public-page shell; distinguish local draft changes from the downloaded version; increase source-toolbar and sort-button touch areas; name export files from sanitized document titles; keep the intro's paper preview white in dark mode; and label the search-clearing action for assistive technology. Added a document-mark favicon to Next.js and both standalone static entry points. Removed the complete top header from the login/signup panel as requested, while retaining the language selector at the bottom of the form.
+
+For F10, the owner selected a temporary checkout pause until authoritative Pro pricing and benefits exist. The billing panel now explains this and offers no new checkout action; management actions for existing subscriptions remain. No price, benefits, payment or API contract was invented.
+
+Required build-only checks: `npm run build` PASS (editor-core typecheck and Next.js/strict TypeScript; Next emitted `/icon.svg`); `npm run build:local` PASS (Vite emitted the referenced SVG icon in both HTML entry points, with existing non-blocking directive/chunk warnings); `.\mvnw.cmd -B -ntp package '-Dmaven.test.skip=true'` PASS using Microsoft OpenJDK 21.0.12, with Java tests skipped. Changed sources were formatted with pinned Prettier. `npm run architecture` PASS and `npm run lint` PASS after replacing a synchronous filter-reset effect with a derived selected kind. These builds and static checks are not functional, persistence, billing or cloud acceptance. No removed browser/integration suite was restored or run. Cloud dispatch and rollout results remain pending until observed.

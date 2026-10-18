@@ -47,6 +47,17 @@ export default function LocalWorkbench({
     const requested = new URLSearchParams(window.location.search).get('mode');
     return modes.includes(requested as Mode) ? (requested as Mode) : 'document';
   });
+  useEffect(() => {
+    if (!embedded || window.location.hash !== '#editor') return;
+    let cancelled = false;
+    void document.fonts.ready.then(() => {
+      if (cancelled) return;
+      requestAnimationFrame(() => document.getElementById('editor')?.scrollIntoView());
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [embedded]);
   const [content, setContent] = useState(initial);
   const [names, setNames] = useState({
     document: 'Ban-thao.tedoc',

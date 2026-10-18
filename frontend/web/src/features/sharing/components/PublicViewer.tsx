@@ -12,6 +12,40 @@ import { EditorController } from '@/features/editor';
 import { sourceFileType } from '@/features/documents';
 import { MarkdownPreview } from '@/features/local-tools';
 import { publicShare, publicContent } from '../api/sharing';
+function DownloadOptions({
+  model,
+  title,
+  sourceType,
+  className,
+}: {
+  model: EditorModel;
+  title: string;
+  sourceType: string | null;
+  className: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <details className={`public-download ${className}`}>
+      <summary className="primary">{t(MESSAGE.downloadFormats)} ▾</summary>
+      <div className="public-download-menu">
+        {!sourceType && (
+          <button
+            onClick={() =>
+              void encodeNative(model.snapshot()).then((bytes) => download(bytes, `${title}.tedoc`))
+            }
+          >
+            {t(MESSAGE.downloadNative)} (.tedoc)
+          </button>
+        )}
+        <button
+          onClick={() => download(exportTxt(model.snapshot()), sourceType ? title : `${title}.txt`)}
+        >
+          {sourceType ? t(MESSAGE.downloadOriginalFormat) : t(MESSAGE.downloadTxt)}
+        </button>
+      </div>
+    </details>
+  );
+}
 export default function PublicViewer({ token }: { token: string }) {
   const { t, locale } = useI18n();
 
@@ -64,27 +98,12 @@ export default function PublicViewer({ token }: { token: string }) {
         </Link>
         <div className="public-header-actions">
           {model && (
-            <details className="public-download">
-              <summary className="primary">{t(MESSAGE.downloadFormats)} ▾</summary>
-              <div className="public-download-menu">
-                {!sourceType && (
-                  <button
-                    onClick={() =>
-                      void encodeNative(model.snapshot()).then((b) => download(b, `${title}.tedoc`))
-                    }
-                  >
-                    {t(MESSAGE.downloadNative)} (.tedoc)
-                  </button>
-                )}
-                <button
-                  onClick={() =>
-                    download(exportTxt(model.snapshot()), sourceType ? title : `${title}.txt`)
-                  }
-                >
-                  {sourceType ? t(MESSAGE.downloadOriginalFormat) : t(MESSAGE.downloadTxt)}
-                </button>
-              </div>
-            </details>
+            <DownloadOptions
+              model={model}
+              title={title}
+              sourceType={sourceType}
+              className="public-download-desktop"
+            />
           )}
           <Link href="/intro">{t(MESSAGE.aboutDocsnest)}</Link>
           <LanguageSelector />
@@ -102,19 +121,12 @@ export default function PublicViewer({ token }: { token: string }) {
             <h1>{title || t(MESSAGE.sharedDocument)}</h1>
             <span className="public-readonly">{t(MESSAGE.readOnly)}</span>
           </div>
-          <button
-            className="primary public-mobile-download"
-            onClick={() => {
-              if (sourceType) download(exportTxt(model.snapshot()), title);
-              else
-                void encodeNative(model.snapshot()).then((bytes) =>
-                  download(bytes, `${title}.tedoc`),
-                );
-            }}
-          >
-            <Icon name="download" size={18} />
-            {t(sourceType ? MESSAGE.downloadOriginalFormat : MESSAGE.downloadNative)}
-          </button>
+          <DownloadOptions
+            model={model}
+            title={title}
+            sourceType={sourceType}
+            className="public-download-mobile"
+          />
           <article className="public-reading-surface">
             {sourceType ? (
               sourceText.length > 200_000 ? (

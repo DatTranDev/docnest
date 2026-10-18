@@ -439,6 +439,12 @@ export const vi = {
   docxLimit: 'Nhập DOCX hỗ trợ tệp tối đa 16 MiB, 200.000 ký tự và 2.000 đoạn.',
   fileTypeUnsupported: 'Hãy nhập tệp TXT, DOCX hoặc tài liệu gốc.',
   localOnly: 'Chỉ trong thẻ này · Tải xuống để giữ bản thảo',
+  moreItemsMayMatchFilter: 'Chỉ các mục đã tải được lọc. Tải thêm để tìm trong các mục còn lại.',
+  noMatchingLoadedItems: 'Chưa có mục phù hợp trong phần đã tải',
+  localDraftNotDownloaded: 'Chưa tải thay đổi mới · Chỉ trong thẻ này',
+  localDraftDownloaded: 'Đã tải bản này · Chỉ trong thẻ này',
+  proCheckoutPaused:
+    'Gói Pro chưa mở thanh toán vì giá và quyền lợi riêng chưa được công bố. Các tính năng hiện có vẫn miễn phí.',
   downloadHtml: 'Tải HTML',
   printPdf: 'In / Lưu PDF',
   localTools: 'Soạn thảo local',

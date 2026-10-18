@@ -1004,6 +1004,9 @@
     padding: 10px;
     gap: 6px;
   }
+  .source-toolbar button {
+    min-height: 44px;
+  }
   .local-view-switch {
     margin-left: 0;
   }

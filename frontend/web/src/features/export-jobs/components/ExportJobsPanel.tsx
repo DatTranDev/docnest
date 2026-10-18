@@ -13,6 +13,14 @@ const JOB_LABELS: Record<string, string> = {
   FAILED: MESSAGE.failed,
   CANCELLED: MESSAGE.cancelled,
 };
+function exportFilename(title: string | null | undefined, extension: string) {
+  const base = (title ?? '')
+    .replace(/\.[^.]+$/, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+    .trim()
+    .slice(0, 120);
+  return `${base || 'export'}.${extension}`;
+}
 export function ExportJobsPanel({
   jobs,
   onUpdate,
@@ -60,7 +68,7 @@ export function ExportJobsPanel({
                       .then((bytes) =>
                         download(
                           bytes,
-                          `export.${EXPORT_FORMATS[job.type].extension}`,
+                          exportFilename(job.documentTitle, EXPORT_FORMATS[job.type].extension),
                           EXPORT_FORMATS[job.type].mime,
                         ),
                       )

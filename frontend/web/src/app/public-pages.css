@@ -1,4 +1,38 @@
 /* Public entry points share the application's semantic light/dark palette. */
+.public-state-page {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+.public-state-card {
+  width: min(520px, 100%);
+  padding: clamp(28px, 5vw, 48px);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+}
+.public-state-brand {
+  color: var(--ui-accent);
+  font-weight: 750;
+}
+.public-state-card h1 {
+  margin: 24px 0;
+  font-size: clamp(28px, 5vw, 40px);
+}
+.public-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+}
+.public-state-actions a:not(.primary) {
+  color: var(--ui-accent);
+}
 .auth,
 .intro-main,
 .site-header-intro {
@@ -48,16 +82,13 @@
   border-radius: 24px;
   background: var(--ui-surface);
 }
-.auth-header {
-  min-height: 80px;
-  padding: 16px 32px;
-  border-color: var(--ui-border);
-}
-.auth-brand {
-  color: var(--ui-ink);
-}
 .auth .language-selector-trigger {
   min-height: 44px;
+}
+.auth-language-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24px;
 }
 .auth-layout {
   display: grid;
@@ -374,8 +405,8 @@
 .intro-demo-paper {
   min-height: 310px;
   padding: var(--ui-space-8);
-  background: var(--ui-surface);
-  color: var(--ui-ink);
+  background: #fff;
+  color: #0f172a;
 }
 .intro-main .intro-demo-paper h2 {
   font:
@@ -391,7 +422,7 @@
 }
 .intro-demo-paper h3 {
   margin-top: 24px;
-  color: var(--ui-ink);
+  color: #0f172a;
   font-size: 14px;
 }
 .intro-demo-paper li::marker {
@@ -511,9 +542,6 @@
   .auth .panel {
     border: 0;
     border-radius: 0;
-  }
-  .auth-header {
-    padding: 12px 20px;
   }
   .auth-content {
     padding: var(--ui-space-6);

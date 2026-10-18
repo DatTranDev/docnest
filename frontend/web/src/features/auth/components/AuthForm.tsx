@@ -123,15 +123,6 @@ export function AuthForm({
   return (
     <main className="auth">
       <div className="panel">
-        <header className="auth-header">
-          <Link className="auth-brand" href="/intro">
-            <span className="brand-icon">
-              <Icon name="document" size={21} />
-            </span>
-            {t(MESSAGE.writingRoom)}
-          </Link>
-          <LanguageSelector />
-        </header>
         <div className="auth-layout">
           <aside className="auth-story" aria-label={t(MESSAGE.authWorkspaceLabel)}>
             <span className="public-eyebrow">{t(MESSAGE.authWorkspaceLabel)}</span>
@@ -317,6 +308,9 @@ export function AuthForm({
               {t(MESSAGE.writeWithoutAccount)}
             </Link>
             <p className="auth-local-note">{t(MESSAGE.authLocalNote)}</p>
+            <div className="auth-language-footer">
+              <LanguageSelector />
+            </div>
           </div>
         </div>
       </div>

@@ -27,7 +27,6 @@ const labels: Record<Plan, string> = {
 export function BillingPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
   const { t, localize, localeTag } = useI18n();
 
-  const [chosenPlan, setChosenPlan] = useState<Plan>('PRO_MONTHLY');
   const [account, setAccount] = useState<Subscription | null>(null);
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -90,12 +89,12 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
       throw new Error(result.errorCode ?? MESSAGE.thePaymentRequestNeedsReview);
     } else throw new Error(MESSAGE.theRequestIsStillProcessingYouCanResume);
   }
-  async function action(kind: 'checkout' | 'portal' | 'cancel' | 'reconcile', plan?: Plan) {
+  async function action(kind: 'portal' | 'cancel' | 'reconcile') {
     setBusy(true);
     setError('');
     try {
-      const attempt = billingAttemptKey(journalKey, kind, plan);
-      const result = await startBilling(kind, plan, attempt.key);
+      const attempt = billingAttemptKey(journalKey, kind);
+      const result = await startBilling(kind, undefined, attempt.key);
       attempt.acknowledged();
       sessionStorage.setItem(journalKey, result.id);
       if (live.current) setPending(result.id);
@@ -197,34 +196,7 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
           {enabled === true && (
             <div className="billing-pro">
               <h3>docsnest Pro</h3>
-              <p>{t(MESSAGE.proPlanCaption)}</p>
-              <div className="billing-cycle" role="group" aria-label={t(MESSAGE.subscriptionPlans)}>
-                {(['PRO_MONTHLY', 'PRO_YEARLY'] as const).map((plan) => (
-                  <button
-                    key={plan}
-                    aria-pressed={chosenPlan === plan}
-                    onClick={() => setChosenPlan(plan)}
-                  >
-                    {t(plan === 'PRO_MONTHLY' ? MESSAGE.monthlyBilling : MESSAGE.yearlyBilling)}
-                  </button>
-                ))}
-              </div>
-              <p className="billing-cycle-caption">
-                {t(
-                  chosenPlan === 'PRO_MONTHLY'
-                    ? MESSAGE.proMonthlyCaption
-                    : MESSAGE.proYearlyCaption,
-                )}
-              </p>
-              <strong className="billing-price">{t(MESSAGE.pricingAtCheckout)}</strong>
-              <button
-                className="primary billing-checkout"
-                disabled={!enabled || busy || !account || account.plan !== 'FREE'}
-                onClick={() => void action('checkout', chosenPlan)}
-              >
-                {busy ? t(MESSAGE.updatingSubscription) : t(MESSAGE.continueToCheckout)}
-              </button>
-              <p className="billing-checkout-note">{t(MESSAGE.checkoutCaption)}</p>
+              <p>{t(MESSAGE.proCheckoutPaused)}</p>
             </div>
           )}
         </div>

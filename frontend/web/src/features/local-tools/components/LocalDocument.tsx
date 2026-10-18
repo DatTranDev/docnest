@@ -31,9 +31,11 @@ export function LocalDocument({
     copy = useToolsCopy();
   const [model, setModel] = useState(() => new EditorModel());
   const [tick, setTick] = useState(0);
+  const [draftStatus, setDraftStatus] = useState<string>(MESSAGE.localOnly);
   const host = useRef<HTMLDivElement>(null),
     controller = useRef<EditorController | null>(null);
   const savedToken = useRef(model.contentToken);
+  const downloadedToken = useRef<string | null>(null);
   const callbacks = useRef({ onDirty, onError });
   useEffect(() => {
     callbacks.current = { onDirty, onError };
@@ -45,6 +47,11 @@ export function LocalDocument({
       () => {
         setTick((t) => t + 1);
         callbacks.current.onDirty(model.contentToken !== savedToken.current);
+        setDraftStatus(
+          downloadedToken.current === model.contentToken
+            ? MESSAGE.localDraftDownloaded
+            : MESSAGE.localDraftNotDownloaded,
+        );
       },
       false,
       () => setTick((t) => t + 1),
@@ -63,6 +70,8 @@ export function LocalDocument({
     const snapshot = await readImportedFile(file);
     if (model.contentToken !== savedToken.current && !window.confirm(copy.replace)) return false;
     savedToken.current = snapshot.contentToken;
+    downloadedToken.current = null;
+    setDraftStatus(MESSAGE.localOnly);
     setModel(EditorModel.loaded(snapshot));
     onDirty(false);
     onStatus(copy.opened);
@@ -72,6 +81,12 @@ export function LocalDocument({
   async function save(snapshot = model.snapshot()) {
     download(await encodeNative(snapshot), name.replace(/\.[^.]+$/, '') + '.tedoc');
     savedToken.current = snapshot.contentToken;
+    downloadedToken.current = snapshot.contentToken;
+    setDraftStatus(
+      model.contentToken === snapshot.contentToken
+        ? MESSAGE.localDraftDownloaded
+        : MESSAGE.localDraftNotDownloaded,
+    );
     onDirty(model.contentToken !== savedToken.current);
     onStatus(copy.downloaded);
     setTick((t) => t + 1);
@@ -115,7 +130,7 @@ export function LocalDocument({
         document: { title: name, effectiveRole: 'OWNER', headRevision: 0 },
       }}
       tick={tick}
-      status={MESSAGE.localOnly}
+      status={draftStatus}
       online
       saving={false}
       host={host}

@@ -444,6 +444,13 @@ export const en = {
   docxLimit: 'DOCX import supports files up to 16 MiB, 200,000 characters and 2,000 paragraphs.',
   fileTypeUnsupported: 'Import a TXT, DOCX or native document.',
   localOnly: 'This tab only · Download to keep your work',
+  moreItemsMayMatchFilter:
+    'Only loaded items are filtered. Load more to search the remaining items.',
+  noMatchingLoadedItems: 'No matching items among those loaded',
+  localDraftNotDownloaded: 'Latest changes not downloaded · This tab only',
+  localDraftDownloaded: 'This version downloaded · This tab only',
+  proCheckoutPaused:
+    'Pro checkout is paused until its price and benefits are published. Current features remain free.',
   downloadHtml: 'Download HTML',
   printPdf: 'Print / Save PDF',
   localTools: 'Local editor',
