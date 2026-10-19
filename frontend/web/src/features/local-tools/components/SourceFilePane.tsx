@@ -35,7 +35,6 @@ export function SourceFilePane({
   onRename,
   onError,
   recovery,
-  kindOverride,
 }: {
   active: ActiveDocument;
   navigation?: ReactNode;
@@ -53,14 +52,15 @@ export function SourceFilePane({
   onRename: (title: string) => Promise<void>;
   onError: (value: string) => void;
   recovery: ReactNode;
-  kindOverride?: 'markdown' | 'code' | 'json';
 }) {
   const copy = useToolsCopy(),
     { t, localize } = useI18n();
   const extension = active.document.title.split('.').at(-1)?.toLowerCase() ?? '';
-  const kind =
-    kindOverride ??
-    (['md', 'markdown'].includes(extension) ? 'markdown' : extension === 'json' ? 'json' : 'code');
+  const kind = ['md', 'markdown'].includes(extension)
+    ? 'markdown'
+    : extension === 'json'
+      ? 'json'
+      : 'code';
   const [view, setView] = useState('split');
   const [syntaxLanguage, setSyntaxLanguage] = useState(
     kind === 'code' && ['js', 'ts', 'jsx', 'tsx', 'py', 'html', 'css'].includes(extension)

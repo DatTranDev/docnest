@@ -34,7 +34,7 @@ export const en = {
   oneDocumentShown: '1 document shown',
   itemsLoaded: '{p0} loaded',
   createOrImport: 'Create or import',
-  editorNavigation: 'Document navigation and mode',
+  editorNavigation: 'Document navigation',
   passwordHelp: 'Use 12–128 characters.',
   showPassword: 'Show password',
   hidePassword: 'Hide password',

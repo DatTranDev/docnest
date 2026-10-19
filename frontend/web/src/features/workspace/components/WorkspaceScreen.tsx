@@ -55,7 +55,6 @@ import { usePreferences } from '../hooks/usePreferences';
 import { WorkspaceLibrary } from './WorkspaceLibrary';
 import { useWorkspaceContents } from '../hooks/useWorkspaceContents';
 import type { MoveTarget, Scope } from '../model/types';
-type EditMode = 'document' | 'markdown' | 'code' | 'json';
 export default function WorkspaceScreen() {
   const router = useRouter();
   const { t } = useI18n();
@@ -90,7 +89,6 @@ export default function WorkspaceScreen() {
   const [query, setQuery] = useState('');
   const [sortBy, setSortBy] = useState<DocumentSortBy>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [modeChoice, setModeChoice] = useState<{ documentId: string; mode: EditMode } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   useEffect(() => {
     const timer = setTimeout(() => setSearchQuery(query.trim()), 250);
@@ -108,18 +106,9 @@ export default function WorkspaceScreen() {
     sortDirection,
   );
   const { reload } = contents;
-  const documentSession = useDocumentSession(
-      session.user,
-      parent,
-      contents.reload,
-      setError,
-      modeChoice?.mode,
-    ),
+  const documentSession = useDocumentSession(session.user, parent, contents.reload, setError),
     { active } = documentSession;
-  const editMode: EditMode =
-    active && modeChoice?.documentId === active.document.id
-      ? modeChoice.mode
-      : (active && sourceFileType(active.document.title)) || 'document';
+  const editMode = (active && sourceFileType(active.document.title)) || 'document';
   const exports = useExportJobs(documentSession.activeRef, documentSession.save, setError);
   const mutate = useCallback(
     async (operation: () => Promise<unknown>) => {
@@ -182,35 +171,9 @@ export default function WorkspaceScreen() {
       <Icon name="chevron" size={17} />
     </button>
   );
-  const editorModeControl = active ? (
-    <label className="editor-mode-switch">
-      <span>{toolsCopy.viewAs}</span>
-      <span id="editor-mode-help" className="visually-hidden">
-        {toolsCopy.editorModeHelp}
-      </span>
-      <select
-        aria-label={toolsCopy.viewAs}
-        aria-describedby="editor-mode-help"
-        value={editMode}
-        onChange={(event) =>
-          setModeChoice({
-            documentId: active.document.id,
-            mode: event.target.value as EditMode,
-          })
-        }
-      >
-        {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
-          <option key={mode} value={mode}>
-            {toolsCopy[mode]}
-          </option>
-        ))}
-      </select>
-    </label>
-  ) : null;
   const editorNavigation = active ? (
     <nav className="editor-navigation" aria-label={t(MESSAGE.editorNavigation)}>
       {editorBack}
-      {editorModeControl}
     </nav>
   ) : null;
   if (session.loading) return <LoadingIndicator />;
@@ -526,7 +489,6 @@ export default function WorkspaceScreen() {
                     active={active}
                     navigation={editorNavigation}
                     collaborators={documentSession.collaborators}
-                    kindOverride={editMode}
                     status={documentSession.status}
                     saving={documentSession.saving}
                     online={documentSession.online}
@@ -563,12 +525,7 @@ export default function WorkspaceScreen() {
                   <EditorPane
                     active={active}
                     headerAccount={headerAccount(true)}
-                    navigation={
-                      <nav className="editor-navigation" aria-label={t(MESSAGE.editorNavigation)}>
-                        {editorBack}
-                      </nav>
-                    }
-                    modeControl={editorModeControl}
+                    navigation={editorNavigation}
                     tick={documentSession.tick}
                     collaborators={documentSession.collaborators}
                     status={documentSession.status}

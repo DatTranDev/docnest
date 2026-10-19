@@ -33,7 +33,7 @@ export const vi = {
   oneDocumentShown: 'Đang hiển thị 1 tài liệu',
   itemsLoaded: '{p0} mục đã tải',
   createOrImport: 'Tạo hoặc nhập tệp',
-  editorNavigation: 'Điều hướng và chế độ tài liệu',
+  editorNavigation: 'Điều hướng tài liệu',
   passwordHelp: 'Mật khẩu từ 12 đến 128 ký tự.',
   showPassword: 'Hiện mật khẩu',
   hidePassword: 'Ẩn mật khẩu',

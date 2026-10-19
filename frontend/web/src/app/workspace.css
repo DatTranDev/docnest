@@ -1040,18 +1040,6 @@
 .back-to-files svg {
   transform: rotate(180deg);
 }
-.editor-mode-switch {
-  display: flex;
-  align-items: center;
-  gap: var(--ui-space-3);
-  min-width: 0;
-  padding: 8px 16px;
-  color: var(--ui-muted);
-  font-size: 13px;
-}
-.editor-mode-switch select {
-  max-width: 160px;
-}
 .collaboration-action {
   display: inline-flex;
   align-items: center;
@@ -1689,11 +1677,6 @@
     flex-wrap: wrap;
     align-items: center;
   }
-  .editor-mode-switch {
-    flex: 1;
-    padding: var(--ui-space-2);
-    gap: var(--ui-space-2);
-  }
   .collaboration-action {
     margin: 4px 8px 8px auto;
   }
@@ -1763,40 +1746,10 @@
   background: var(--ui-tile);
   color: var(--ui-ink);
 }
-.app-editing .editor-mode-control {
-  padding: 8px 10px 10px;
-  border-bottom: 1px solid var(--ui-border);
-}
 .app-editing .save-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-}
-.app-editing .editor-mode-control .editor-mode-switch {
-  display: grid;
-  gap: 6px;
-  padding: 0;
-  font-size: 12px;
-}
-.app-editing .editor-mode-control .editor-mode-switch select {
-  min-height: 36px;
-  width: 100%;
-  max-width: none;
-  padding: 4px 24px 4px 8px;
-  border: 1px solid var(--ui-border);
-  border-radius: 6px;
-  background-color: var(--ui-surface);
-  color: var(--ui-ink);
-  font-size: 13px;
-}
-.app-editing .editor-mode-switch {
-  gap: 6px;
-  padding: 0;
-  white-space: nowrap;
-}
-.app-editing .editor-mode-switch select {
-  min-height: 40px;
-  max-width: 126px;
 }
 .app-editing .collaboration-action {
   min-height: 40px;

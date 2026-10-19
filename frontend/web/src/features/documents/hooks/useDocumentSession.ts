@@ -35,7 +35,6 @@ export function useDocumentSession(
   folderId: string | null,
   onDocumentsChanged: () => Promise<void>,
   setError: (message: string) => void,
-  surfaceMode?: string,
 ) {
   const { t, locale } = useI18n();
   const translation = useLatest(t);
@@ -47,6 +46,7 @@ export function useDocumentSession(
     [recoveryError, setRecoveryError] = useState(''),
     [saving, setSaving] = useState(false);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const surfaceMode = active ? (sourceFileType(active.document.title) ?? 'document') : undefined;
   const online = useOnlineStatus();
   const activeRef = useLatest(active),
     userRef = useLatest(user),

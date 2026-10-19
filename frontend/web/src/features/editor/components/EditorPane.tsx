@@ -35,7 +35,6 @@ interface EditorPaneProps {
   localOnly?: boolean;
   navigation?: ReactNode;
   headerAccount?: ReactNode;
-  modeControl?: ReactNode;
   active: EditorSurface;
   tick: number;
   collaborators?: Collaborator[];
@@ -67,7 +66,6 @@ export function EditorPane({
   localOnly = false,
   navigation,
   headerAccount,
-  modeControl,
   active,
   tick,
   collaborators = [],
@@ -180,7 +178,6 @@ export function EditorPane({
         </div>
         <div className="editor-document-actions" inert={status === MESSAGE.opening}>
           <ToolMenu label={t(MESSAGE.file)} icon="more">
-            {modeControl && <div className="editor-mode-control">{modeControl}</div>}
             <button
               className={`tool-text${searchOpen ? ' is-active' : ''}`}
               aria-expanded={searchOpen}
