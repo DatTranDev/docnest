@@ -1,5 +1,5 @@
 CREATE TABLE collaboration_presence (
-  document_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  document_id CHAR(36) NOT NULL,
   session_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   user_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   anchor_offset INT NULL,

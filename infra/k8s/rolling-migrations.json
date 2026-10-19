@@ -3,7 +3,7 @@
   "reviewedExpandMigrations": {
     "backend/collaboration-service/src/main/resources/db/migration/V1__collaboration.sql": "913df4a0a8b5f038043bc0ecf18b06a2ec4f34dd8d925c81225e792cd5c63445",
     "backend/collaboration-service/src/main/resources/db/migration/V2__subscription_entitlements.sql": "d1d30e941aa544dd45df7a87e3a4b34ccb21cecdff1a62e46bcd1f3cef0d1020",
-    "backend/collaboration-service/src/main/resources/db/migration/V3__presence.sql": "f4454e15e8ec1aae61cd19c020de4d9f46019767cafb7977d63d9a201d38f13d",
+    "backend/collaboration-service/src/main/resources/db/migration/V3__presence.sql": "e27a792abc5409de5a263ea45fa3bbaf9c9fa19f3079ef9344fe77c3075a1577",
     "backend/document-service/src/main/resources/db/migration/V1__init.sql": "de2937394c46b67178248014976b0f904b21e45cef5d1d867f50b8ca00ba77e4",
     "backend/document-service/src/main/resources/db/migration/V2__storage_gc.sql": "501d4c4d2c45456bc35ea3aff3cac26d4bf738ed3b03077b9033a9fc8f18977e",
     "backend/document-service/src/main/resources/db/migration/V3__subscription_entitlements.sql": "d1d30e941aa544dd45df7a87e3a4b34ccb21cecdff1a62e46bcd1f3cef0d1020",
