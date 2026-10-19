@@ -32,7 +32,10 @@ export type IconName =
   | 'align-left'
   | 'align-center'
   | 'align-right'
-  | 'align-justify';
+  | 'align-justify'
+  | 'link'
+  | 'image'
+  | 'table';
 
 const shapes: Record<IconName, ReactNode> = {
   globe: (
@@ -156,6 +159,17 @@ const shapes: Record<IconName, ReactNode> = {
   'align-center': <path d="M4 6h16M7 10h10M4 14h16M7 18h10" />,
   'align-right': <path d="M4 6h16M10 10h10M4 14h16M10 18h10" />,
   'align-justify': <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />,
+  link: (
+    <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" />
+  ),
+  image: (
+    <>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9" r="1.5" />
+      <path d="m4 18 5-5 3 3 3-4 5 6" />
+    </>
+  ),
+  table: <path d="M3 4h18v16H3V4ZM3 9h18M9 4v16M15 4v16" />,
 };
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {

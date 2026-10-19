@@ -13,7 +13,6 @@ import { exportTxt, type EditorModel, type Snapshot } from '@ted/editor-core';
 import { Icon } from '@/components/ui/Icon';
 import { EditableTitle } from '@/components/ui/EditableTitle';
 import { ToolMenu } from '@/components/ui/ToolMenu';
-import { roleLabel } from '@/components/ui/roleLabel';
 import { download, errorMessage } from '@/lib/http';
 import type { EditorController } from '../model/EditorController';
 import { STYLE_BITS } from '../model/constants';
@@ -158,13 +157,8 @@ export function EditorPane({
                   {t(MESSAGE.version)} {active.revision} ·{' '}
                 </span>
               )}
-              {!localOnly && (
-                <span className="editor-role">
-                  {localize(roleLabel(active.document.effectiveRole))}
-                </span>
-              )}
               {active.readOnly && <span> {t(MESSAGE.readOnlyLabel)}</span>}
-              {!localOnly && (
+              {!localOnly && active.readOnly && (
                 <span className="meta-dot" aria-hidden="true">
                   ·
                 </span>
@@ -181,12 +175,12 @@ export function EditorPane({
                   )}
                 </span>
               )}
-              {modeControl && <span className="editor-mode-control">{modeControl}</span>}
             </div>
           </div>
         </div>
         <div className="editor-document-actions" inert={status === MESSAGE.opening}>
           <ToolMenu label={t(MESSAGE.file)} icon="more">
+            {modeControl && <div className="editor-mode-control">{modeControl}</div>}
             <button
               className={`tool-text${searchOpen ? ' is-active' : ''}`}
               aria-expanded={searchOpen}
@@ -208,14 +202,6 @@ export function EditorPane({
               </button>
             )}
 
-            <button
-              className="tool-text"
-              disabled={active.readOnly}
-              onMouseDown={keepSelection}
-              onClick={() => imageInput.current?.click()}
-            >
-              {t(MESSAGE.insertImage)}{' '}
-            </button>
             <input
               ref={imageInput}
               className="menu-file-input"
@@ -454,33 +440,17 @@ export function EditorPane({
                 readOnly={active.readOnly}
                 controller={controller}
               />
-              <ParagraphTools
-                controller={controller}
-                paragraph={active.model.formatting.paragraphAt(lineStart)}
-                page={active.model.formatting.page}
-                readOnly={active.readOnly}
-                onError={onError}
-              />
             </div>
           </ToolMenu>
-          <button
-            className="tool-icon bullet-tool"
-            aria-label={t(MESSAGE.bulletList)}
-            title={t(MESSAGE.bulletList)}
-            aria-pressed={active.model.formatting.paragraphAt(lineStart).list === 'bullet'}
-            disabled={active.readOnly}
-            onMouseDown={keepSelection}
-            onClick={() =>
-              controller.current?.formatParagraph({
-                list:
-                  active.model.formatting.paragraphAt(lineStart).list === 'bullet'
-                    ? undefined
-                    : 'bullet',
-              })
-            }
-          >
-            • ≡
-          </button>
+          <ParagraphTools
+            controller={controller}
+            paragraph={active.model.formatting.paragraphAt(lineStart)}
+            page={active.model.formatting.page}
+            readOnly={active.readOnly}
+            onError={onError}
+            onInsertImage={() => imageInput.current?.click()}
+            alignment={alignment}
+          />
           <div className="tool-group alignment-group" aria-label={t(MESSAGE.paragraphAlignment)}>
             {(
               [

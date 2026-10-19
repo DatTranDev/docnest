@@ -1711,10 +1711,10 @@
   background: var(--ui-surface);
 }
 .app-editing .editor-heading-account .header-account {
-  gap: 4px;
+  gap: 8px;
   margin-left: 0;
-  padding-left: 10px;
-  border-left: 1px solid var(--ui-border);
+  padding-left: 0;
+  border-left: 0;
 }
 .app-editing .editor-heading-account .header-account .language-selector {
   display: inline-flex;
@@ -1764,11 +1764,8 @@
   color: var(--ui-ink);
 }
 .app-editing .editor-mode-control {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 6px;
-  padding-left: 10px;
-  border-left: 1px solid var(--ui-border);
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--ui-border);
 }
 .app-editing .save-status {
   display: inline-flex;
@@ -1776,18 +1773,21 @@
   gap: 4px;
 }
 .app-editing .editor-mode-control .editor-mode-switch {
-  gap: 5px;
+  display: grid;
+  gap: 6px;
   padding: 0;
   font-size: 12px;
 }
 .app-editing .editor-mode-control .editor-mode-switch select {
-  min-height: 28px;
-  max-width: 125px;
-  padding: 2px 18px 2px 4px;
-  border: 0;
-  background-color: transparent;
-  color: var(--ui-muted);
-  font-size: 12px;
+  min-height: 36px;
+  width: 100%;
+  max-width: none;
+  padding: 4px 24px 4px 8px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background-color: var(--ui-surface);
+  color: var(--ui-ink);
+  font-size: 13px;
 }
 .app-editing .editor-mode-switch {
   gap: 6px;
@@ -1832,17 +1832,17 @@
 }
 .app-editing .editor-heading-actions {
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 10px;
   width: auto;
 }
 .app-editing .editor-sharing-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 .app-editing .editor-sharing-actions > .tool-menu {
-  padding-left: 16px;
-  border-left: 1px solid var(--ui-border);
+  padding-left: 0;
+  border-left: 0;
 }
 .app-editing .editor-sharing-actions > .tool-menu summary {
   border: 1px solid var(--ui-border);
@@ -1857,20 +1857,33 @@
   display: none;
 }
 .app-editing .editor-toolbar {
-  gap: 11px;
+  gap: 7px;
   min-height: 50px;
-  width: calc(100% - 36px);
-  max-width: 1450px;
+  width: min(calc(100% - 36px), 1020px);
   margin: 8px auto 0;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border: 1px solid var(--ui-border);
   border-radius: 10px;
   box-shadow: 0 3px 12px #25345408;
   flex-wrap: nowrap;
 }
 .app-editing .editor-toolbar > .tool-group {
-  gap: 4px;
-  padding-right: 10px;
+  gap: 2px;
+  padding-right: 7px;
+}
+.app-editing .editor-toolbar .quick-insert-tools {
+  gap: 1px;
+}
+.app-editing .editor-toolbar .quick-insert-tools .tool-icon {
+  width: 32px;
+  min-width: 32px;
+  padding-inline: 3px;
+}
+.app-editing .editor-toolbar .compact-alignment-tools {
+  display: none;
+}
+.app-editing .editor-toolbar .quick-insert-tools + .tool-menu summary span {
+  display: none;
 }
 .app-editing .editor-canvas {
   padding-top: 24px;
@@ -1914,14 +1927,6 @@
   .app-editing .editor-heading {
     padding-inline: 14px;
   }
-  .app-editing .editor-mode-control .editor-mode-switch > span:first-child {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
   .app-editing .editor-toolbar {
     gap: 7px;
     overflow-x: auto;
@@ -1950,6 +1955,14 @@
   }
   .app-editing .source-heading-navigation {
     flex: 1 1 100%;
+  }
+}
+@media (max-width: 850px) {
+  .app-editing .editor-toolbar > .alignment-group {
+    display: none;
+  }
+  .app-editing .editor-toolbar .compact-alignment-tools {
+    display: flex;
   }
 }
 @media (max-width: 900px) {
@@ -2022,17 +2035,6 @@
     flex-wrap: wrap;
     gap: 0 4px;
   }
-  .app-editing .editor-mode-switch > span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
-  .app-editing .editor-mode-switch select {
-    max-width: 120px;
-  }
   .app-editing .collaboration-action {
     min-width: 44px;
     margin: 0;
@@ -2049,7 +2051,7 @@
     gap: 8px;
   }
   .app-editing .editor-sharing-actions > .tool-menu {
-    padding-left: 8px;
+    padding-left: 0;
   }
   .app-editing .editor-toolbar {
     display: none;
@@ -2088,12 +2090,6 @@
   .app-editing .editor-identity .editable-title-trigger,
   .app-editing .editor-identity h1 {
     font-size: 20px;
-  }
-  .app-editing .editor-mode-control .editor-mode-switch > span:first-child {
-    display: none;
-  }
-  .app-editing .editor-mode-control .editor-mode-switch select {
-    max-width: 94px;
   }
   .app-editing .editor-sharing-actions > .tool-menu summary span {
     display: none;

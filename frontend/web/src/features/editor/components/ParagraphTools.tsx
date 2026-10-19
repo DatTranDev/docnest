@@ -3,7 +3,9 @@ import { useState, type RefObject } from 'react';
 import type { ParagraphFormat, PageSettings } from '@ted/editor-core';
 import { ToolMenu } from '@/components/ui/ToolMenu';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { Icon } from '@/components/ui/Icon';
 import { MESSAGE, useI18n } from '@/lib/i18n';
+import { useToolsCopy } from '@/lib/i18n/tools';
 import type { EditorController } from '../model/EditorController';
 export function ParagraphTools({
   controller,
@@ -11,14 +13,19 @@ export function ParagraphTools({
   page,
   readOnly,
   onError,
+  onInsertImage,
+  alignment,
 }: {
   controller: RefObject<EditorController | null>;
   paragraph: Readonly<ParagraphFormat>;
   page: Readonly<PageSettings>;
   readOnly: boolean;
   onError: (message: string) => void;
+  onInsertImage: () => void;
+  alignment: 'left' | 'center' | 'right' | 'justify';
 }) {
   const { t } = useI18n();
+  const toolsCopy = useToolsCopy();
   const [dialog, setDialog] = useState<'link' | 'table' | 'page' | null>(null);
   const [link, setLink] = useState(''),
     [rows, setRows] = useState(2),
@@ -38,8 +45,9 @@ export function ParagraphTools({
   };
   return (
     <>
-      <div className="tool-group paragraph-tools" aria-label={t(MESSAGE.paragraphFormat)}>
+      <div className="tool-group quick-insert-tools" aria-label={t(MESSAGE.insertContent)}>
         <button
+          className="tool-icon"
           disabled={readOnly}
           aria-pressed={paragraph.list === 'bullet'}
           title={t(MESSAGE.bulletList)}
@@ -54,6 +62,7 @@ export function ParagraphTools({
           • ≡
         </button>
         <button
+          className="tool-icon"
           disabled={readOnly}
           aria-pressed={paragraph.list === 'number'}
           title={t(MESSAGE.numberedList)}
@@ -68,73 +77,121 @@ export function ParagraphTools({
           1. ≡
         </button>
         <button
-          disabled={readOnly || !paragraph.indent}
-          aria-label={t(MESSAGE.decreaseIndent)}
-          title={t(MESSAGE.decreaseIndent)}
+          className="tool-icon"
+          disabled={readOnly}
+          title={t(MESSAGE.hyperlink)}
+          aria-label={t(MESSAGE.hyperlink)}
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() =>
-            controller.current?.formatParagraph({
-              indent: Math.max(0, (paragraph.indent ?? 0) - 1),
-            })
-          }
-        >
-          ← ≡
-        </button>
-        <button
-          disabled={readOnly || (paragraph.indent ?? 0) >= 8}
-          aria-label={t(MESSAGE.increaseIndent)}
-          title={t(MESSAGE.increaseIndent)}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() =>
-            controller.current?.formatParagraph({
-              indent: Math.min(8, (paragraph.indent ?? 0) + 1),
-            })
-          }
-        >
-          → ≡
-        </button>
-        <select
-          disabled={readOnly}
-          aria-label={t(MESSAGE.lineSpacing)}
-          value={paragraph.lineSpacing ?? 1.15}
-          onChange={(e) =>
-            controller.current?.formatParagraph({ lineSpacing: Number(e.target.value) })
-          }
-        >
-          {[1, 1.15, 1.5, 2, 2.5, 3].map((n) => (
-            <option key={n} value={n}>
-              {n}×
-            </option>
-          ))}
-        </select>
-        <select
-          disabled={readOnly}
-          aria-label={t(MESSAGE.paragraphSpacing)}
-          value={paragraph.spaceAfter ?? 0}
-          onChange={(e) =>
-            controller.current?.formatParagraph({ spaceAfter: Number(e.target.value) })
-          }
-        >
-          {[0, 6, 12, 18, 24].map((n) => (
-            <option key={n} value={n}>
-              {n} pt
-            </option>
-          ))}
-        </select>
-      </div>
-      <ToolMenu label={t(MESSAGE.insertContent)}>
-        <button
-          disabled={readOnly}
           onClick={() => {
             setLink(String(controller.current?.model.pendingFormat.link ?? ''));
             setDialog('link');
           }}
         >
-          {t(MESSAGE.hyperlink)}
+          <Icon name="link" />
         </button>
-        <button disabled={readOnly} onClick={() => setDialog('table')}>
-          {t(MESSAGE.insertTable)}
+        <button
+          className="tool-icon"
+          disabled={readOnly}
+          title={t(MESSAGE.insertImage)}
+          aria-label={t(MESSAGE.insertImage)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={onInsertImage}
+        >
+          <Icon name="image" />
         </button>
+        <button
+          className="tool-icon"
+          disabled={readOnly}
+          title={t(MESSAGE.insertTable)}
+          aria-label={t(MESSAGE.insertTable)}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setDialog('table')}
+        >
+          <Icon name="table" />
+        </button>
+      </div>
+      <ToolMenu label={toolsCopy.moreFormatting} icon="more">
+        <div
+          className="tool-group compact-alignment-tools"
+          aria-label={t(MESSAGE.paragraphAlignment)}
+        >
+          {(
+            [
+              ['left', MESSAGE.alignLeft, 'align-left'],
+              ['center', MESSAGE.alignCenter, 'align-center'],
+              ['right', MESSAGE.alignRight, 'align-right'],
+              ['justify', MESSAGE.alignJustify, 'align-justify'],
+            ] as const
+          ).map(([value, label, icon]) => (
+            <button
+              key={value}
+              disabled={readOnly}
+              title={t(label)}
+              aria-label={t(label)}
+              aria-pressed={alignment === value}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => controller.current?.alignParagraph(value)}
+            >
+              <Icon name={icon} size={17} />
+            </button>
+          ))}
+        </div>
+        <div className="tool-group paragraph-tools" aria-label={t(MESSAGE.paragraphFormat)}>
+          <button
+            disabled={readOnly || !paragraph.indent}
+            aria-label={t(MESSAGE.decreaseIndent)}
+            title={t(MESSAGE.decreaseIndent)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() =>
+              controller.current?.formatParagraph({
+                indent: Math.max(0, (paragraph.indent ?? 0) - 1),
+              })
+            }
+          >
+            ← ≡
+          </button>
+          <button
+            disabled={readOnly || (paragraph.indent ?? 0) >= 8}
+            aria-label={t(MESSAGE.increaseIndent)}
+            title={t(MESSAGE.increaseIndent)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() =>
+              controller.current?.formatParagraph({
+                indent: Math.min(8, (paragraph.indent ?? 0) + 1),
+              })
+            }
+          >
+            → ≡
+          </button>
+          <select
+            disabled={readOnly}
+            aria-label={t(MESSAGE.lineSpacing)}
+            value={paragraph.lineSpacing ?? 1.15}
+            onChange={(e) =>
+              controller.current?.formatParagraph({ lineSpacing: Number(e.target.value) })
+            }
+          >
+            {[1, 1.15, 1.5, 2, 2.5, 3].map((n) => (
+              <option key={n} value={n}>
+                {n}×
+              </option>
+            ))}
+          </select>
+          <select
+            disabled={readOnly}
+            aria-label={t(MESSAGE.paragraphSpacing)}
+            value={paragraph.spaceAfter ?? 0}
+            onChange={(e) =>
+              controller.current?.formatParagraph({ spaceAfter: Number(e.target.value) })
+            }
+          >
+            {[0, 6, 12, 18, 24].map((n) => (
+              <option key={n} value={n}>
+                {n} pt
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           disabled={readOnly}
           onClick={() => run(() => controller.current?.insertPageBreak())}
