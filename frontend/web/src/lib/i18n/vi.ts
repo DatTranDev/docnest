@@ -213,8 +213,7 @@ export const vi = {
   imageHeight: 'Cao (px)',
   keepImageRatio: 'Giữ tỉ lệ',
   applyImageSize: 'Áp dụng',
-  imageResizeHint:
-    'Chọn ảnh trong tài liệu để chỉnh kích thước. Thao tác thay đổi độ phân giải ảnh; có thể hoàn tác.',
+  imageResizeHint: 'Đổi kích thước sẽ thay đổi độ phân giải ảnh. Bạn có thể hoàn tác.',
   insertImage: 'Chèn ảnh',
   noDocumentsYet: 'Chưa có tài liệu.',
   unsaved: 'Chưa lưu',

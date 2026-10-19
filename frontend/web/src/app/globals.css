@@ -1920,28 +1920,65 @@ p {
 }
 
 .image-size-tools {
-  padding: 10px 22px;
-  border-bottom: 1px solid #dfe6f0;
+  position: fixed;
+  z-index: 50;
+  width: min(360px, calc(100vw - 16px));
+  padding: 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
   font-size: 13px;
 }
 .image-size-tools form {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--ui-space-3);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-space-2) var(--ui-space-3);
+}
+.image-size-tools strong,
+.image-size-tools small {
+  grid-column: 1 / -1;
 }
 .image-size-tools label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  gap: var(--ui-space-1);
 }
 .image-size-tools input[type='number'] {
-  width: 82px;
-  min-height: 34px;
+  width: 100%;
+  min-height: 40px;
+}
+.image-size-tools .image-ratio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+}
+.image-size-tools button {
+  min-height: 40px;
 }
 .image-size-tools small {
-  flex-basis: 100%;
-  color: #697a90;
+  color: var(--ui-muted);
+}
+.editor-document-actions .tool-menu summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-2);
+  min-height: 40px;
+  padding: 7px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  color: var(--ui-ink);
+  background: var(--ui-surface);
+}
+.editor-document-actions .tool-menu summary:hover {
+  background: var(--ui-tile);
+}
+.editor-document-actions .tool-menu-panel {
+  overflow-y: auto;
+}
+.document-actions-label {
+  padding: 6px 9px 2px;
+  color: var(--ui-muted);
+  font-size: 12px;
 }
 .editor-inline-image {
   cursor: pointer;

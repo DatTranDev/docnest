@@ -16,6 +16,7 @@ export function CollaboratorList({ members }: { members: Collaborator[] }) {
             <span
               key={member.userId}
               className="collaborator-avatar-ring"
+              title={member.displayName}
               style={{ borderColor: collaboratorColor(member.userId) }}
             >
               <Avatar name={member.displayName} src={member.avatarUrl} size={25} />

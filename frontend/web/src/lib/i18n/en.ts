@@ -216,8 +216,7 @@ export const en = {
   imageHeight: 'Height (px)',
   keepImageRatio: 'Keep aspect ratio',
   applyImageSize: 'Apply',
-  imageResizeHint:
-    'Select an image in the document to resize. This changes image resolution; you can undo it.',
+  imageResizeHint: 'Resizing changes image resolution. You can undo it.',
   insertImage: 'Insert image',
   noDocumentsYet: 'No documents yet.',
   unsaved: 'Unsaved',

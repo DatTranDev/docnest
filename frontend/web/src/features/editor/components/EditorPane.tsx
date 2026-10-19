@@ -163,6 +163,128 @@ export function EditorPane({
             </div>
           </div>
         </div>
+        <div className="editor-document-actions">
+          <ToolMenu label={t(MESSAGE.file)} icon="more">
+            <button
+              className={`tool-text${searchOpen ? ' is-active' : ''}`}
+              aria-expanded={searchOpen}
+              aria-controls="document-search"
+              onClick={() => setSearchOpen(!searchOpen)}
+            >
+              <Icon name="search" /> {t(MESSAGE.findReplace)}{' '}
+            </button>
+            <button
+              className="tool-text"
+              aria-pressed={pagePreview}
+              onClick={() => setPagePreview(!pagePreview)}
+            >
+              {pagePreview ? t(MESSAGE.closePagePreview) : t(MESSAGE.pagePreview)}
+            </button>
+            {!localOnly && (
+              <button className="tool-text" onClick={onHistory}>
+                <Icon name="history" /> {t(MESSAGE.version)}{' '}
+              </button>
+            )}
+
+            <button
+              className="tool-text"
+              disabled={active.readOnly}
+              onMouseDown={keepSelection}
+              onClick={() => imageInput.current?.click()}
+            >
+              {t(MESSAGE.insertImage)}{' '}
+            </button>
+            <input
+              ref={imageInput}
+              className="menu-file-input"
+              type="file"
+              accept="image/png,image/jpeg"
+              aria-label={t(MESSAGE.chooseAPngOrJpegImage)}
+              disabled={active.readOnly}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file)
+                  void controller.current
+                    ?.addImage(file)
+                    .catch((error) => onError(errorMessage(error)));
+                event.target.value = '';
+              }}
+            />
+            <div className="menu-divider" />
+            <button disabled={active.readOnly} onClick={() => importInput.current?.click()}>
+              <Icon name="upload" /> {t(MESSAGE.importTxtNative)}{' '}
+            </button>
+            <input
+              ref={importInput}
+              className="menu-file-input"
+              aria-label={t(MESSAGE.importFile)}
+              type="file"
+              accept=".txt,.tedoc,.docx"
+              disabled={active.readOnly}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void onImport(file);
+                event.target.value = '';
+              }}
+            />
+            <button onClick={() => void onCopy(active.model.snapshot())}>
+              <Icon name="copy" /> {t(MESSAGE.saveACopy)}
+            </button>
+            <button disabled={active.readOnly} onClick={onClearHistory}>
+              {t(MESSAGE.clearUndoHistory)}
+            </button>
+            {!localOnly && (
+              <>
+                <div className="menu-divider" />
+                <strong className="document-actions-label">{t(MESSAGE.downloadFormats)}</strong>
+                <button
+                  onClick={() => {
+                    void encodeNative(active.model.snapshot())
+                      .then((bytes) => download(bytes, `${active.document.title}.tedoc`))
+                      .catch((error) => onError(errorMessage(error)));
+                  }}
+                >
+                  <Icon name="download" /> {t(MESSAGE.downloadNativeFile)}{' '}
+                </button>
+                <button
+                  onClick={() =>
+                    download(
+                      exportTxt(active.model.snapshot()),
+                      `${active.document.title}.txt`,
+                      'text/plain;charset=utf-8',
+                    )
+                  }
+                >
+                  <Icon name="download" /> {t(MESSAGE.downloadTxt)}{' '}
+                </button>
+                <div className="menu-divider" />
+                <button
+                  disabled={!localOnly && !active.document.headRevision}
+                  onClick={() => {
+                    void onExport('EXPORT_HTML');
+                  }}
+                >
+                  {t(localOnly ? MESSAGE.downloadHtml : MESSAGE.exportHtmlOnServer)}{' '}
+                </button>
+                {(['EXPORT_DOCX', 'EXPORT_PDF'] as const).map((type) => (
+                  <button
+                    key={type}
+                    disabled={!localOnly && !active.document.headRevision}
+                    onClick={() => void onExport(type)}
+                  >
+                    {t(
+                      type === 'EXPORT_DOCX'
+                        ? MESSAGE.exportDocx
+                        : localOnly
+                          ? MESSAGE.printPdf
+                          : MESSAGE.exportPdf,
+                    )}
+                  </button>
+                ))}
+              </>
+            )}
+          </ToolMenu>
+        </div>
         <div className="editor-heading-actions">
           {active.revision !== undefined && onBackToCurrent && (
             <button onClick={onBackToCurrent}>{t(MESSAGE.backToCurrent)}</button>
@@ -343,7 +465,7 @@ export function EditorPane({
             <u>U</u>
           </button>
         </div>
-        <ToolMenu label={t(MESSAGE.textFormatting)} closeOnSelect={false}>
+        <ToolMenu label={t(MESSAGE.format)} closeOnSelect={false}>
           <div className="advanced-format-tools">
             <CharacterFormattingTools
               character={character}
@@ -400,125 +522,6 @@ export function EditorPane({
             </button>
           ))}
         </div>
-        <div className="tool-spacer" />
-        <ToolMenu label={t(MESSAGE.file)} icon="download">
-          <button
-            className={`tool-text${searchOpen ? ' is-active' : ''}`}
-            aria-expanded={searchOpen}
-            aria-controls="document-search"
-            onClick={() => setSearchOpen(!searchOpen)}
-          >
-            <Icon name="search" /> {t(MESSAGE.findReplace)}{' '}
-          </button>
-          <button
-            className="tool-text"
-            aria-pressed={pagePreview}
-            onClick={() => setPagePreview(!pagePreview)}
-          >
-            {pagePreview ? t(MESSAGE.closePagePreview) : t(MESSAGE.pagePreview)}
-          </button>
-          {!localOnly && (
-            <button className="tool-text" onClick={onHistory}>
-              <Icon name="history" /> {t(MESSAGE.version)}{' '}
-            </button>
-          )}
-
-          <button
-            className="tool-text"
-            disabled={active.readOnly}
-            onMouseDown={keepSelection}
-            onClick={() => imageInput.current?.click()}
-          >
-            {t(MESSAGE.insertImage)}{' '}
-          </button>
-          <input
-            ref={imageInput}
-            className="menu-file-input"
-            type="file"
-            accept="image/png,image/jpeg"
-            aria-label={t(MESSAGE.chooseAPngOrJpegImage)}
-            disabled={active.readOnly}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file)
-                void controller.current
-                  ?.addImage(file)
-                  .catch((error) => onError(errorMessage(error)));
-              event.target.value = '';
-            }}
-          />
-          <div className="menu-divider" />
-          <button disabled={active.readOnly} onClick={() => importInput.current?.click()}>
-            <Icon name="upload" /> {t(MESSAGE.importTxtNative)}{' '}
-          </button>
-          <input
-            ref={importInput}
-            className="menu-file-input"
-            aria-label={t(MESSAGE.importFile)}
-            type="file"
-            accept=".txt,.tedoc,.docx"
-            disabled={active.readOnly}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void onImport(file);
-              event.target.value = '';
-            }}
-          />
-          <button onClick={() => void onCopy(active.model.snapshot())}>
-            <Icon name="copy" /> {t(MESSAGE.saveACopy)}
-          </button>
-          <button disabled={active.readOnly} onClick={onClearHistory}>
-            {t(MESSAGE.clearUndoHistory)}
-          </button>
-        </ToolMenu>
-        {!localOnly && (
-          <ToolMenu label={t(MESSAGE.downloadFormats)} icon="download">
-            <button
-              onClick={() => {
-                void encodeNative(active.model.snapshot())
-                  .then((bytes) => download(bytes, `${active.document.title}.tedoc`))
-                  .catch((error) => onError(errorMessage(error)));
-              }}
-            >
-              <Icon name="download" /> {t(MESSAGE.downloadNativeFile)}{' '}
-            </button>
-            <button
-              onClick={() =>
-                download(
-                  exportTxt(active.model.snapshot()),
-                  `${active.document.title}.txt`,
-                  'text/plain;charset=utf-8',
-                )
-              }
-            >
-              <Icon name="download" /> {t(MESSAGE.downloadTxt)}{' '}
-            </button>
-            <div className="menu-divider" />
-            <button
-              disabled={!localOnly && !active.document.headRevision}
-              onClick={() => {
-                void onExport('EXPORT_HTML');
-              }}
-            >
-              {t(localOnly ? MESSAGE.downloadHtml : MESSAGE.exportHtmlOnServer)}{' '}
-            </button>
-            {(['EXPORT_DOCX', 'EXPORT_PDF'] as const).map((type) => (
-              <button
-                key={type}
-                disabled={!localOnly && !active.document.headRevision}
-                onClick={() => void onExport(type)}
-              >
-                {t(
-                  type === 'EXPORT_DOCX'
-                    ? MESSAGE.exportDocx
-                    : localOnly
-                      ? MESSAGE.printPdf
-                      : MESSAGE.exportPdf,
-                )}
-              </button>
-            ))}
-          </ToolMenu>
-        )}
       </div>
 
       {searchOpen && (

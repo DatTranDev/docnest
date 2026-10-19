@@ -333,7 +333,11 @@ export function useDocumentSession(
           setActive(updated);
         }
         setTick((value) => value + 1);
-        setCollaborators(controller.current?.collaboration?.members ?? []);
+        setCollaborators(
+          controller.current?.collaboration?.members.filter(
+            (member) => member.userId !== userRef.current?.id,
+          ) ?? [],
+        );
       },
     );
     instance.setLanguage(currentLocale.current);

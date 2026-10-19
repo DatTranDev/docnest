@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { MAX_IMAGE_DIMENSION_PX, type EditorModel, type PlacedImage } from '@ted/editor-core';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import { errorMessage } from '@/lib/http';
@@ -14,18 +14,76 @@ interface Props {
   onError: (message: string) => void;
 }
 
-export function ImageSizeTools({ model, readOnly, controller, onError }: Props) {
+export function ImageSizeTools({ model, tick, readOnly, controller, onError }: Props) {
   const { t } = useI18n();
-  if (readOnly || model.images.empty) return null;
   const { from, to } = model.selection.main;
-  const image = model.images.at(from) ?? (from === to ? model.images.at(from - 1) : undefined);
+  const image = !readOnly && to === from + 1 ? model.images.at(from) : undefined;
+  const imageId = image?.id;
+  const popover = useRef<HTMLElement>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!imageId) return;
+    const panel = popover.current;
+    const node = Array.from(
+      controller.current?.view.dom.querySelectorAll<HTMLImageElement>('.editor-inline-image') ?? [],
+    ).find((entry) => entry.dataset.imageId === imageId);
+    const place = () => {
+      if (!node || !panel) {
+        setPosition(null);
+        return;
+      }
+      const anchor = node.getBoundingClientRect();
+      if (anchor.bottom < 0 || anchor.top > innerHeight) {
+        setPosition(null);
+        return;
+      }
+      const width = panel.offsetWidth;
+      const height = panel.offsetHeight;
+      setPosition({
+        left: Math.max(8, Math.min(anchor.left, innerWidth - width - 8)),
+        top:
+          anchor.bottom + height + 8 <= innerHeight
+            ? anchor.bottom + 8
+            : Math.max(8, anchor.top - height - 8),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    const dismiss = (event: PointerEvent) => {
+      if (
+        panel &&
+        node &&
+        event.target instanceof Node &&
+        !panel.contains(event.target) &&
+        !node.contains(event.target) &&
+        !controller.current?.view.dom.contains(event.target)
+      ) {
+        controller.current?.view.dispatch({ selection: { anchor: to } });
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+      document.removeEventListener('pointerdown', dismiss);
+    };
+  }, [controller, imageId, tick, to]);
+  if (!image) return null;
   return (
-    <aside className="image-size-tools" aria-label={t(MESSAGE.imageSize)}>
-      {image ? (
-        <ImageSizeForm key={image.id} image={image} controller={controller} onError={onError} />
-      ) : (
-        <span>{t(MESSAGE.imageResizeHint)}</span>
-      )}
+    <aside
+      ref={popover}
+      className="image-size-tools"
+      aria-label={t(MESSAGE.imageSize)}
+      style={position ? { left: position.left, top: position.top } : { visibility: 'hidden' }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        controller.current?.view.dispatch({ selection: { anchor: to } });
+        controller.current?.view.focus();
+      }}
+    >
+      <ImageSizeForm key={image.id} image={image} controller={controller} onError={onError} />
     </aside>
   );
 }

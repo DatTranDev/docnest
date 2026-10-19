@@ -98,7 +98,7 @@ export function ToolMenu({
         }
       }}
     >
-      <summary>
+      <summary aria-label={label}>
         {icon && <Icon name={icon} />}
         <span>{label}</span>
         <Icon name="chevron-down" size={13} />

@@ -1439,7 +1439,14 @@
     gap: 8px;
   }
   .local-only-editor .editor-heading-main {
-    flex: 1 1 100%;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .local-only-editor .editor-document-actions {
+    flex: 0 0 auto;
+  }
+  .local-only-editor .editor-document-actions summary span {
+    display: none;
   }
   .local-only-editor .editor-heading-actions {
     display: flex;
@@ -1459,7 +1466,7 @@
     order: 3;
   }
   .local-only-editor .editor-title-input {
-    width: min(300px, calc(100vw - 40px));
+    width: min(300px, 100%);
   }
 }
 @media (max-width: 650px) {
