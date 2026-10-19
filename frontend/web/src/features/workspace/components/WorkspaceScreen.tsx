@@ -172,106 +172,121 @@ export default function WorkspaceScreen() {
       throw failure;
     }
   };
+  const editorBack = (
+    <button
+      className="back-to-files"
+      aria-label={t(MESSAGE.documentList)}
+      title={t(MESSAGE.documentList)}
+      onClick={() => setShowFiles(true)}
+    >
+      <Icon name="chevron" size={17} />
+    </button>
+  );
+  const editorModeControl = active ? (
+    <label className="editor-mode-switch">
+      <span>{toolsCopy.viewAs}</span>
+      <span id="editor-mode-help" className="visually-hidden">
+        {toolsCopy.editorModeHelp}
+      </span>
+      <select
+        aria-label={toolsCopy.viewAs}
+        aria-describedby="editor-mode-help"
+        value={editMode}
+        onChange={(event) =>
+          setModeChoice({
+            documentId: active.document.id,
+            mode: event.target.value as EditMode,
+          })
+        }
+      >
+        {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
+          <option key={mode} value={mode}>
+            {toolsCopy[mode]}
+          </option>
+        ))}
+      </select>
+    </label>
+  ) : null;
   const editorNavigation = active ? (
     <nav className="editor-navigation" aria-label={t(MESSAGE.editorNavigation)}>
-      <button
-        className="back-to-files"
-        aria-label={t(MESSAGE.documentList)}
-        title={t(MESSAGE.documentList)}
-        onClick={() => setShowFiles(true)}
-      >
-        <Icon name="chevron" size={17} />
-      </button>
-      <label className="editor-mode-switch">
-        <span>{toolsCopy.viewAs}</span>
-        <span id="editor-mode-help" className="visually-hidden">
-          {toolsCopy.editorModeHelp}
-        </span>
-        <select
-          aria-label={toolsCopy.viewAs}
-          aria-describedby="editor-mode-help"
-          value={editMode}
-          onChange={(event) =>
-            setModeChoice({
-              documentId: active.document.id,
-              mode: event.target.value as EditMode,
-            })
-          }
-        >
-          {(['document', 'markdown', 'code', 'json'] as const).map((mode) => (
-            <option key={mode} value={mode}>
-              {toolsCopy[mode]}
-            </option>
-          ))}
-        </select>
-      </label>
+      {editorBack}
+      {editorModeControl}
     </nav>
   ) : null;
   if (session.loading) return <LoadingIndicator />;
-  if (!session.user)
-    return <AuthForm onLogin={session.onLogin} error={error} setError={setError} />;
+  const accountUser = session.user;
+  if (!accountUser) return <AuthForm onLogin={session.onLogin} error={error} setError={setError} />;
+  const mergedEditorHeader = Boolean(active && !showFiles && editMode === 'document');
+  const brand = (
+    <Link className="brand" href="/">
+      <span className="brand-icon">
+        <Icon name="document" size={21} />
+      </span>
+      <span>{t(MESSAGE.writingRoom)}</span>
+    </Link>
+  );
+  const headerAccount = (iconOnly: boolean) => (
+    <div className="header-account">
+      <LanguageSelector iconOnly={iconOnly} onLocale={(locale) => preferences.update({ locale })} />
+      <ActionMenu
+        className="account-menu"
+        label={t(MESSAGE.accountActions, { p0: accountUser.displayName })}
+        actions={[
+          { label: t(MESSAGE.settings), onSelect: () => setSettings(true) },
+          { label: t(MESSAGE.subscriptionPlans), onSelect: () => setBilling(true) },
+          { label: t(MESSAGE.aboutDocsnest), onSelect: () => router.push('/intro#editor') },
+          {
+            label: t(MESSAGE.signOut),
+            icon: 'sign-out',
+            onSelect: () => {
+              documentSession.clearActive();
+              void session.signOut().catch((failure) => setError(errorMessage(failure)));
+            },
+          },
+        ]}
+      >
+        <Avatar name={accountUser.displayName} src={accountUser.avatarUrl} size={32} />
+        <span className="account-name">{accountUser.displayName}</span>
+        <Icon name="chevron-down" size={15} />
+      </ActionMenu>
+    </div>
+  );
   return (
     <div className={`app${active && !showFiles ? ' app-editing' : ''}`}>
       <a className="skip-to-main" href="#workspace-main">
         {toolsCopy.skipToContent}
       </a>
-      <header className="app-header">
-        <Link className="brand" href="/">
-          <span className="brand-icon">
-            <Icon name="document" size={21} />
-          </span>
-          <span>{t(MESSAGE.writingRoom)}</span>
-        </Link>
-        <div className="workspace-search" role="search">
-          <Icon name="search" size={22} />
-          <input
-            type="search"
-            aria-label={t(MESSAGE.searchCurrentLibrary)}
-            placeholder={t(
-              scope === 'mine'
-                ? MESSAGE.searchInMine
-                : scope === 'shared'
-                  ? MESSAGE.searchInShared
-                  : MESSAGE.searchInTrash,
+      {!mergedEditorHeader && (
+        <header className="app-header">
+          {brand}
+          <div className="workspace-search" role="search">
+            <Icon name="search" size={22} />
+            <input
+              type="search"
+              aria-label={t(MESSAGE.searchCurrentLibrary)}
+              placeholder={t(
+                scope === 'mine'
+                  ? MESSAGE.searchInMine
+                  : scope === 'shared'
+                    ? MESSAGE.searchInShared
+                    : MESSAGE.searchInTrash,
+              )}
+              value={query}
+              maxLength={200}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setShowFiles(true);
+              }}
+            />
+            {query && (
+              <button aria-label={t(MESSAGE.clearSearch)} onClick={() => setQuery('')}>
+                <Icon name="close" size={18} />
+              </button>
             )}
-            value={query}
-            maxLength={200}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setShowFiles(true);
-            }}
-          />
-          {query && (
-            <button aria-label={t(MESSAGE.clearSearch)} onClick={() => setQuery('')}>
-              <Icon name="close" size={18} />
-            </button>
-          )}
-        </div>
-        <div className="header-account">
-          <LanguageSelector onLocale={(locale) => preferences.update({ locale })} />
-          <ActionMenu
-            className="account-menu"
-            label={t(MESSAGE.accountActions, { p0: session.user.displayName })}
-            actions={[
-              { label: t(MESSAGE.settings), onSelect: () => setSettings(true) },
-              { label: t(MESSAGE.subscriptionPlans), onSelect: () => setBilling(true) },
-              { label: t(MESSAGE.aboutDocsnest), onSelect: () => router.push('/intro#editor') },
-              {
-                label: t(MESSAGE.signOut),
-                icon: 'sign-out',
-                onSelect: () => {
-                  documentSession.clearActive();
-                  void session.signOut().catch((failure) => setError(errorMessage(failure)));
-                },
-              },
-            ]}
-          >
-            <Avatar name={session.user.displayName} src={session.user.avatarUrl} size={32} />
-            <span className="account-name">{session.user.displayName}</span>
-            <Icon name="chevron-down" size={15} />
-          </ActionMenu>
-        </div>
-      </header>
+          </div>
+          {headerAccount(false)}
+        </header>
+      )}
       <div className="body">
         <aside className="sidebar">
           <ActionMenu
@@ -547,7 +562,13 @@ export default function WorkspaceScreen() {
                 ) : (
                   <EditorPane
                     active={active}
-                    navigation={editorNavigation}
+                    headerAccount={headerAccount(true)}
+                    navigation={
+                      <nav className="editor-navigation" aria-label={t(MESSAGE.editorNavigation)}>
+                        {editorBack}
+                      </nav>
+                    }
+                    modeControl={editorModeControl}
                     tick={documentSession.tick}
                     collaborators={documentSession.collaborators}
                     status={documentSession.status}
@@ -636,8 +657,8 @@ export default function WorkspaceScreen() {
         <ShareDialog
           documentId={active.document.id}
           documentTitle={active.document.title}
-          ownerName={session.user.displayName}
-          ownerAvatarUrl={session.user.avatarUrl}
+          ownerName={accountUser.displayName}
+          ownerAvatarUrl={accountUser.avatarUrl}
           onClose={() => setShare(false)}
         />
       )}
@@ -712,7 +733,7 @@ export default function WorkspaceScreen() {
       )}
       {settings && (
         <SettingsDialog
-          user={session.user}
+          user={accountUser}
           onUserUpdated={session.onProfileUpdate}
           theme={preferences.theme}
           sessionOnly={preferences.sessionOnly}
@@ -721,7 +742,7 @@ export default function WorkspaceScreen() {
           onClose={() => setSettings(false)}
         />
       )}
-      {billing && <BillingPanel userId={session.user.id} onClose={() => setBilling(false)} />}
+      {billing && <BillingPanel userId={accountUser.id} onClose={() => setBilling(false)} />}
     </div>
   );
 }

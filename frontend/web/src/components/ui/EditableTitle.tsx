@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Icon } from './Icon';
 
 export function EditableTitle({
   title,
@@ -84,7 +85,7 @@ export function EditableTitle({
         className="editable-title-trigger"
         aria-label={`${label}: ${title}`}
         title={`${label}: ${title}`}
-        onDoubleClick={startEditing}
+        onClick={startEditing}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === 'F2') {
             event.preventDefault();
@@ -92,7 +93,8 @@ export function EditableTitle({
           }
         }}
       >
-        {title}
+        <span>{title}</span>
+        <Icon name="edit" size={14} />
       </button>
     ) : (
       title

@@ -16,6 +16,7 @@ export type IconName =
   | 'download'
   | 'upload'
   | 'copy'
+  | 'cloud'
   | 'more'
   | 'more-vertical'
   | 'plus'
@@ -108,6 +109,11 @@ const shapes: Record<IconName, ReactNode> = {
     <>
       <rect x="8" y="8" width="12" height="13" rx="2" />
       <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h3" />
+    </>
+  ),
+  cloud: (
+    <>
+      <path d="M7 19h11a4 4 0 0 0 .7-7.9A6 6 0 0 0 7.2 9a5 5 0 0 0-.2 10Z" />
     </>
   ),
   more: (

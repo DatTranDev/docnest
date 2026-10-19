@@ -11,10 +11,12 @@ export function LanguageSelector({
   onLocale,
   inlineMenu = false,
   compact = false,
+  iconOnly = false,
 }: {
   onLocale?: (locale: 'vi' | 'en') => void;
   inlineMenu?: boolean;
   compact?: boolean;
+  iconOnly?: boolean;
 }) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -55,7 +57,7 @@ export function LanguageSelector({
 
   return (
     <div
-      className={`language-selector${inlineMenu ? ' language-selector-inline-menu' : ''}`}
+      className={`language-selector${inlineMenu ? ' language-selector-inline-menu' : ''}${iconOnly ? ' language-selector-icon-only' : ''}`}
       ref={root}
     >
       <button
@@ -81,17 +83,21 @@ export function LanguageSelector({
           }
         }}
       >
-        {compact && <Icon name="globe" size={17} />}
-        <span>
-          {compact
-            ? locale.toUpperCase()
-            : locale === 'vi'
-              ? t(MESSAGE.vietnamese)
-              : t(MESSAGE.english)}
-        </span>
-        <span className="language-selector-chevron" aria-hidden="true">
-          <Icon name="chevron-down" size={14} />
-        </span>
+        {(compact || iconOnly) && <Icon name="globe" size={iconOnly ? 18 : 17} />}
+        {!iconOnly && (
+          <>
+            <span>
+              {compact
+                ? locale.toUpperCase()
+                : locale === 'vi'
+                  ? t(MESSAGE.vietnamese)
+                  : t(MESSAGE.english)}
+            </span>
+            <span className="language-selector-chevron" aria-hidden="true">
+              <Icon name="chevron-down" size={14} />
+            </span>
+          </>
+        )}
       </button>
       {open && (
         <div className="language-selector-menu" role="menu" onKeyDown={handleMenuKeyDown}>
