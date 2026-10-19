@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 import vn.editor.collaboration.rooms.application.port.PresenceRepository;
 
 @Repository
-public final class JdbcPresenceDao implements PresenceRepository {
+public class JdbcPresenceDao implements PresenceRepository {
   private final JdbcTemplate jdbc;
 
   public JdbcPresenceDao(JdbcTemplate jdbc) {
