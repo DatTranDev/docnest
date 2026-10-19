@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "2bb5aae174e82317379ead370460bbd79b41ce07",
+  "reviewedContractChanges": {
+    "docs/contracts/collaboration.md": {
+      "beforeSha256": "362dce7d907690e81adc762821c9fb619ba9ba0894bc1557b40d9a767da2416c",
+      "afterSha256": "9a90c33be62c6bacd91b099150757c4a4b5e8d4ff37dafd30edf319db9aa815c"
+    },
+    "docs/contracts/collaboration.openapi.yaml": {
+      "beforeSha256": "1c27a9360084dbd5b76440e6e1d313e30baf36cec51964246dce5b45562d2736",
+      "afterSha256": "79e5ea5397c8a0dfb2a6ccb1e1f08f3a5c5e5e65a6dc88ba221c1e0897681c5d"
+    },
+    "docs/contracts/openapi.yaml": {
+      "beforeSha256": "0e52335e4e074d0e91d14cd0a4c170630fbb0b34c658dc8a3f2924634a82a0df",
+      "afterSha256": "81e3d6c84539255007e0fd5f47b6a18485a3df832a046b6c12bfc68b94ccefcd"
+    }
+  }
+}

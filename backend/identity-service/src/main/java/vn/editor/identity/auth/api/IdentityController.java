@@ -28,6 +28,7 @@ import vn.editor.identity.auth.api.dto.RegisterRequestDto;
 import vn.editor.identity.auth.api.dto.ResolveAccountRequestDto;
 import vn.editor.identity.auth.api.dto.SetupPasswordRequestDto;
 import vn.editor.identity.auth.api.dto.UnlinkGoogleRequestDto;
+import vn.editor.identity.auth.api.dto.UserResponseDto;
 import vn.editor.identity.auth.application.command.AuthenticationSession;
 import vn.editor.identity.auth.application.command.ChangeAvatarService;
 import vn.editor.identity.auth.application.command.CheckLoginAttemptCommand;
@@ -121,9 +122,10 @@ public final class IdentityController {
   public ResponseEntity<?> register(@RequestBody RegisterRequestDto request) {
     return ResponseEntity.status(201)
         .body(
-            register.handle(
-                new RegisterAccountCommand(
-                    request.email(), request.password(), request.displayName())));
+            UserResponseDto.from(
+                register.handle(
+                    new RegisterAccountCommand(
+                        request.email(), request.password(), request.displayName()))));
   }
 
   @PostMapping("/api/v1/auth/login")
@@ -201,8 +203,8 @@ public final class IdentityController {
   }
 
   @GetMapping("/api/v1/auth/me")
-  public UserView me(@AuthenticationPrincipal Jwt jwt) {
-    return profiles.handle(new GetProfileQuery(jwt.getSubject()));
+  public UserResponseDto me(@AuthenticationPrincipal Jwt jwt) {
+    return UserResponseDto.from(profiles.handle(new GetProfileQuery(jwt.getSubject())));
   }
 
   @GetMapping("/api/v1/auth/methods")
@@ -252,7 +254,7 @@ public final class IdentityController {
                 "expiresIn",
                 600,
                 "user",
-                session.user()));
+                UserResponseDto.from(session.user())));
   }
 
   private String cookie(String name, String value, Duration age) {

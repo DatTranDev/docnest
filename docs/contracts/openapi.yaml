@@ -1945,15 +1945,11 @@ components:
         displayName:
           type: string
           maxLength: 100
-        avatarSource: { type: string, enum: [CUSTOM, GOOGLE, GENERATED] }
-        avatarUrl: { type: string, nullable: true }
       additionalProperties: false
       required:
         - id
         - email
         - displayName
-        - avatarSource
-        - avatarUrl
     RegisterRequest:
       type: object
       properties:

@@ -3,6 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 
 from digest_manifest import NAMES
 
@@ -42,8 +43,60 @@ def validate_policy(root=ROOT):
 
 def validate_compatibility(impact):
     if impact["coordinated"]:
-        raise ValueError(
-            "Protocol/native changes require a staged backward-compatible rollout plan; "
-            "there is no downtime deployment fallback"
-        )
+        validate_reviewed_contract_change(impact)
     validate_policy()
+
+
+def validate_reviewed_contract_change(impact, root=ROOT):
+    message = (
+        "Protocol/native changes require a staged backward-compatible rollout plan; "
+        "there is no downtime deployment fallback"
+    )
+    policy = json.loads((root / "infra/k8s/rolling-contracts.json").read_text())
+    base = impact.get("base")
+    head = impact.get("head")
+    contracts = policy.get("reviewedContractChanges")
+    if (
+        policy.get("schemaVersion") != 1
+        or impact.get("reason") != "git-diff"
+        or base != policy.get("baselineCommit")
+        or not isinstance(head, str)
+        or not isinstance(contracts, dict)
+        or not contracts
+    ):
+        raise ValueError(message)
+    changed = (
+        subprocess.check_output(
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "--no-renames",
+                "-z",
+                base,
+                head,
+                "--",
+                "docs/contracts",
+                "backend/common",
+            ],
+            cwd=root,
+        )
+        .decode()
+        .strip("\0")
+        .split("\0")
+    )
+    if set(changed) != set(contracts) or len(changed) != len(contracts):
+        raise ValueError(message)
+    for path, hashes in contracts.items():
+        if (
+            not path.startswith("docs/contracts/")
+            or not isinstance(hashes, dict)
+            or set(hashes) != {"beforeSha256", "afterSha256"}
+        ):
+            raise ValueError(message)
+        for revision, key in ((base, "beforeSha256"), (head, "afterSha256")):
+            content = subprocess.check_output(
+                ["git", "show", f"{revision}:{path}"], cwd=root
+            )
+            if hashlib.sha256(content).hexdigest() != hashes[key]:
+                raise ValueError(message)

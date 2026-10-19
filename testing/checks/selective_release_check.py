@@ -1,6 +1,7 @@
 """Offline selective release policy tests; no live rollout or restore claims."""
 
 import copy
+import hashlib
 import itertools
 import json
 import os
@@ -19,13 +20,74 @@ sys.path.insert(0, str(ROOT / "tooling/scripts"))
 from detect_affected import BACKENDS, affected, resolve, selection
 from digest_manifest import NAMES, validate_manifest
 from release_manifest import merge_state, scan_records
-from rolling_policy import validate_compatibility
+from rolling_policy import validate_compatibility, validate_reviewed_contract_change
 from routine_release import plan, validate_live
 from routine_rollout import verify_unrelated
 from service_config import CONFIG_KEYS, config_hash
 
 
 class ImpactTests(unittest.TestCase):
+    def test_reviewed_contract_change_is_bound_to_baseline_paths_and_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+
+            def git(*args):
+                return subprocess.check_output(["git", *args], cwd=root).strip()
+
+            git("init", "-b", "main")
+            git("config", "user.email", "fixture@example.invalid")
+            git("config", "user.name", "Release policy fixture")
+            contract = root / "docs/contracts/openapi.yaml"
+            contract.parent.mkdir(parents=True)
+            contract.write_text("old contract\n")
+            git("add", "-A")
+            git("commit", "-m", "baseline")
+            base = git("rev-parse", "HEAD").decode()
+            contract.write_text("additive contract\n")
+            git("add", "-A")
+            git("commit", "-m", "contract expansion")
+            head = git("rev-parse", "HEAD").decode()
+            policy_file = root / "infra/k8s/rolling-contracts.json"
+            policy_file.parent.mkdir(parents=True)
+            policy = {
+                "schemaVersion": 1,
+                "baselineCommit": base,
+                "reviewedContractChanges": {
+                    "docs/contracts/openapi.yaml": {
+                        "beforeSha256": hashlib.sha256(b"old contract\n").hexdigest(),
+                        "afterSha256": hashlib.sha256(
+                            b"additive contract\n"
+                        ).hexdigest(),
+                    }
+                },
+            }
+            policy_file.write_text(json.dumps(policy))
+            impact = {
+                "coordinated": True,
+                "reason": "git-diff",
+                "base": base,
+                "head": head,
+            }
+            validate_reviewed_contract_change(impact, root)
+            policy["reviewedContractChanges"]["docs/contracts/openapi.yaml"][
+                "afterSha256"
+            ] = ("0" * 64)
+            policy_file.write_text(json.dumps(policy))
+            with self.assertRaisesRegex(ValueError, "Protocol/native changes"):
+                validate_reviewed_contract_change(impact, root)
+            policy["reviewedContractChanges"]["docs/contracts/openapi.yaml"][
+                "afterSha256"
+            ] = hashlib.sha256(b"additive contract\n").hexdigest()
+            policy_file.write_text(json.dumps(policy))
+            other = root / "backend/common/src/main/java/Codec.java"
+            other.parent.mkdir(parents=True)
+            other.write_text("class Codec {}\n")
+            git("add", "-A")
+            git("commit", "-m", "unreviewed shared change")
+            impact["head"] = git("rev-parse", "HEAD").decode()
+            with self.assertRaisesRegex(ValueError, "Protocol/native changes"):
+                validate_reviewed_contract_change(impact, root)
+
     def test_editor_design_document_is_not_a_wire_contract(self):
         document = "docs/04_EDITOR_ENGINE.md"
         self.assertEqual(affected([document])["images"], [])

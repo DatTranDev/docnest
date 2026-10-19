@@ -99,8 +99,17 @@ export async function linkGoogle(
 }
 export async function refreshProfile(): Promise<User> {
   const user = await request<User>('/api/v1/auth/me');
-  if (session) session = { ...session, user };
-  return user;
+  const profile = await request<{
+    id: string;
+    avatarSource: User['avatarSource'];
+    avatarUrl: User['avatarUrl'];
+  }>(`/api/v1/users/${encodeURIComponent(user.id)}/profile`);
+  const enriched =
+    profile.id === user.id
+      ? { ...user, avatarSource: profile.avatarSource, avatarUrl: profile.avatarUrl }
+      : user;
+  if (session?.user.id === user.id) session = { ...session, user: enriched };
+  return enriched;
 }
 export type CredentialStatus = { hasPassword: boolean; googleLinked: boolean };
 export async function credentialStatus(): Promise<CredentialStatus> {
