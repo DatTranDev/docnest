@@ -8,7 +8,9 @@ import {
   type SortDirection,
 } from '@/features/documents';
 import { FolderRows, type Folder } from '@/features/folders';
+import { IconButton, SegmentedControl } from '@/components/ui/Controls';
 import { Icon } from '@/components/ui/Icon';
+import { OptionSelect } from '@/components/ui/OptionSelect';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { Scope } from '../model/types';
 import { useLibraryView } from '../hooks/useLibraryView';
@@ -114,34 +116,34 @@ export function WorkspaceLibrary({
       </div>
       {scope === 'trash' && <p className="trash-restore-note">{t(MESSAGE.restoreAccessWarning)}</p>}
       <div className="workspace-toolbar">
-        <label className="type-filter">
-          <span className="visually-hidden">{t(MESSAGE.typeFilter)}</span>
-          <select
-            aria-label={t(MESSAGE.typeFilter)}
+        <div className="type-filter">
+          <OptionSelect
+            label={t(MESSAGE.typeFilter)}
             value={effectiveKind}
-            onChange={(event) => setKind(event.target.value)}
-          >
-            <option value="all">{t(MESSAGE.allItems)}</option>
-            {scope === 'mine' && <option value="folders">{t(MESSAGE.folderPlural)}</option>}
-            <option value="documents">{t(MESSAGE.documents)}</option>
-            <option value="markdown">Markdown</option>
-            <option value="json">JSON</option>
-            <option value="code">Code</option>
-          </select>
-        </label>
-        <div className="view-switch" role="group" aria-label={t(MESSAGE.viewLayout)}>
+            onChange={setKind}
+            options={[
+              { value: 'all', label: t(MESSAGE.allItems) },
+              ...(scope === 'mine' ? [{ value: 'folders', label: t(MESSAGE.folderPlural) }] : []),
+              { value: 'documents', label: t(MESSAGE.documents) },
+              { value: 'markdown', label: 'Markdown' },
+              { value: 'json', label: 'JSON' },
+              { value: 'code', label: 'Code' },
+            ]}
+          />
+        </div>
+        <SegmentedControl className="view-switch" aria-label={t(MESSAGE.viewLayout)}>
           {(['list', 'grid'] as const).map((layout) => (
-            <button
+            <IconButton
               key={layout}
               aria-label={t(layout === 'grid' ? MESSAGE.gridView : MESSAGE.listView)}
               title={t(layout === 'grid' ? MESSAGE.gridView : MESSAGE.listView)}
               aria-pressed={view === layout}
               onClick={() => setView(layout)}
             >
-              <Icon name={layout} size={19} />
-            </button>
+              <Icon name={layout} size={17} />
+            </IconButton>
           ))}
-        </div>
+        </SegmentedControl>
         {query && (
           <button
             className="search-chip"
