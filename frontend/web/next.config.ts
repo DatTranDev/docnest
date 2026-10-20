@@ -9,6 +9,7 @@ const config: NextConfig = {
   experimental: { cpus: 2 },
   poweredByHeader: false,
   reactStrictMode: true,
+  agentRules: false,
   async headers() {
     return [
       { source: '/api/:path*', headers: [{ key: 'Cache-Control', value: 'private, no-store' }] },

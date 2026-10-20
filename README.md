@@ -22,6 +22,22 @@ This keeps the saved data. Do not use `docker compose down -v` unless you intend
 
 Choose **Tiếng Việt** or **English** in the language selector on the login, workspace or public document page. Vietnamese is the default; the browser remembers your choice. Switching languages preserves unsaved edits and undo history. Document text, titles, font names and API identifiers are unchanged.
 
+### Run local frontend with the deployed backend
+
+With Node 24 and dependencies installed (`npm ci`), run from the repository root:
+
+```powershell
+npm run dev:remote
+```
+
+Open **http://localhost:8080**. Frontend changes hot reload locally; API and collaboration requests use **https://k8s.docsnest.dattrandev.id.vn**. Docker, Java and local databases are unnecessary for this mode. Sign in with an existing deployed account: document edits and account actions affect the deployed data. Stop with Ctrl+C.
+
+To change the backend or ports, copy `frontend/web/.env.remote.example` to `frontend/web/.env.remote.local` and edit it. Shell environment variables take precedence. `REMOTE_BACKEND_ORIGIN` accepts an HTTPS origin without a path; `PORT` defaults to 8080 and `NEXT_INTERNAL_PORT` to 3000. Both listeners bind only to loopback. If Compose already occupies 8080, stop it or choose another `PORT`. Open the public port, not the private Next.js port.
+
+The development gateway streams bounded requests through the same gateway as production. It validates the local Host/Origin before adapting upstream Host/Origin, retains signed CSRF checks and scopes deployed auth cookies to local HTTP while preserving HttpOnly, SameSite and Path. These adaptations are enabled only by the local runner; normal production startup is unchanged. Google Storage resumable/signed uploads use a development-only, host-restricted streaming proxy without application cookies or JWTs, so local saves do not require changing bucket CORS. Signed URLs, resumable session URIs and credentials are never printed. Next request output is suppressed to avoid logging share links; compilation errors remain visible in the browser overlay.
+
+Password sign-in needs no extra configuration. For Google sign-in, set the deployed application's public `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in `.env.remote.local`; its OAuth client must already allow your exact local origin (for example `http://localhost:8080`). Do not use a client secret. This command does not change OAuth, cloud CORS, billing or deployed services.
+
 Formatting includes font/size/color, bold/italic/underline, highlight, strikethrough, super/subscript, paragraph alignment, title/heading appearance presets and clear formatting. Select an inserted image to edit its pixel width/height, with an optional aspect-ratio lock and undo/redo. Resizing changes the encoded image resolution and is retained by native save/reopen. Native files preserve formatting; TXT exports plain text and HTML preserves supported styles. Heading presets currently set appearance, without an outline or table of contents. Lists, indentation/line spacing, hyperlinks, editable tables, stored page breaks and plain-text headers/footers are supported. A4 preview shows page settings; File exports DOCX/PDF through Processing. Office exports are bounded to 200,000 UTF-16 units and 2,000 paragraphs; use TXT/HTML for larger documents. Import accepts TXT/native only. Tables have one canonical paragraph per cell; Tab/Enter moves between cells. PDF uses bundled Noto fonts rather than exact Microsoft-font metrics.
 
 For concurrent editing, share a document with another account as **EDITOR** and open it in both accounts. Owners/editors can edit together automatically; viewers observe live changes. Collaboration currently supports up to 200,000 UTF-16 units; the normal large-file editor retains its existing limits. See [protocol and current limitations](docs/contracts/collaboration.md). Cloud templates include the service; deployment and real GCS validation remain pending.

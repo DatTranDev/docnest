@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev:remote": "node server/dev-remote.mjs",
     "dev": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build --webpack",
     "build:local": "vite build --config vite.local.config.ts",

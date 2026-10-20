@@ -27,7 +27,17 @@ export async function saveNativeVersion(
   // LOCAL uploads use this app's gateway, including when opened through a loopback alias.
   // Keep signed GCS URLs intact and never attach application credentials to them.
   const localUrl = ticket.kind === 'LOCAL' ? new URL(ticket.uploadUrl, 'http://localhost/') : null;
-  const uploaded = await fetch(localUrl ? localUrl.pathname + localUrl.search : ticket.uploadUrl, {
+  const developmentUpload =
+    process.env.NODE_ENV === 'development' &&
+    process.env.NEXT_PUBLIC_REMOTE_BACKEND_PROXY === '1' &&
+    !localUrl;
+  if (developmentUpload) headers.set('X-Dev-Upload-Url', ticket.uploadUrl);
+  const uploadUrl = localUrl
+    ? localUrl.pathname + localUrl.search
+    : developmentUpload
+      ? '/__dev/storage-upload'
+      : ticket.uploadUrl;
+  const uploaded = await fetch(uploadUrl, {
     method: 'PUT',
     headers,
     cache: 'no-store',

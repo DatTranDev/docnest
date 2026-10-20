@@ -188,16 +188,24 @@ export default function WorkspaceScreen() {
       <span>{t(MESSAGE.writingRoom)}</span>
     </Link>
   );
-  const headerAccount = (iconOnly: boolean) => (
+  const headerAccount = () => (
     <div className="header-account">
-      <LanguageSelector iconOnly={iconOnly} onLocale={(locale) => preferences.update({ locale })} />
+      <LanguageSelector iconOnly onLocale={(locale) => preferences.update({ locale })} />
       <ActionMenu
         className="account-menu"
         label={t(MESSAGE.accountActions, { p0: accountUser.displayName })}
         actions={[
-          { label: t(MESSAGE.settings), onSelect: () => setSettings(true) },
-          { label: t(MESSAGE.subscriptionPlans), onSelect: () => setBilling(true) },
-          { label: t(MESSAGE.aboutDocsnest), onSelect: () => router.push('/intro#editor') },
+          { label: t(MESSAGE.settings), icon: 'settings', onSelect: () => setSettings(true) },
+          {
+            label: t(MESSAGE.subscriptionPlans),
+            icon: 'credit-card',
+            onSelect: () => setBilling(true),
+          },
+          {
+            label: t(MESSAGE.aboutDocsnest),
+            icon: 'info',
+            onSelect: () => router.push('/intro#editor'),
+          },
           {
             label: t(MESSAGE.signOut),
             icon: 'sign-out',
@@ -247,7 +255,7 @@ export default function WorkspaceScreen() {
               </button>
             )}
           </div>
-          {headerAccount(false)}
+          {headerAccount()}
         </header>
       )}
       <div className="body">
@@ -412,8 +420,6 @@ export default function WorkspaceScreen() {
               loadError={contents.loadError}
               hasMore={!!contents.cursor}
               onRetry={() => void contents.reload()}
-              onNewDocument={createDefaultDocument}
-              onImport={() => setImportOpen(true)}
               onLoadMore={() => {
                 if (contents.cursor) void contents.reload(contents.cursor);
               }}
@@ -524,7 +530,7 @@ export default function WorkspaceScreen() {
                 ) : (
                   <EditorPane
                     active={active}
-                    headerAccount={headerAccount(true)}
+                    headerAccount={headerAccount()}
                     navigation={editorNavigation}
                     tick={documentSession.tick}
                     collaborators={documentSession.collaborators}

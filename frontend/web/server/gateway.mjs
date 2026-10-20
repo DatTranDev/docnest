@@ -257,14 +257,19 @@ async function nextReady(config, isNextAlive) {
   });
 }
 
-export function createGateway(config, { isNextAlive = () => true } = {}) {
+export function createGateway(config, { isNextAlive = () => true, development } = {}) {
   const upgradedSockets = new Set();
   const server = http.createServer(async (req, res) => {
     let path;
     let forwarding;
+    let target;
     try {
+      development?.validate(req);
       path = requestPath(req.url);
       forwarding = forwardingHeaders(req, config.trustedProxyCidrs);
+      if (path !== null) {
+        target = development?.target(req, path) ?? new URL(path, upstreamOrigin(path, config));
+      }
     } catch {
       errorResponse(res, 400, 'INVALID_REQUEST');
       req.resume();
@@ -303,7 +308,7 @@ export function createGateway(config, { isNextAlive = () => true } = {}) {
         delete headers[name];
     }
     Object.assign(headers, forwarding);
-    const target = new URL(path, upstreamOrigin(path, config));
+    if (target.origin !== config.nextOrigin) development?.forward(headers, target);
     const transport = target.protocol === 'https:' ? https : http;
     let finished = false;
     let retried = false;
@@ -331,6 +336,7 @@ export function createGateway(config, { isNextAlive = () => true } = {}) {
         return;
       }
       const responseHeaders = cleanHeaders(response.headers);
+      if (target.origin !== config.nextOrigin) development?.response(responseHeaders);
       if (!path.startsWith('/_next/static/'))
         responseHeaders['cache-control'] = 'private, no-store';
       responseHeaders['referrer-policy'] = 'no-referrer';
@@ -418,12 +424,15 @@ export function createGateway(config, { isNextAlive = () => true } = {}) {
   server.keepAliveTimeout = 5000;
   server.on('upgrade', (req, socket, head) => {
     let path;
+    let hotReload;
     try {
+      development?.validate(req);
       path = requestPath(req.url);
+      hotReload = development && ['/_next/hmr', '/_next/webpack-hmr'].includes(path?.split('?')[0]);
       const origin = new URL(String(req.headers.origin));
       if (
         !path ||
-        !/^\/api\/v1\/collaboration\/[0-9a-f-]{36}\/socket$/i.test(path) ||
+        (!hotReload && !/^\/api\/v1\/collaboration\/[0-9a-f-]{36}\/socket$/i.test(path)) ||
         origin.host.toLowerCase() !== String(req.headers.host).toLowerCase() ||
         !['http:', 'https:'].includes(origin.protocol) ||
         req.headers['sec-websocket-version'] !== '13' ||
@@ -434,19 +443,21 @@ export function createGateway(config, { isNextAlive = () => true } = {}) {
       socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
       return;
     }
-    const target = new URL(path, config.collaborationOrigin);
+    const target = new URL(path, hotReload ? config.nextOrigin : config.collaborationOrigin);
     const transport = target.protocol === 'https:' ? https : http;
+    const headers = {
+      connection: 'Upgrade',
+      upgrade: 'websocket',
+      'sec-websocket-key': req.headers['sec-websocket-key'],
+      'sec-websocket-version': '13',
+      origin: req.headers.origin,
+      host: target.host,
+    };
+    if (!hotReload) development?.forward(headers, target);
     const upstream = transport.request(target, {
       method: 'GET',
       agent: false,
-      headers: {
-        connection: 'Upgrade',
-        upgrade: 'websocket',
-        'sec-websocket-key': req.headers['sec-websocket-key'],
-        'sec-websocket-version': '13',
-        origin: req.headers.origin,
-        host: target.host,
-      },
+      headers,
     });
     upstream.on('upgrade', (response, remote, remoteHead) => {
       if (response.statusCode !== 101 || !response.headers['sec-websocket-accept']) {

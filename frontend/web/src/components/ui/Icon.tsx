@@ -7,6 +7,9 @@ export type IconName =
   | 'lock'
   | 'check'
   | 'document'
+  | 'settings'
+  | 'credit-card'
+  | 'info'
   | 'globe'
   | 'folder'
   | 'shared'
@@ -71,6 +74,24 @@ const shapes: Record<IconName, ReactNode> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="m8 12 3 3 5-6" />
+    </>
+  ),
+  settings: (
+    <>
+      <path d="m10 3-.6 2.4-2 .9L5.2 6 3 10l1.8 1.6v2.3L3 15.5l2.2 3.8 2.2-.6 2 .9.6 2.4h4l.6-2.4 2-.9 2.2.6 2.2-3.8-1.8-1.6v-2.3L21 10l-2.2-4-2.2.3-2-.9L14 3Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  'credit-card': (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 10h18M7 15h3" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6M12 7h.01" />
     </>
   ),
   globe: (

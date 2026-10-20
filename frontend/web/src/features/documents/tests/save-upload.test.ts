@@ -6,11 +6,47 @@ const json = (body: unknown, status = 200) =>
     headers: { 'Content-Type': 'application/json' },
   });
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
   vi.resetModules();
 });
 
 describe('native upload and commit protocol', () => {
+  it.each(['development', 'production'])(
+    'limits the remote upload bridge to development (%s)',
+    async (mode) => {
+      vi.stubEnv('NODE_ENV', mode);
+      vi.stubEnv('NEXT_PUBLIC_REMOTE_BACKEND_PROXY', '1');
+      const capability =
+        'https://storage.googleapis.com/upload/storage/v1/b/example/o?upload_id=fictional';
+      const fetch = vi.fn(async (path: string) => {
+        if (path.endsWith('/uploads'))
+          return json({
+            uploadId: 'upload',
+            kind: 'GCS_RESUMABLE',
+            uploadUrl: capability,
+            requiredHeaders: { 'Content-Type': 'application/octet-stream' },
+          });
+        if (path.endsWith('/versions'))
+          return json({ version: { id: 'v', revision: 1 }, noChange: false });
+        return new Response(null, { status: 200 });
+      });
+      vi.stubGlobal('fetch', fetch);
+      const { saveNativeVersion } = await import('../api/saveDocument');
+      await saveNativeVersion('d', 0, new Uint8Array([1]));
+      const calls = fetch.mock.calls as unknown as [string, RequestInit][];
+      const [path, options] = calls[1]!;
+      expect(path).toBe(mode === 'development' ? '/__dev/storage-upload' : capability);
+      expect(new Headers(options.headers).get('X-Dev-Upload-Url')).toBe(
+        mode === 'development' ? capability : null,
+      );
+      expect(new Headers(options.headers).has('Authorization')).toBe(false);
+      expect(options.credentials).toBe('omit');
+      expect(new Uint8Array(await (options.body as Blob).arrayBuffer())).toEqual(
+        new Uint8Array([1]),
+      );
+    },
+  );
   it('pins one idempotency key and expected head across an ambiguous commit retry', async () => {
     const commits: RequestInit[] = [];
     let commitAttempts = 0;

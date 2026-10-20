@@ -30,6 +30,8 @@ export function FolderRows({
               {folder.name}
             </span>
           </button>
+          <span className="file-created">—</span>
+          <span className="file-size">—</span>
           <span className="file-kind">{t(MESSAGE.folderType)}</span>
           <span className="file-access">{t(MESSAGE.owner)}</span>
           <ActionMenu

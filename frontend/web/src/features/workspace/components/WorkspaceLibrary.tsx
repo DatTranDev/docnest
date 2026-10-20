@@ -9,7 +9,6 @@ import {
 } from '@/features/documents';
 import { FolderRows, type Folder } from '@/features/folders';
 import { Icon } from '@/components/ui/Icon';
-import { OptionSelect } from '@/components/ui/OptionSelect';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { Scope } from '../model/types';
 import { useLibraryView } from '../hooks/useLibraryView';
@@ -31,8 +30,6 @@ export function WorkspaceLibrary({
   onPath,
   onClearSearch,
   onRetry,
-  onNewDocument,
-  onImport,
   folderActions,
   documentActions,
 }: {
@@ -52,8 +49,6 @@ export function WorkspaceLibrary({
   onPath: (path: Folder[]) => void;
   onClearSearch: () => void;
   onRetry: () => void;
-  onNewDocument: () => void;
-  onImport: () => void;
   folderActions: Omit<ComponentProps<typeof FolderRows>, 'folders'>;
   documentActions: Omit<ComponentProps<typeof DocumentRows>, 'documents' | 'trash' | 'view'>;
 }) {
@@ -116,25 +111,11 @@ export function WorkspaceLibrary({
         ) : (
           <h1>{t(title)}</h1>
         )}
-        <div className="workspace-heading-actions">
-          {scope === 'mine' && (
-            <>
-              <button className="primary library-new-document" onClick={onNewDocument}>
-                <Icon name="plus" size={18} />
-                {t(MESSAGE.newDocument)}
-              </button>
-              <button className="library-import" onClick={onImport}>
-                <Icon name="upload" size={18} />
-                {t(MESSAGE.importFile)}
-              </button>
-            </>
-          )}
-        </div>
       </div>
       {scope === 'trash' && <p className="trash-restore-note">{t(MESSAGE.restoreAccessWarning)}</p>}
       <div className="workspace-toolbar">
         <label className="type-filter">
-          <span>{t(MESSAGE.typeFilter)}</span>
+          <span className="visually-hidden">{t(MESSAGE.typeFilter)}</span>
           <select
             aria-label={t(MESSAGE.typeFilter)}
             value={effectiveKind}
@@ -148,29 +129,6 @@ export function WorkspaceLibrary({
             <option value="code">Code</option>
           </select>
         </label>
-        <div className="sort-filter">
-          <OptionSelect
-            label={t(MESSAGE.sortBy)}
-            prefix={t(MESSAGE.sortBy)}
-            value={sortBy}
-            options={[
-              { value: 'createdAt', label: t(MESSAGE.sortDateCreated) },
-              { value: 'name', label: t(MESSAGE.itemName) },
-              { value: 'size', label: t(MESSAGE.sortSize) },
-            ]}
-            onChange={(value) => onSortBy(value as DocumentSortBy)}
-          />
-        </div>
-        <button
-          className="sort-direction"
-          aria-label={t(MESSAGE.reverseSortOrder)}
-          title={t(sortDirection === 'asc' ? MESSAGE.sortAscending : MESSAGE.sortDescending)}
-          onClick={onSortDirection}
-        >
-          <span className={sortDirection === 'desc' ? 'sort-descending' : ''}>
-            <Icon name="arrow-up" size={17} />
-          </span>
-        </button>
         <div className="view-switch" role="group" aria-label={t(MESSAGE.viewLayout)}>
           {(['list', 'grid'] as const).map((layout) => (
             <button
@@ -196,8 +154,28 @@ export function WorkspaceLibrary({
         )}
         <span className="library-count">{t(countMessage, { p0: visibleCount })}</span>
       </div>
-      <div className="library-columns">
-        <span className="name-sort">{t(MESSAGE.itemName)}</span>
+      <div className="library-columns" role="group" aria-label={t(MESSAGE.sortBy)}>
+        {(
+          [
+            ['name', MESSAGE.itemName],
+            ['createdAt', MESSAGE.sortDateCreated],
+            ['size', MESSAGE.sortSize],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            className={`column-sort column-${key}`}
+            aria-label={`${t(MESSAGE.sortBy)}: ${t(label)}${sortBy === key ? `, ${t(sortDirection === 'asc' ? MESSAGE.sortAscending : MESSAGE.sortDescending)}` : ''}`}
+            onClick={() => (sortBy === key ? onSortDirection() : onSortBy(key))}
+          >
+            {t(label)}
+            {sortBy === key && (
+              <span className={sortDirection === 'desc' ? 'sort-descending' : ''}>
+                <Icon name="arrow-up" size={14} />
+              </span>
+            )}
+          </button>
+        ))}
         <span className="column-kind">{t(MESSAGE.typeFilter)}</span>
         <span className="column-access">{t(MESSAGE.accessLabel)}</span>
       </div>

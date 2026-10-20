@@ -28,7 +28,7 @@ export function DocumentRows({
   onTrash: (document: DocumentInfo) => void;
   onRestore: (document: DocumentInfo) => void;
 }) {
-  const { t, localize, countLabel } = useI18n();
+  const { t, localize, countLabel, localeTag } = useI18n();
   const [owners, setOwners] = useState<Record<string, PublicProfile>>({});
   const ownerIds = useMemo(
     () => [
@@ -110,6 +110,27 @@ export function DocumentRows({
                 )}
               </span>
             </button>
+            <span className="file-created">
+              {document.createdAt && !Number.isNaN(Date.parse(document.createdAt)) ? (
+                <time
+                  dateTime={document.createdAt}
+                  title={new Date(document.createdAt).toLocaleString(localeTag)}
+                >
+                  {new Date(document.createdAt).toLocaleDateString(localeTag, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </time>
+              ) : (
+                '—'
+              )}
+            </span>
+            <span className="file-size">
+              {typeof document.sizeBytes === 'number'
+                ? `${new Intl.NumberFormat(localeTag, { maximumFractionDigits: 1 }).format(document.sizeBytes / 1024)} KB`
+                : '—'}
+            </span>
             <span className={`file-kind file-kind-${kind}`}>
               {
                 {
