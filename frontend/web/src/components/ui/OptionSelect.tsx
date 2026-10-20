@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { SelectTrigger } from './Controls';
 import { Icon } from './Icon';
 
 export interface SelectOption {
@@ -25,6 +26,8 @@ export function OptionSelect({
   inlineMenu?: boolean;
   prefix?: string;
 }) {
+  const menuId = useId();
+  const search = useRef({ text: '', time: 0 });
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -70,7 +73,10 @@ export function OptionSelect({
                 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
           event.preventDefault();
           items[next]?.focus();
-        } else if (event.target === trigger.current && event.key === 'ArrowDown') {
+        } else if (
+          event.target === trigger.current &&
+          ['ArrowDown', 'ArrowUp'].includes(event.key)
+        ) {
           event.preventDefault();
           setOpen(true);
           requestAnimationFrame(() =>
@@ -78,25 +84,48 @@ export function OptionSelect({
               ?.querySelector<HTMLButtonElement>('[role="option"][aria-selected="true"]')
               ?.focus(),
           );
+        } else if (
+          event.key.length === 1 &&
+          !event.ctrlKey &&
+          !event.metaKey &&
+          !event.altKey &&
+          event.key !== ' '
+        ) {
+          const now = Date.now();
+          search.current.text =
+            now - search.current.time > 700 ? event.key : search.current.text + event.key;
+          search.current.time = now;
+          const match = options.find((option) =>
+            option.label.toLocaleLowerCase().startsWith(search.current.text.toLocaleLowerCase()),
+          );
+          if (match) {
+            event.preventDefault();
+            if (open)
+              root.current
+                ?.querySelectorAll<HTMLButtonElement>('[role="option"]')
+                [options.indexOf(match)]?.focus();
+            else onChange(match.value);
+          }
         }
       }}
     >
-      <button
+      <SelectTrigger
         ref={trigger}
         type="button"
         className="option-select-trigger"
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         disabled={disabled || !selected}
         onClick={() => setOpen((current) => !current)}
       >
         {prefix && <span className="option-select-prefix">{prefix}</span>}
         <span className="option-select-value">{selected?.label ?? ''}</span>
         <Icon name="chevron-down" size={14} />
-      </button>
+      </SelectTrigger>
       {open && (
-        <div className="option-select-menu" role="listbox" aria-label={label}>
+        <div id={menuId} className="option-select-menu" role="listbox" aria-label={label}>
           {options.map((option) => (
             <button
               key={option.value}

@@ -4,6 +4,7 @@ import { LOCALE_COOKIE, normalizeLocale } from '@/config/locale';
 import { SiteIntro, SitePolicy } from '@/features/local-tools';
 import LocalWorkbench from '@/features/local-tools/components/LocalWorkbench';
 import '@/app/globals.css';
+import '@/app/controls.css';
 import '@/app/workspace.css';
 import '@/app/preferences.css';
 import '@/app/local-tools.css';

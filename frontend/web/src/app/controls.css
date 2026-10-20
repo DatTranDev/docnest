@@ -1,0 +1,287 @@
+/* Shared control geometry and states, used by native controls and React primitives. */
+button,
+.button {
+  min-height: var(--ui-control-default);
+  font-size: var(--ui-control-font);
+  font-weight: 500;
+  line-height: 1.25;
+  color: inherit;
+  background: var(--ui-surface);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  padding: 8px 12px;
+  cursor: pointer;
+  transition:
+    background-color var(--ui-motion),
+    border-color var(--ui-motion),
+    color var(--ui-motion);
+}
+button:where(:not(:disabled)):hover,
+.button:hover {
+  background: var(--ui-tile);
+  border-color: transparent;
+}
+button:focus-visible,
+.button:focus-visible,
+summary:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+select:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 2px;
+}
+button:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+.primary {
+  color: var(--ui-on-primary);
+  background: var(--ui-primary);
+  border-color: var(--ui-primary);
+  font-weight: 600;
+}
+.primary:hover:not(:disabled) {
+  color: var(--ui-on-primary);
+  background: var(--ui-primary-hover);
+  border-color: var(--ui-primary-hover);
+}
+
+.control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ui-space-2);
+  text-decoration: none;
+}
+.control-secondary {
+  border-color: var(--ui-border);
+}
+.control-ghost {
+  background: transparent;
+}
+.control-primary {
+  background: var(--ui-primary);
+  color: var(--ui-on-primary);
+}
+.control-primary:hover:not(:disabled) {
+  background: var(--ui-primary-hover);
+  color: var(--ui-on-primary);
+}
+.control-destructive {
+  background: var(--ui-danger-bg);
+  color: var(--ui-danger);
+}
+.control-destructive:hover:not(:disabled) {
+  background: var(--ui-danger-bg);
+  border-color: var(--ui-danger);
+}
+.control-compact,
+.select-trigger {
+  min-height: var(--ui-control-compact);
+}
+.control-icon {
+  width: var(--ui-control-compact);
+  padding: 0;
+  flex: none;
+}
+.control svg,
+.select-trigger svg {
+  flex: none;
+  width: var(--ui-control-icon);
+  height: var(--ui-control-icon);
+}
+.select-trigger {
+  justify-content: space-between;
+  text-align: left;
+}
+.segmented-control,
+.view-switch,
+.local-view-switch,
+.billing-cycle,
+.json-mobile-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ui-space-1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-tile);
+}
+.segmented-control > button,
+.view-switch > button,
+.local-view-switch > button,
+.billing-cycle > button,
+.json-mobile-switch > button {
+  min-height: var(--ui-control-compact);
+  border: 1px solid transparent;
+  border-radius: var(--ui-radius-control);
+  background: transparent;
+  color: var(--ui-muted);
+  padding: 6px 10px;
+}
+.segmented-control > button[aria-pressed='true'],
+.view-switch > button[aria-pressed='true'],
+.local-view-switch > button[aria-pressed='true'],
+.billing-cycle > button[aria-pressed='true'],
+.json-mobile-switch > button[aria-pressed='true'] {
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  border-color: var(--ui-border);
+}
+
+.option-select {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  z-index: 15;
+}
+.option-select:has(.option-select-menu) {
+  z-index: 16;
+}
+.option-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-3);
+  width: 100%;
+  min-height: var(--ui-control-compact);
+  padding: 7px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  text-align: left;
+}
+.option-select-trigger:hover,
+.option-select-trigger[aria-expanded='true'] {
+  background: var(--ui-tile);
+}
+.option-select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.option-select-prefix {
+  flex: none;
+  color: var(--ui-muted);
+}
+.option-select-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 110;
+  display: grid;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(320px, calc(100vw - 32px));
+  max-height: min(240px, 40dvh);
+  gap: 3px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  box-shadow:
+    0 10px 28px #1e293b24,
+    0 2px 6px #1e293b12;
+}
+.option-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-4);
+  min-height: var(--ui-control-compact);
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--ui-radius-control);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.option-select-option:hover,
+.option-select-option.selected,
+.option-select-option:focus-visible {
+  background: var(--ui-selected);
+}
+.option-select-option.selected > span:last-child {
+  color: var(--ui-accent);
+  font-weight: 700;
+}
+.option-select-inline {
+  display: grid;
+  width: 100%;
+}
+.option-select-inline .option-select-menu {
+  position: static;
+  width: 100%;
+  min-width: 0;
+  margin-top: 6px;
+  box-shadow: none;
+}
+
+.action-menu {
+  position: relative;
+  flex: none;
+}
+.action-menu:has(.action-menu-popover) {
+  z-index: 10;
+}
+.action-menu-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ui-radius-control);
+  background: transparent;
+}
+.action-menu-trigger:hover,
+.action-menu-trigger[aria-expanded='true'] {
+  background: var(--ui-tile);
+}
+.action-menu-popover {
+  overflow-y: auto;
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  min-width: 190px;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: var(--ui-space-1);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
+  box-shadow: var(--ui-shadow);
+}
+.action-menu-popover button {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-space-3);
+  width: 100%;
+  min-height: var(--ui-control-compact);
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--ui-radius-control);
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+}
+.action-menu-popover button:hover,
+.action-menu-popover button:focus {
+  background: var(--ui-tile);
+}
+.action-menu-popover button:focus-visible {
+  outline-offset: -3px;
+}
+.action-menu-popover .menu-danger {
+  color: var(--ui-danger);
+}

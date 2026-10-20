@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-10-19. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
+Last updated: 2026-10-20. This is the sole human-readable project status checkpoint. Detailed design and contracts remain in `docs/` and `docs/contracts/`. Validation commands create ignored machine-readable output under `testing/reports/` when needed.
 
 ## Application
 
@@ -1494,3 +1494,24 @@ The previous toolbar/metadata refinement was committed as `c43f1ca` and pushed t
 The owner then showed a `.md` file opened in the rich editor and requested that each file use only its matching editor. Removed the signed-in workspace's manual editor-mode selector and its override state. The editor now derives solely from the saved title extension: `.md`/`.markdown` use Markdown, `.json` uses JSON, supported source extensions use Code, and other titles use the rich document editor. The session controller tracks this derived surface so a supported extension change via rename remounts the correct editor. Removed the unused source-pane override, mode copy, and selector styles. The standalone local workbench still has its separate mode selector and drafts.
 
 Required JDK21 `.\mvnw.cmd -B -ntp package '-Dmaven.test.skip=true'` PASS with tests skipped; `npm run build` PASS; `npm run build:local` PASS with existing Vite notices. Optional `npm run typecheck`, `npm run lint`, `npm run architecture` (165 handwritten modules), targeted Prettier and `git diff --check` PASS. A production Chromium review with fictional API responses opened `.md`, `.json`, `.js` and a regular document at 1440/768/390px. Each rendered its matching editor with zero mode selectors, page errors or page-level overflow; renaming `.md` to `.json` switched to the JSON pane. Ignored captures and the review script are under `testing/reports/visual-qa/file-kind/` and `testing/reports/visual-qa/file-kind-review.mjs`. This mock run does not establish authenticated live persistence or conversion of existing styled content. The owner subsequently requested commit and push; cloud deployment remains unrequested and was not dispatched.
+
+## UI control system refactor — 2026-10-20
+
+Primary tasks: create/import and organize documents in the library, then write/download or save in the editor. Preserve one clear primary action per flow. State matrix reviewed in source: default/hover/focus, selected/open, disabled/loading, empty/filtered-empty/error, permission/read-only, desktop/mobile, English/Vietnamese and light/dark. Existing state owners, API requests, localization catalogs and persistence semantics are unchanged.
+
+Audit findings and implementation:
+
+- Type had conflicting native-select/container styling in workspace and preferences plus later toolbar overrides; Sort and direction used different scales. Both filters now use the existing OptionSelect behavior through shared SelectTrigger, and direction/view actions use the new Button/IconButton/SegmentedControl primitives. Typeahead, ArrowUp opening and listbox association preserve useful native-select affordances.
+- `controls.css` now owns base button states, variants, shared selects, action menus and segmented presentation; preferences owns semantic 36/40px geometry tokens and the 44px mobile/coarse-pointer scale. Both Next and standalone entry points load the same system. Workspace keeps placement/wrapping, including enough mobile width for Sort. Removed competing Type selectors and duplicate view/sidebar-New styling rather than adding trailing overrides.
+- Quieter utility actions, 8px control corners, aligned 17px primitive icons, restrained menu shadows and selected segments extend to editor menus, settings/billing, sharing, authentication and local tools through the shared styles. Kept native form/editor selects and existing semantic/tab/menu implementations. Account actions retain their 44px trigger and lose the pill border. The local sign-in action now uses primary-fill/on-primary tokens, fixing its dark-theme contrast; JSON pane switches use shared selected styling.
+
+Verification:
+
+- `npm ci --cache /tmp/docnest-npm-cache --no-audit --no-fund`: PASS. Initial install failed because the default home cache was unavailable; using a writable temporary cache resolved it without dependency changes.
+- `npm run lint --workspace frontend/web`, `npm run typecheck`, `npm run architecture`: PASS on final sources (existing Next pages-directory lint notice remains).
+- `npm run test --workspace frontend/web`: PASS, 14 files / 74 tests.
+- `npm run build` and `npm run build:local`: PASS, repeated after final shared-style changes. Existing Vite directive/dynamic-import warnings remain.
+- Prettier on changed sources/design contract and `git diff --check`: PASS.
+- Manual Chromium review used local screenshots and a temporary fixture rendering the real WorkspaceLibrary with empty fictional data and the actual stylesheet order. Measured 36px toolbar controls at 1440/768px and 44px at 390/360px; no page overflow in either theme. Reviewed English/Vietnamese library screenshots, corrected cramped mobile Sort, and checked keyboard typeahead, ArrowUp/Down, Home/End, Enter, outside dismissal, Escape focus return, view selection and reduced-motion token behavior. Temporary fixture/scripts/screenshots are not product files or new release gates.
+- Inspected actual authentication and standalone rich-text/Markdown/JSON renders on desktop/mobile in light/dark. Browser walkthrough reported no page errors or page overflow for these screens. Recaptured local editors after final changes. Paper remains white in dark mode. Signed-in workspace header/account, populated documents, sharing/permission dialogs and billing/settings were reviewed in source/shared styles only; authenticated mutations, OAuth, payment and collaboration were not exercised.
+- Repository Java packaging attempted with JDK21: `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 MAVEN_USER_HOME=/tmp/docnest-maven sh mvnw -B -ntp package -Dmaven.test.skip=true -Dmaven.repo.local=/tmp/docnest-m2`. BLOCKED before compilation by Maven Central DNS resolution while fetching the Spring Boot parent POM. No backend source changed.

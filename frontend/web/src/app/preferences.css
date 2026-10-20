@@ -20,6 +20,10 @@
   --ui-success: #246343;
   --ui-success-bg: #e7f5ed;
   --ui-overlay: #0f172a80;
+  --ui-control-compact: 36px;
+  --ui-control-default: 40px;
+  --ui-control-icon: 17px;
+  --ui-control-font: 14px;
   --ui-radius-control: 8px;
   --ui-radius-card: 12px;
   --ui-radius-panel: 16px;
@@ -55,6 +59,12 @@
   --ui-shadow: 0 8px 28px #00000040;
   color-scheme: dark;
 }
+@media (pointer: coarse), (max-width: 760px) {
+  :root {
+    --ui-control-compact: 44px;
+    --ui-control-default: 44px;
+  }
+}
 .app {
   --library-bg: var(--ui-bg);
   --library-surface: var(--ui-surface);
@@ -64,28 +74,13 @@
   --library-selected: var(--ui-selected);
   --library-blue: var(--ui-accent);
 }
-/* Native customizable selects preserve form semantics and keyboard/typeahead behaviour. */
+/* Native selects share geometry while retaining native keyboard/typeahead behavior. */
 select {
-  min-height: 34px;
-  color: var(--ui-ink);
-  background: var(--ui-surface);
-  border: 1px solid var(--ui-border);
-  border-radius: 9px;
-  padding: 7px 12px;
+  min-height: var(--ui-control-compact);
+  border-radius: var(--ui-radius-control);
+  padding: 7px 10px;
+  font-size: var(--ui-control-font);
   cursor: pointer;
-}
-.type-filter {
-  gap: var(--ui-space-2);
-  border: 0;
-  padding: 0;
-}
-.type-filter select {
-  min-width: 140px;
-  max-width: 180px;
-  padding: 7px 12px;
-  border: 1px solid var(--ui-border);
-  border-radius: 9px;
-  background: var(--ui-surface);
 }
 @supports (appearance: base-select) {
   select,
@@ -409,24 +404,10 @@ select {
 }
 .billing-cycle {
   display: flex;
-  background: #d4e3fa;
-  padding: var(--ui-space-1);
-  border-radius: 10px;
   margin: 22px 0 12px;
-  gap: var(--ui-space-1);
 }
 .billing-cycle button {
   flex: 1;
-  background: transparent;
-  border: 0;
-  padding: 9px 8px;
-  border-radius: 7px;
-  color: #143766;
-}
-.billing-cycle button[aria-pressed='true'] {
-  background: #fff;
-  box-shadow: 0 1px 4px #14376618;
-  font-weight: 600;
 }
 .billing-price {
   display: block;
@@ -472,18 +453,6 @@ select {
 }
 :root[data-theme='dark'] .billing-pro h3 {
   color: #dce9ff;
-}
-:root[data-theme='dark'] .billing-cycle {
-  background: #172b46;
-}
-:root[data-theme='dark'] .billing-cycle button {
-  background: transparent;
-}
-:root[data-theme='dark'] .billing-cycle button[aria-pressed='true'] {
-  background: #355a86;
-}
-:root[data-theme='dark'] .view-switch button[aria-pressed='true'] {
-  background: var(--ui-selected);
 }
 @media (max-width: 600px) {
   .billing-panel {
