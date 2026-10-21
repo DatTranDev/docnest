@@ -1,5 +1,14 @@
 import { useI18n } from '@/lib/i18n';
 export const toolsVi = {
+  videoHeading: 'Xem từ ý tưởng đến bản thảo',
+  videoDescription:
+    'Video thao tác trên trình soạn thảo: viết Markdown, xem kết quả JSON và chuyển giữa Code, Văn bản. Nội dung mẫu bằng tiếng Anh, không có âm thanh.',
+  tryEditor: 'Tự trải nghiệm',
+  videoFallback: 'Trình duyệt này không phát được video.',
+  downloadDemo: 'Tải video demo',
+  videoTranscript: 'Các thao tác trong video',
+  videoSteps:
+    'Viết tiêu đề, danh sách công việc và chữ đậm trong Markdown, xem bản xem trước cập nhật bên cạnh. Chuyển sang JSON để xem nguồn và kết quả định dạng, rồi mở Code và Văn bản. Mỗi chế độ giữ bản nháp riêng trong phiên.',
   introEyebrow: 'CHO MỌI Ý TƯỞNG CỦA BẠN',
   toolsEyebrow: 'BỐN CÁCH ĐỂ BẮT ĐẦU',
   demoLabel: 'Xem trước trình soạn thảo',
@@ -119,6 +128,15 @@ export const toolsVi = {
   editMarkdown: 'Soạn Markdown',
 } as const;
 export const toolsEn: Record<keyof typeof toolsVi, string> = {
+  videoHeading: 'See an idea become a draft',
+  videoDescription:
+    'A recorded walkthrough: write Markdown, view formatted JSON, then switch to Code and Document. English sample content, no audio.',
+  tryEditor: 'Try it yourself',
+  videoFallback: 'Your browser cannot play this video.',
+  downloadDemo: 'Download the demo video',
+  videoTranscript: 'Steps shown in the video',
+  videoSteps:
+    'Write a heading, a task list and bold text in Markdown while the preview updates alongside it. Switch to JSON to see the source and formatted result, then open Code and Document. Each mode keeps its own draft during the session.',
   introEyebrow: 'A LITTLE SPACE FOR BIG IDEAS',
   toolsEyebrow: 'FOUR WAYS TO GET STARTED',
   demoLabel: 'Editor preview',

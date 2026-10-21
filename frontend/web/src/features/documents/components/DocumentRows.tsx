@@ -98,7 +98,7 @@ export function DocumentRows({
           >
             <button className="file-name" disabled={trash} onClick={() => onOpen(document)}>
               <span className={`file-type-icon document-type document-type-${kind}`}>
-                <Icon name="document" size={18} />
+                <Icon name={kind} size={18} />
               </span>
               <span className="file-label">
                 <span title={document.title}>{document.title}</span>

@@ -22,6 +22,14 @@ export default defineConfig({
         });
         this.emitFile({
           type: 'asset',
+          fileName: 'fonts/montserrat/OFL.txt',
+          source: readFileSync(
+            path.resolve(import.meta.dirname, 'public/fonts/montserrat/OFL.txt'),
+            'utf8',
+          ),
+        });
+        this.emitFile({
+          type: 'asset',
           fileName: 'README.txt',
           source:
             'docsnest local site\n\nServe this directory with a static HTTP host (for example, Live Server or python -m http.server 8081).\nOpen index.html for the introduction, editor.html for the editor.\nNo backend services or login are required. Files stay in the current session; download to keep your work.\nPDF uses the browser Print / Save PDF dialog.\n',

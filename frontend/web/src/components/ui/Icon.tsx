@@ -6,6 +6,9 @@ export type IconName =
   | 'shield'
   | 'lock'
   | 'check'
+  | 'markdown'
+  | 'code'
+  | 'json'
   | 'document'
   | 'settings'
   | 'credit-card'
@@ -99,6 +102,19 @@ const shapes: Record<IconName, ReactNode> = {
       <circle cx="12" cy="12" r="9" />
       <ellipse cx="12" cy="12" rx="4" ry="9" />
       <path d="M3 12h18" />
+    </>
+  ),
+  markdown: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M6 15V9l3 3 3-3v6M17 9v6m-2-2 2 2 2-2" />
+    </>
+  ),
+  code: <path d="m8 7-5 5 5 5m8-10 5 5-5 5M14 4l-4 16" />,
+  json: (
+    <>
+      <path d="M9 3H7v6l-3 3 3 3v6h2M15 3h2v6l3 3-3 3v6h-2" />
+      <path d="M12 9h.01M12 15h.01" />
     </>
   ),
   document: (

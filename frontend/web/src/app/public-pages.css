@@ -8,7 +8,7 @@
 }
 .policy-main h1 {
   margin: 0 0 16px;
-  font-family: 'docsnest Serif', Georgia, serif;
+  font-family: var(--ui-font);
   font-size: clamp(34px, 5vw, 48px);
   font-weight: 400;
   line-height: 1.2;
@@ -23,7 +23,7 @@
 .policy-main .policy-updated {
   margin: 0;
   color: var(--ui-muted);
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .policy-main section {
   margin-top: 32px;
@@ -36,7 +36,7 @@
 .policy-main section p {
   margin: 0;
   color: var(--ui-muted);
-  font-size: 16px;
+  font-size: var(--ui-text-lead);
   line-height: 1.8;
 }
 .intro-footer a[aria-current] {
@@ -64,7 +64,7 @@
 }
 .public-state-card h1 {
   margin: 22px 0 32px;
-  font-family: 'docsnest Serif', Georgia, serif;
+  font-family: var(--ui-font);
   font-size: clamp(36px, 6vw, 50px);
   font-weight: 400;
   line-height: 1.2;
@@ -106,7 +106,7 @@
   border-radius: var(--ui-radius-control);
   background: transparent;
   color: var(--ui-ink);
-  font-size: 14px;
+  font-size: var(--ui-text-body);
   font-weight: 550;
   text-decoration: none;
 }
@@ -121,12 +121,12 @@
   flex: none;
   align-items: center;
   gap: 8px;
-  font-size: 23px;
-  letter-spacing: -0.8px;
+  font-size: var(--ui-brand-size);
+  letter-spacing: -0.02em;
 }
 .site-header-intro .brand-icon {
-  width: 34px;
-  height: 38px;
+  width: 30px;
+  height: 34px;
 }
 .site-header-intro nav {
   align-self: stretch;
@@ -284,11 +284,11 @@
 .auth-story h2 {
   margin-bottom: 20px;
   color: var(--ui-ink);
-  font-family: 'docsnest Serif', Georgia, serif;
+  font-family: var(--ui-font);
   font-size: clamp(32px, 3.4vw, 46px);
   font-weight: 400;
   line-height: 1.2;
-  letter-spacing: -1.5px;
+  letter-spacing: -0.028em;
   text-wrap: balance;
 }
 .auth .panel .auth-story p {
@@ -312,7 +312,7 @@
   padding: 10px 16px;
   border-bottom: 1px solid var(--ui-border);
   color: var(--ui-ink);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .auth-preview-heading > span:first-of-type {
   overflow: hidden;
@@ -340,29 +340,29 @@
   border: 1px solid #dce2eb;
   background: #fff;
   color: #0f172a;
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
   line-height: 1.7;
 }
 .auth-preview-eyebrow {
   color: #526176;
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .auth-preview-paper h3 {
   margin: 16px 0 12px;
   color: #0f172a;
   font-family: Georgia, serif;
-  font-size: 24px;
+  font-size: var(--ui-text-title);
   font-weight: 400;
   line-height: 1.3;
 }
 .auth .panel .auth-preview-paper p {
   color: #526176;
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
   line-height: 1.7;
 }
 .auth-preview-paper h4 {
   margin: 20px 0 8px;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .auth-preview-paper ul {
   margin: 0;
@@ -371,7 +371,7 @@
 .auth-preview-caption {
   padding: 10px 16px;
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .auth-benefits {
   display: grid;
@@ -379,7 +379,7 @@
   margin: 32px 0 0;
   padding: 0;
   list-style: none;
-  font-size: 14px;
+  font-size: var(--ui-text-body);
   line-height: 1.5;
 }
 .auth-benefits li {
@@ -413,7 +413,7 @@
   border: 0;
   background: transparent;
   color: var(--ui-muted);
-  font-size: 14px;
+  font-size: var(--ui-text-body);
 }
 .auth .auth-mode button[aria-pressed='true'] {
   background: transparent;
@@ -428,7 +428,7 @@
 .auth .panel .auth-description {
   margin: 12px 0 24px;
   color: var(--ui-muted);
-  font-size: 16px;
+  font-size: var(--ui-text-lead);
   line-height: 1.6;
 }
 .auth fieldset {
@@ -443,7 +443,7 @@
 .auth-password {
   margin: 0;
   color: var(--ui-ink);
-  font-size: 14px;
+  font-size: var(--ui-text-body);
   font-weight: 550;
 }
 .auth label {
@@ -474,7 +474,7 @@
   margin: 0;
   padding: 6px 8px;
   color: var(--ui-accent);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .auth form .primary,
 :root[data-theme='dark'] .auth form .primary {
@@ -500,7 +500,7 @@
   border-radius: 0;
   background: transparent;
   color: var(--ui-accent);
-  font-size: 14px;
+  font-size: var(--ui-text-body);
   font-weight: 500;
   text-align: center;
 }
@@ -508,7 +508,7 @@
 .auth .panel .field-help {
   margin-bottom: 0;
   color: var(--ui-muted);
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   line-height: 1.6;
 }
 .auth .panel .auth-local-note {
@@ -516,7 +516,7 @@
 }
 .auth .auth-divider {
   color: var(--ui-muted);
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .auth-divider::before,
 .auth-divider::after {
@@ -563,7 +563,7 @@
 }
 .intro-words small {
   max-width: 390px;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   line-height: 1.6;
 }
 .intro-demo {
@@ -587,7 +587,7 @@
 }
 .intro-demo-format {
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .intro-demo-toolbar {
   gap: 20px;
@@ -623,13 +623,13 @@
 }
 .intro-demo-paper p,
 .intro-demo-paper li {
-  font-size: 14px;
+  font-size: var(--ui-text-body);
   line-height: 1.8;
 }
 .intro-demo-paper h3 {
   margin-top: 24px;
   color: #0f172a;
-  font-size: 14px;
+  font-size: var(--ui-text-body);
 }
 :root[data-theme='dark'] .intro-main .intro-demo-paper :is(h2, h3, p, li) {
   color: #0f172a;
@@ -643,7 +643,7 @@
   gap: var(--ui-space-2);
   padding: 12px 20px;
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .intro-demo figcaption > span:last-child {
   margin-left: auto;
@@ -667,7 +667,7 @@
 .intro-section-heading h2 {
   margin-bottom: 0;
   max-width: 260px;
-  font-family: 'docsnest Serif', Georgia, serif;
+  font-family: var(--public-display-font);
   font-size: 30px;
   font-weight: 400;
   line-height: 1.25;
@@ -706,7 +706,7 @@
 }
 .intro-feature-list p {
   max-width: 34ch;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   line-height: 1.55;
 }
 .intro-local {
@@ -720,7 +720,7 @@
   background: transparent;
 }
 .intro-local h2 {
-  font-family: 'docsnest Serif', Georgia, serif;
+  font-family: var(--public-display-font);
   font-size: 30px;
   font-weight: 400;
   line-height: 1.25;
@@ -796,7 +796,7 @@
   }
   .intro-words h1 {
     font-size: clamp(34px, 9.6vw, 40px);
-    letter-spacing: -1.5px;
+    letter-spacing: -0.028em;
   }
   .intro-demo {
     display: none;
@@ -887,10 +887,67 @@
     gap: 12px;
   }
   .auth .auth-mode button {
-    font-size: 14px;
+    font-size: var(--ui-text-body);
   }
   .auth label input,
   .auth-password-control input {
-    font-size: 16px;
+    font-size: var(--ui-text-lead);
+  }
+}
+.intro-product-demo {
+  padding: 0 0 64px;
+}
+.intro-product-demo-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ui-space-6);
+  margin-bottom: var(--ui-space-6);
+}
+.intro-product-demo h2 {
+  margin-bottom: var(--ui-space-3);
+  font-family: var(--public-display-font);
+  font-size: clamp(24px, 3vw, 30px);
+  line-height: 1.25;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.intro-product-demo-heading p {
+  max-width: 65ch;
+  margin-bottom: 0;
+  color: var(--ui-muted);
+  font-size: var(--ui-text-body);
+  line-height: 1.65;
+}
+.intro-product-demo-heading > a {
+  flex: none;
+}
+.intro-product-demo video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 64 / 45;
+  background: var(--ui-tile);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-card);
+}
+.intro-demo-transcript {
+  margin-top: var(--ui-space-4);
+  color: var(--ui-muted);
+  font-size: var(--ui-text-small);
+}
+.intro-demo-transcript summary {
+  cursor: pointer;
+  min-height: 44px;
+  padding: 10px 0;
+}
+.intro-demo-transcript p {
+  max-width: 75ch;
+  line-height: 1.65;
+}
+@media (max-width: 600px) {
+  .intro-product-demo-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

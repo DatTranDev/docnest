@@ -21,7 +21,7 @@ export function SiteFooter({
         </a>
         <nav aria-label={copy.footerNavigation}>
           <a href={introduction ? '#features' : `${intro}#features`}>{copy.features}</a>
-          <a href={standalone ? './editor.html' : '/intro#editor'}>{copy.openEditor}</a>
+          <a href={standalone ? './editor.html' : '/local'}>{copy.openEditor}</a>
           <a
             href={standalone ? './privacy.html' : '/privacy'}
             aria-current={current === 'privacy' ? 'page' : undefined}

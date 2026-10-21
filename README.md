@@ -105,7 +105,7 @@ DOCX import preserves supported Unicode text, headings, B/I/U, common character 
 
 ## Introduction and local tools
 
-The app provides `/intro` (product introduction), with a no-login editor further down the same page at `/intro#editor`. The former `/local` URL redirects there. Four independent, mounted editors retain contents/history across mode switches:
+The app provides `/intro` (product introduction and a recorded product demo) and `/local` (the separate no-login editor). Links accept `/local?mode=document|markdown|code|json`; former `/intro?mode=…#editor` links transfer to the local editor. Four independent, mounted editors retain contents/history across mode switches:
 
 - Document: the canonical rich editor, TXT/native/DOCX import, local native/TXT/HTML/DOCX downloads and browser Print / Save PDF.
 - Markdown: MD/Markdown files, formatting toolbar, source/split/preview, fixed pane labels and bidirectional scrolling by corresponding content in split view, GFM tables/checklists, highlighted fenced code, HTML download and browser Print / Save PDF. Raw HTML is inert; remote images are labels and are never automatically fetched.
@@ -126,6 +126,6 @@ npm run build:local
 npm run preview:local
 ```
 
-Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. The bundled OFL Noto Serif font supports Vietnamese headings. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
+Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. Interface text uses locally bundled Montserrat; landing headings use bundled Noto Serif Regular with Vietnamese support. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
 
 For a separate hosted application, set `NEXT_PUBLIC_APP_URL` to its URL before `npm run build:local`; this configures navigation links only. The local loopback default points to the application on port 8080. Local Compose accepts both `localhost:8080` and `127.0.0.1:8080` for auth CSRF. LOCAL uploads use the current gateway origin; signed cloud uploads retain their original URL and credential rules.

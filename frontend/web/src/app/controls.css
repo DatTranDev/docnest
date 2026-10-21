@@ -273,7 +273,7 @@ button:disabled {
   border-radius: var(--ui-radius-control);
   background: transparent;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .action-menu-popover button:hover,
 .action-menu-popover button:focus {

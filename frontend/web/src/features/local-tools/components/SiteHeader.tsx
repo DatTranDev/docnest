@@ -19,12 +19,7 @@ export function SiteHeader({
 }) {
   const copy = useToolsCopy();
   const initial = useAccountInitial();
-  const hash = useSyncExternalStore(
-    subscribeHash,
-    () => window.location.hash,
-    () => '',
-  );
-  const localActive = editor || hash === '#editor';
+  const localActive = editor;
   const workspaceUrl = standalone
     ? process.env.NEXT_PUBLIC_APP_URL ||
       (typeof location !== 'undefined' &&
@@ -73,7 +68,7 @@ export function SiteHeader({
           {copy.intro}
         </a>
         <a
-          href={standalone ? './editor.html' : '/intro#editor'}
+          href={standalone ? './editor.html' : '/local'}
           aria-current={localActive ? 'page' : undefined}
         >
           {copy.local}
@@ -114,7 +109,7 @@ export function SiteHeader({
             {copy.intro}
           </a>
           {!standalone && (
-            <a href="/intro#editor" aria-current={localActive ? 'page' : undefined}>
+            <a href="/local" aria-current={localActive ? 'page' : undefined}>
               {copy.local}
             </a>
           )}
@@ -132,10 +127,6 @@ export function SiteHeader({
       </details>
     </header>
   );
-}
-function subscribeHash(listener: () => void) {
-  window.addEventListener('hashchange', listener);
-  return () => window.removeEventListener('hashchange', listener);
 }
 let themeFallback = 'system';
 function readTheme() {

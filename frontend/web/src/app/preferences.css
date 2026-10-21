@@ -1,6 +1,30 @@
 /* Shared chrome tokens. Document paper/formatting colours remain independent. */
+@font-face {
+  font-family: Montserrat;
+  src: url('../assets/fonts/montserrat/Montserrat-Variable.ttf') format('truetype');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: Montserrat;
+  src: url('../assets/fonts/montserrat/Montserrat-Italic-Variable.ttf') format('truetype');
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
 :root {
-  --ui-font: Inter, 'Segoe UI', Arial, sans-serif;
+  --ui-font: Montserrat, system-ui, 'Segoe UI', sans-serif;
+  --ui-text-caption: 12px;
+  --ui-text-small: 13px;
+  --ui-text-body: 14px;
+  --ui-text-lead: 16px;
+  --ui-text-section: 20px;
+  --ui-text-title: 24px;
+  --ui-text-display: clamp(36px, 4.7vw, 60px);
+  --ui-brand-size: 20px;
+  --ui-brand-width: 128px;
+  --ui-brand-height: 36px;
   --ui-bg: #f8fafc;
   --ui-surface: #fff;
   --ui-tile: #f1f5f9;
@@ -253,7 +277,7 @@ select {
 }
 .settings-dialog h3 {
   margin: 0 0 4px;
-  font-size: 20px;
+  font-size: var(--ui-text-section);
   line-height: 1.4;
   letter-spacing: -0.02em;
 }
@@ -299,7 +323,7 @@ select {
 }
 .settings-profile-row .settings-photo-help {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .settings-photo-actions {
   display: grid;
@@ -307,7 +331,7 @@ select {
   flex-shrink: 0;
 }
 .settings-photo-actions button {
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .settings-avatar-upload {
   position: relative;
@@ -320,7 +344,7 @@ select {
   overflow: hidden;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-control);
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   font-weight: 500;
   cursor: pointer;
 }
@@ -362,7 +386,7 @@ select {
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-card);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   text-align: center;
   transition:
     background var(--ui-motion),
@@ -465,7 +489,7 @@ select {
   padding: 10px 14px;
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-control);
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .settings-account-section summary {
   display: flex;
@@ -503,7 +527,7 @@ select {
 .settings-security-hint {
   display: block;
   color: var(--ui-muted);
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   margin-top: 4px;
 }
 .settings-credentials {
@@ -537,11 +561,11 @@ select {
 }
 .settings-saved p {
   color: inherit;
-  font-size: 13px;
+  font-size: var(--ui-text-small);
 }
 .settings-saved p + p {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .settings-dialog .dialog-error {
   color: var(--ui-danger);
@@ -616,7 +640,7 @@ select {
     justify-content: center;
     min-height: 60px;
     padding: 8px 2px;
-    font-size: 12px;
+    font-size: var(--ui-text-caption);
     gap: 4px;
   }
   .settings-navigation button svg {
@@ -639,10 +663,10 @@ select {
     font-size: 18px;
   }
   .settings-dialog p {
-    font-size: 14px;
+    font-size: var(--ui-text-body);
   }
   .settings-dialog input:not([type='radio']):not([type='checkbox']) {
-    font-size: 16px;
+    font-size: var(--ui-text-lead);
   }
   .settings-profile-card {
     padding: 16px;
@@ -660,7 +684,7 @@ select {
   .theme-option {
     padding: 30px 6px 12px;
     min-height: 132px;
-    font-size: 12px;
+    font-size: var(--ui-text-caption);
     gap: 10px;
   }
   .theme-sample {
@@ -700,7 +724,7 @@ select {
 }
 .billing-heading h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--ui-text-title);
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
@@ -764,7 +788,7 @@ select {
 }
 .billing-free > p,
 .billing-pro > p {
-  font-size: 13px;
+  font-size: var(--ui-text-small);
   line-height: 1.55;
 }
 .billing-features {
@@ -777,7 +801,7 @@ select {
 .billing-features li {
   display: flex;
   gap: 10px;
-  font-size: 14px;
+  font-size: var(--ui-text-body);
   line-height: 1.5;
 }
 .billing-features li > span {
@@ -817,18 +841,18 @@ select {
   background: var(--ui-tile);
   border-radius: 7px;
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .billing-free-note {
   color: var(--ui-muted);
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 .billing-actions {
   border-top: 1px solid var(--ui-border);
   padding-top: 18px;
 }
 .billing-actions button {
-  font-size: 12px;
+  font-size: var(--ui-text-caption);
 }
 /* Paper stays white to preserve stored text colours and print semantics. */
 :root[data-theme='dark'] .editor-page {

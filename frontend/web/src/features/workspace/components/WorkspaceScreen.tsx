@@ -202,7 +202,7 @@ export default function WorkspaceScreen() {
           {
             label: t(MESSAGE.aboutDocsnest),
             icon: 'info',
-            onSelect: () => router.push('/intro#editor'),
+            onSelect: () => router.push('/intro'),
           },
           {
             label: t(MESSAGE.signOut),

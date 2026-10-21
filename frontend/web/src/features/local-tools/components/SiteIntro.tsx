@@ -3,14 +3,20 @@ import Link from 'next/link';
 import { useToolsCopy } from '../model/copy';
 import { SiteHeader } from './SiteHeader';
 import { Icon } from '@/components/ui/Icon';
-import { LocalClient } from './LocalClient';
+import { useEffect } from 'react';
 import { SiteFooter } from './SiteFooter';
+import { ProductDemo } from './ProductDemo';
 export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
   const copy = useToolsCopy();
+  useEffect(() => {
+    if (!standalone && window.location.hash === '#editor') {
+      window.location.replace(`/local${window.location.search}`);
+    }
+  }, [standalone]);
   const edit = (mode?: string) =>
     standalone
       ? `./editor.html${mode ? `?mode=${mode}` : ''}`
-      : `/intro${mode ? `?mode=${mode}` : ''}#editor`;
+      : `/local${mode ? `?mode=${mode}` : ''}`;
   return (
     <div className="local-site">
       <SiteHeader standalone={standalone} />
@@ -111,11 +117,8 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             <li>Docnivo.tedoc</li>
           </ul>
         </section>
-        {!standalone && (
-          <section id="editor" className="intro-live-editor" aria-label={copy.local}>
-            <LocalClient embedded />
-          </section>
-        )}
+
+        <ProductDemo editorUrl={edit()} />
       </main>
       <SiteFooter standalone={standalone} introduction />
     </div>

@@ -333,7 +333,7 @@ export function AuthForm({
                 </button>
               </fieldset>
             </form>
-            <Link className="auth-local-action" href="/intro#editor">
+            <Link className="auth-local-action" href="/local">
               {t(MESSAGE.writeWithoutAccount)}
             </Link>
             <p className="auth-local-note">{t(MESSAGE.authLocalNote)}</p>

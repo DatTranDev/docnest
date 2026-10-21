@@ -9,6 +9,8 @@
 }
 body {
   margin: 0;
+  font-size: var(--ui-text-body);
+  line-height: 1.5;
 }
 .skip-to-main {
   position: fixed;
@@ -2005,21 +2007,21 @@ body {
   vertical-align: middle;
 }
 .docnivo-wordmark {
-  width: 154px;
-  height: 44px;
-  background-image: url('/brand/docnivo-logo-horizontal.svg');
+  width: var(--ui-brand-width);
+  height: var(--ui-brand-height);
+  background-image: url('../../public/brand/docnivo-logo-horizontal.svg');
 }
 .docnivo-mark {
   width: 30px;
   height: 36px;
-  background-image: url('/brand/docnivo-mark.svg');
+  background-image: url('../../public/brand/docnivo-mark.svg');
 }
 :root[data-theme='dark'] .docnivo-wordmark {
-  background-image: url('/brand/docnivo-logo-horizontal-dark.svg');
+  background-image: url('../../public/brand/docnivo-logo-horizontal-dark.svg');
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) .docnivo-wordmark {
-    background-image: url('/brand/docnivo-logo-horizontal-dark.svg');
+    background-image: url('../../public/brand/docnivo-logo-horizontal-dark.svg');
   }
 }
 .brand:has(.docnivo-wordmark),
@@ -2027,18 +2029,6 @@ body {
 .intro-footer-brand:has(.docnivo-wordmark) {
   line-height: 1;
 }
-.intro-footer-brand .docnivo-wordmark {
-  width: 140px;
-  height: 40px;
-}
-.public-state-brand .docnivo-wordmark {
-  width: 170px;
-  height: 49px;
-}
 .auth-brand {
   margin-bottom: 22px;
-}
-.auth-brand .docnivo-wordmark {
-  width: 160px;
-  height: 46px;
 }
