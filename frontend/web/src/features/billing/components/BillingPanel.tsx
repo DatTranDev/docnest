@@ -187,7 +187,7 @@ export function BillingPanel({ userId, onClose }: { userId: string; onClose: () 
           </div>
           {enabled === true && (
             <div className="billing-pro">
-              <h3>docsnest Pro</h3>
+              <h3>Docnivo Pro</h3>
               <p>{t(MESSAGE.proCheckoutPaused)}</p>
             </div>
           )}

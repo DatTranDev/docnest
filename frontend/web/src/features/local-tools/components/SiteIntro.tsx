@@ -65,7 +65,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             <figcaption>
               <span className="intro-preview-dot" aria-hidden="true" />
               {copy.demoLabel}
-              <span>docsnest</span>
+              <span>Docnivo</span>
             </figcaption>
           </figure>
         </section>
@@ -108,7 +108,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
             <li>notes.md</li>
             <li>snippet.ts</li>
             <li>data.json</li>
-            <li>docsnest.tedoc</li>
+            <li>Docnivo.tedoc</li>
           </ul>
         </section>
         {!standalone && (

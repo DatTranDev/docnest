@@ -1993,3 +1993,52 @@ body {
     width: 44px;
   }
 }
+
+/* Docnivo brand: vector assets are shared by workspace, auth and public pages. */
+.docnivo-wordmark,
+.docnivo-mark {
+  display: inline-block;
+  flex: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  vertical-align: middle;
+}
+.docnivo-wordmark {
+  width: 154px;
+  height: 44px;
+  background-image: url('/brand/docnivo-logo-horizontal.svg');
+}
+.docnivo-mark {
+  width: 30px;
+  height: 36px;
+  background-image: url('/brand/docnivo-mark.svg');
+}
+:root[data-theme='dark'] .docnivo-wordmark {
+  background-image: url('/brand/docnivo-logo-horizontal-dark.svg');
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .docnivo-wordmark {
+    background-image: url('/brand/docnivo-logo-horizontal-dark.svg');
+  }
+}
+.brand:has(.docnivo-wordmark),
+.public-brand:has(.docnivo-wordmark),
+.intro-footer-brand:has(.docnivo-wordmark) {
+  line-height: 1;
+}
+.intro-footer-brand .docnivo-wordmark {
+  width: 140px;
+  height: 40px;
+}
+.public-state-brand .docnivo-wordmark {
+  width: 170px;
+  height: 49px;
+}
+.auth-brand {
+  margin-bottom: 22px;
+}
+.auth-brand .docnivo-wordmark {
+  width: 160px;
+  height: 46px;
+}

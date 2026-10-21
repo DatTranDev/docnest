@@ -1,4 +1,5 @@
 'use client';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 
@@ -182,10 +183,7 @@ export default function WorkspaceScreen() {
   const mergedEditorHeader = Boolean(active && !showFiles && editMode === 'document');
   const brand = (
     <Link className="brand" href="/">
-      <span className="brand-icon">
-        <Icon name="document" size={21} />
-      </span>
-      <span>{t(MESSAGE.writingRoom)}</span>
+      <DocnivoBrand />
     </Link>
   );
   const headerAccount = () => (

@@ -3,7 +3,7 @@ export const policies = {
     updated: 'Updated 18 October 2026',
     privacy: {
       title: 'Privacy',
-      introduction: 'How docsnest handles your files, account information and browser data.',
+      introduction: 'How Docnivo handles your files, account information and browser data.',
       sections: [
         {
           title: 'Writing on your device',
@@ -11,7 +11,7 @@ export const policies = {
         },
         {
           title: 'Account documents',
-          body: 'When you register or sign in, docsnest processes your email address, account identity and authentication information. Saving to your account sends document content, titles, formatting and related metadata to the service so it can store versions, reopen files and provide sharing and exports. Account documents are not end-to-end encrypted.',
+          body: 'When you register or sign in, Docnivo processes your email address, account identity and authentication information. Saving to your account sends document content, titles, formatting and related metadata to the service so it can store versions, reopen files and provide sharing and exports. Account documents are not end-to-end encrypted.',
         },
         {
           title: 'Browser storage',
@@ -29,15 +29,15 @@ export const policies = {
     },
     terms: {
       title: 'Terms of use',
-      introduction: 'The practical conditions for writing, saving and sharing with docsnest.',
+      introduction: 'The practical conditions for writing, saving and sharing with Docnivo.',
       sections: [
         {
-          title: 'Using docsnest',
-          body: 'docsnest provides local editing and account-based document storage and sharing. The service is currently a learning project for a small test group. Use it only for content and activities you are entitled to carry out.',
+          title: 'Using Docnivo',
+          body: 'Docnivo provides local editing and account-based document storage and sharing. The service is currently a learning project for a small test group. Use it only for content and activities you are entitled to carry out.',
         },
         {
           title: 'Your content and permissions',
-          body: 'Your documents remain your content. Saving, exporting or sharing asks docsnest to process that content to provide the requested feature. Only upload material you own or have permission to use. Choose recipients and public links carefully, and respect the permissions of documents shared with you.',
+          body: 'Your documents remain your content. Saving, exporting or sharing asks Docnivo to process that content to provide the requested feature. Only upload material you own or have permission to use. Choose recipients and public links carefully, and respect the permissions of documents shared with you.',
         },
         {
           title: 'Account security and acceptable use',
@@ -58,7 +58,7 @@ export const policies = {
     updated: 'Cập nhật ngày 18 tháng 10 năm 2026',
     privacy: {
       title: 'Quyền riêng tư',
-      introduction: 'Cách docsnest xử lý tệp, thông tin tài khoản và dữ liệu trình duyệt của bạn.',
+      introduction: 'Cách Docnivo xử lý tệp, thông tin tài khoản và dữ liệu trình duyệt của bạn.',
       sections: [
         {
           title: 'Soạn thảo trên thiết bị',
@@ -66,7 +66,7 @@ export const policies = {
         },
         {
           title: 'Tài liệu trong tài khoản',
-          body: 'Khi bạn đăng ký hoặc đăng nhập, docsnest xử lý địa chỉ email, thông tin định danh tài khoản và dữ liệu xác thực. Lưu vào tài khoản sẽ gửi nội dung, tiêu đề, định dạng và dữ liệu liên quan tới dịch vụ để lưu phiên bản, mở lại tệp, chia sẻ và xuất tệp. Tài liệu trong tài khoản không được mã hóa đầu cuối.',
+          body: 'Khi bạn đăng ký hoặc đăng nhập, Docnivo xử lý địa chỉ email, thông tin định danh tài khoản và dữ liệu xác thực. Lưu vào tài khoản sẽ gửi nội dung, tiêu đề, định dạng và dữ liệu liên quan tới dịch vụ để lưu phiên bản, mở lại tệp, chia sẻ và xuất tệp. Tài liệu trong tài khoản không được mã hóa đầu cuối.',
         },
         {
           title: 'Dữ liệu trong trình duyệt',
@@ -84,15 +84,15 @@ export const policies = {
     },
     terms: {
       title: 'Điều khoản sử dụng',
-      introduction: 'Các điều kiện sử dụng khi soạn thảo, lưu và chia sẻ với docsnest.',
+      introduction: 'Các điều kiện sử dụng khi soạn thảo, lưu và chia sẻ với Docnivo.',
       sections: [
         {
-          title: 'Sử dụng docsnest',
-          body: 'docsnest cung cấp trình soạn thảo local cùng chức năng lưu và chia sẻ tài liệu qua tài khoản. Dịch vụ hiện là dự án học tập dành cho một nhóm thử nghiệm nhỏ. Chỉ sử dụng dịch vụ cho nội dung và hoạt động mà bạn có quyền thực hiện.',
+          title: 'Sử dụng Docnivo',
+          body: 'Docnivo cung cấp trình soạn thảo local cùng chức năng lưu và chia sẻ tài liệu qua tài khoản. Dịch vụ hiện là dự án học tập dành cho một nhóm thử nghiệm nhỏ. Chỉ sử dụng dịch vụ cho nội dung và hoạt động mà bạn có quyền thực hiện.',
         },
         {
           title: 'Nội dung và quyền truy cập',
-          body: 'Tài liệu của bạn vẫn là nội dung của bạn. Khi lưu, xuất hoặc chia sẻ, bạn yêu cầu docsnest xử lý nội dung để cung cấp chức năng tương ứng. Chỉ tải lên tài liệu thuộc sở hữu của bạn hoặc được phép sử dụng. Cân nhắc kỹ người nhận, liên kết công khai và tôn trọng quyền của tài liệu được chia sẻ với bạn.',
+          body: 'Tài liệu của bạn vẫn là nội dung của bạn. Khi lưu, xuất hoặc chia sẻ, bạn yêu cầu Docnivo xử lý nội dung để cung cấp chức năng tương ứng. Chỉ tải lên tài liệu thuộc sở hữu của bạn hoặc được phép sử dụng. Cân nhắc kỹ người nhận, liên kết công khai và tôn trọng quyền của tài liệu được chia sẻ với bạn.',
         },
         {
           title: 'Bảo mật tài khoản và cách sử dụng',

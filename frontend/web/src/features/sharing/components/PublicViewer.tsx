@@ -1,4 +1,5 @@
 'use client';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { Icon } from '@/components/ui/Icon';
 import Link from 'next/link';
@@ -93,10 +94,7 @@ export default function PublicViewer({ token }: { token: string }) {
     <main className="public">
       <header className="public-header">
         <Link className="public-brand" href="/intro">
-          <span className="brand-icon">
-            <Icon name="document" size={21} />
-          </span>
-          {t(MESSAGE.writingRoom)}
+          <DocnivoBrand />
         </Link>
         <div className="public-header-actions">
           {model && (

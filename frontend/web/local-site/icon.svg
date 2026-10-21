@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect x="3" y="3" width="58" height="58" rx="13" fill="#4055d8"/>
-  <path d="M19 13h19l9 9v29H19a4 4 0 0 1-4-4V17a4 4 0 0 1 4-4Z" fill="none" stroke="#fff" stroke-width="3.5" stroke-linejoin="round"/>
-  <path d="M38 13v10h10M23 31h17M23 39h17" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Docnivo app icon"><rect width="512" height="512" rx="112" fill="#0A2452"/><g transform="translate(92.45 61) scale(1.57258)"><path d="M77,1 L73,7 L74,24 L170,53 L181,62 L184,71 L184,189 L198,193 L203,192 L207,187 L207,45 L205,41 L200,36 L83,0 Z" fill="#8DD4FF"/><path d="M45,28 L42,29 L38,34 L39,54 L127,82 L135,89 L137,93 L137,163 L135,163 L60,74 L23,61 L7,58 L0,65 L0,205 L4,212 L10,216 L115,247 L120,243 L121,240 L120,220 L116,216 L48,196 L42,193 L38,188 L36,182 L36,110 L38,109 L124,211 L157,222 L165,222 L170,218 L172,213 L171,75 L169,71 L160,64 Z" fill="#FFFFFF"/></g></svg>

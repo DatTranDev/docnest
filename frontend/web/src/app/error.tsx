@@ -1,4 +1,5 @@
 'use client';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 
 import { ErrorNotice } from '@/components/ui/ErrorNotice';
@@ -14,7 +15,9 @@ export default function ErrorBoundary({
   return (
     <main className="public-state-page">
       <section className="public-state-card">
-        <span className="public-state-brand">docsnest</span>
+        <span className="public-state-brand">
+          <DocnivoBrand />
+        </span>
         <ErrorNotice message={MESSAGE.unableToOpenThePageDraftsOnThis} />
         <div className="public-state-actions">
           <button className="primary" onClick={reset}>

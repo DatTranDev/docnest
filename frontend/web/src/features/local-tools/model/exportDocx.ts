@@ -75,7 +75,7 @@ export async function exportLocalDocx(snapshot: Snapshot, title: string): Promis
   }
   const page = snapshot.formatting?.page;
   const file = new Document({
-    creator: 'docsnest',
+    creator: 'Docnivo',
     title,
     numbering: {
       config: [
