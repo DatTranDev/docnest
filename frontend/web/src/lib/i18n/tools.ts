@@ -52,7 +52,6 @@ export const toolsVi = {
   openEditor: 'Mở trình soạn thảo',
   startWriting: 'Bắt đầu viết',
   signInToFiles: 'Đăng nhập vào tệp của tôi',
-  backToTools: 'Về công cụ',
   local: 'Soạn thảo local',
   headline: 'Viết, lưu và chia sẻ công việc của bạn.',
   description:
@@ -180,7 +179,6 @@ export const toolsEn: Record<keyof typeof toolsVi, string> = {
   openEditor: 'Open the editor',
   startWriting: 'Start writing',
   signInToFiles: 'Sign in to my files',
-  backToTools: 'Back to tools',
   local: 'Local editor',
   headline: 'Write, keep and share your work.',
   description:

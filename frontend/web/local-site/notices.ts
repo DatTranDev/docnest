@@ -9,8 +9,13 @@ export function localNotices(): string {
   const notices = [
     'docsnest local site — third-party notices',
     'This inventory conservatively includes installed production dependencies.',
-    '\nMontserrat — SIL Open Font License 1.1\n' +
-      readFileSync(path.resolve(import.meta.dirname, '../public/fonts/montserrat/OFL.txt'), 'utf8'),
+    '\nNoto Serif — SIL Open Font License 1.1\n' +
+      readFileSync(
+        path.resolve(import.meta.dirname, '../src/features/local-tools/assets/OFL.txt'),
+        'utf8',
+      ),
+    '\nInter — SIL Open Font License 1.1\n' +
+      readFileSync(path.resolve(import.meta.dirname, '../public/fonts/inter/OFL.txt'), 'utf8'),
   ];
   for (const [key, info] of Object.entries(lock.packages)) {
     if (info.dev || !key.includes('node_modules/')) continue;

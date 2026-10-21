@@ -1,20 +1,20 @@
 /* Shared chrome tokens. Document paper/formatting colours remain independent. */
 @font-face {
-  font-family: Montserrat;
-  src: url('../assets/fonts/montserrat/Montserrat-Variable.ttf') format('truetype');
+  font-family: Inter;
+  src: url('../assets/fonts/inter/Inter-Variable.ttf') format('truetype');
   font-style: normal;
   font-weight: 100 900;
   font-display: swap;
 }
 @font-face {
-  font-family: Montserrat;
-  src: url('../assets/fonts/montserrat/Montserrat-Italic-Variable.ttf') format('truetype');
+  font-family: Inter;
+  src: url('../assets/fonts/inter/Inter-Italic-Variable.ttf') format('truetype');
   font-style: italic;
   font-weight: 100 900;
   font-display: swap;
 }
 :root {
-  --ui-font: Montserrat, system-ui, 'Segoe UI', sans-serif;
+  --ui-font: Inter, 'Segoe UI', system-ui, sans-serif;
   --ui-text-caption: 12px;
   --ui-text-small: 13px;
   --ui-text-body: 14px;

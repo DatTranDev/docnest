@@ -55,11 +55,6 @@ export function SiteHeader({
       <a className="brand" href={standalone ? './index.html' : '/intro'}>
         <DocnivoBrand />
       </a>
-      {editor && (
-        <a className="site-back-to-tools" href={standalone ? './index.html' : '/intro'}>
-          ← <span>{copy.backToTools}</span>
-        </a>
-      )}
       <nav aria-label={copy.navigation}>
         <a
           href={standalone ? './index.html' : '/intro'}
@@ -99,30 +94,43 @@ export function SiteHeader({
         <summary aria-label={copy.navigation}>
           <Icon name="more-vertical" size={22} />
         </summary>
-        <div>
-          {editor && onOpenFile && <button onClick={onOpenFile}>{copy.upload}</button>}
-          <a href={workspaceUrl}>{initial ? copy.manageFiles : copy.login}</a>
+        <div className="site-header-overflow-menu">
+          {editor && onOpenFile && (
+            <button onClick={onOpenFile}>
+              <Icon name="upload" size={17} />
+              <span>{copy.upload}</span>
+            </button>
+          )}
+          <a href={workspaceUrl}>
+            <Icon name="user" size={17} />
+            <span>{initial ? copy.manageFiles : copy.login}</span>
+          </a>
           <a
             href={standalone ? './index.html' : '/intro'}
             aria-current={!informationPage && !localActive ? 'page' : undefined}
           >
-            {copy.intro}
+            <Icon name="info" size={17} />
+            <span>{copy.intro}</span>
           </a>
           {!standalone && (
             <a href="/local" aria-current={localActive ? 'page' : undefined}>
-              {copy.local}
+              <Icon name="edit" size={17} />
+              <span>{copy.local}</span>
             </a>
           )}
-          <LanguageSelector inlineMenu />
-          <select
-            aria-label={copy.theme}
-            value={theme}
-            onChange={(event) => changeTheme(event.target.value)}
-          >
-            <option value="light">{copy.light}</option>
-            <option value="dark">{copy.dark}</option>
-            <option value="system">{copy.system}</option>
-          </select>
+          <LanguageSelector inlineMenu showIcon />
+          <div className="site-overflow-theme">
+            <Icon name="monitor" size={17} />
+            <select
+              aria-label={copy.theme}
+              value={theme}
+              onChange={(event) => changeTheme(event.target.value)}
+            >
+              <option value="light">{copy.light}</option>
+              <option value="dark">{copy.dark}</option>
+              <option value="system">{copy.system}</option>
+            </select>
+          </div>
         </div>
       </details>
     </header>

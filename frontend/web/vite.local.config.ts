@@ -22,9 +22,9 @@ export default defineConfig({
         });
         this.emitFile({
           type: 'asset',
-          fileName: 'fonts/montserrat/OFL.txt',
+          fileName: 'fonts/inter/OFL.txt',
           source: readFileSync(
-            path.resolve(import.meta.dirname, 'public/fonts/montserrat/OFL.txt'),
+            path.resolve(import.meta.dirname, 'public/fonts/inter/OFL.txt'),
             'utf8',
           ),
         });

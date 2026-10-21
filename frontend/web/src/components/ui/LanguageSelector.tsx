@@ -12,11 +12,13 @@ export function LanguageSelector({
   inlineMenu = false,
   compact = false,
   iconOnly = false,
+  showIcon = false,
 }: {
   onLocale?: (locale: 'vi' | 'en') => void;
   inlineMenu?: boolean;
   compact?: boolean;
   iconOnly?: boolean;
+  showIcon?: boolean;
 }) {
   const { locale, setLocale, t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -83,7 +85,7 @@ export function LanguageSelector({
           }
         }}
       >
-        {(compact || iconOnly) && <Icon name="globe" size={iconOnly ? 18 : 17} />}
+        {(compact || iconOnly || showIcon) && <Icon name="globe" size={iconOnly ? 18 : 17} />}
         {!iconOnly && (
           <>
             <span>

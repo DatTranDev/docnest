@@ -126,6 +126,6 @@ npm run build:local
 npm run preview:local
 ```
 
-Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. Interface text uses locally bundled Montserrat; landing headings use bundled Noto Serif Regular with Vietnamese support. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
+Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. Large landing-page headings use locally bundled Noto Serif; the rest of the landing page and product screens use locally bundled Inter with Segoe UI as the first system fallback. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
 
 For a separate hosted application, set `NEXT_PUBLIC_APP_URL` to its URL before `npm run build:local`; this configures navigation links only. The local loopback default points to the application on port 8080. Local Compose accepts both `localhost:8080` and `127.0.0.1:8080` for auth CSRF. LOCAL uploads use the current gateway origin; signed cloud uploads retain their original URL and credential rules.

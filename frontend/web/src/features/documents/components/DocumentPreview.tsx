@@ -1,6 +1,8 @@
 'use client';
+import { Icon } from '@/components/ui/Icon';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import type { DocumentInfo } from '../model/types';
+import { sourceFileType } from '../model/sourceFiles';
 export function DocumentPreview({
   document: d,
   paper = false,
@@ -11,12 +13,23 @@ export function DocumentPreview({
   const { t, countLabel } = useI18n();
 
   const summary = d.preview;
-  if (!summary || typeof summary.sampleText !== 'string' || !summary.sampleText.trim())
+  if (!summary || typeof summary.sampleText !== 'string' || !summary.sampleText.trim()) {
+    const kind = sourceFileType(d.title) ?? 'document';
+    const emptyMessage = {
+      document: MESSAGE.emptyDocument,
+      markdown: MESSAGE.emptyMarkdown,
+      code: MESSAGE.emptyCode,
+      json: MESSAGE.emptyJson,
+    }[kind];
     return paper ? (
-      <span className="preview-placeholder">
-        {t(d.headRevision === 0 ? MESSAGE.emptyDocument : MESSAGE.previewUnavailable)}
+      <span className={`preview-placeholder preview-placeholder-${kind}`}>
+        <span className="preview-placeholder-icon" aria-hidden="true">
+          <Icon name={kind} size={25} />
+        </span>
+        {t(d.headRevision === 0 ? emptyMessage : MESSAGE.previewUnavailable)}
       </span>
     ) : null;
+  }
   return (
     <span
       className={paper ? 'document-paper' : 'file-preview muted'}

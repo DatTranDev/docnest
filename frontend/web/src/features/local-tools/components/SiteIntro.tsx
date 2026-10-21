@@ -18,7 +18,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
       ? `./editor.html${mode ? `?mode=${mode}` : ''}`
       : `/local${mode ? `?mode=${mode}` : ''}`;
   return (
-    <div className="local-site">
+    <div className="local-site landing-site">
       <SiteHeader standalone={standalone} />
       <main id="intro-main" className="intro-main" tabIndex={-1}>
         <section className="intro-hero">

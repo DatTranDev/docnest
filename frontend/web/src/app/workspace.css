@@ -1389,14 +1389,26 @@
   gap: var(--ui-space-3);
   color: #526176;
 }
-.preview-placeholder::before {
-  content: '';
-  width: 42px;
-  height: 54px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  background: repeating-linear-gradient(#fff 0 9px, #e2e8f0 9px 11px);
-  box-shadow: 4px 4px 0 #f1f5f9;
+.preview-placeholder-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 56px;
+  border: 1px solid color-mix(in srgb, var(--ui-accent) 28%, var(--ui-border));
+  border-radius: 9px;
+  background: var(--ui-selected);
+  color: var(--ui-accent);
+}
+.preview-placeholder-markdown .preview-placeholder-icon,
+.preview-placeholder-code .preview-placeholder-icon {
+  border-color: color-mix(in srgb, var(--ui-success) 28%, var(--ui-border));
+  background: var(--ui-success-bg);
+  color: var(--ui-success);
+}
+.preview-placeholder-json .preview-placeholder-icon {
+  border-color: color-mix(in srgb, var(--ui-warning) 28%, var(--ui-border));
+  background: var(--ui-warning-bg);
+  color: var(--ui-warning);
 }
 .library-grid .document-card-footer {
   flex-wrap: wrap;
