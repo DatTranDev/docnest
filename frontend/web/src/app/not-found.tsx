@@ -1,4 +1,5 @@
 'use client';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import Link from 'next/link';
 
@@ -8,7 +9,9 @@ export default function NotFound() {
   return (
     <main className="public-state-page">
       <section className="public-state-card">
-        <span className="public-state-brand">docsnest</span>
+        <span className="public-state-brand">
+          <DocnivoBrand />
+        </span>
         <h1>{t(MESSAGE.pageNotFound)}</h1>
         <div className="public-state-actions">
           <Link className="primary" href="/intro">

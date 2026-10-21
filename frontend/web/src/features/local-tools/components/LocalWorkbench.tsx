@@ -22,8 +22,8 @@ type Mode = 'document' | 'markdown' | 'code' | 'json';
 const modes: Mode[] = ['document', 'markdown', 'code', 'json'];
 const initial = {
   markdown: markdownSample,
-  code: 'const draft = { title: "docsnest", local: true };\n\nfunction saveDraft(name) {\n  return `${name}.md`;\n}\n\nconsole.log(saveDraft(draft.title));\n',
-  json: '{"name":"docsnest","local":true,"tools":["Markdown","Code","JSON"]}',
+  code: 'const draft = { title: "Docnivo", local: true };\n\nfunction saveDraft(name) {\n  return `${name}.md`;\n}\n\nconsole.log(saveDraft(draft.title));\n',
+  json: '{"name":"Docnivo","local":true,"tools":["Markdown","Code","JSON"]}',
 };
 const extensions: Record<string, [Mode, CodeLanguage?]> = {
   md: ['markdown'],
@@ -360,7 +360,7 @@ export default function LocalWorkbench({
                   markdown.current?.wrap(
                     '\n```javascript\n',
                     '\n```\n',
-                    'const draft = "docsnest";',
+                    'const draft = "Docnivo";',
                   )
                 }
               >

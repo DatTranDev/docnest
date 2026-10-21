@@ -23,7 +23,7 @@ export function AuthProductPreview() {
       </div>
       <div className="auth-preview-canvas">
         <div className="auth-preview-paper">
-          <span className="auth-preview-eyebrow">docsnest / 01</span>
+          <span className="auth-preview-eyebrow">Docnivo / 01</span>
           <h3>{t(MESSAGE.authPreviewTitle)}</h3>
           <p>{t(MESSAGE.authPreviewIntro)}</p>
           <h4>{t(MESSAGE.authPreviewHeading)}</h4>

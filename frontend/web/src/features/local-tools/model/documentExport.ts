@@ -92,7 +92,7 @@ export function htmlFile(body: string, title: string, language: string): string 
 }
 export async function printHtml(html: string): Promise<void> {
   const frame = document.createElement('iframe');
-  frame.title = 'docsnest print';
+  frame.title = 'Docnivo print';
   frame.className = 'local-print-frame';
   frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
   const loaded = new Promise<void>((resolve) => {

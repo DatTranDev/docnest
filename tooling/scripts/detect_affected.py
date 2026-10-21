@@ -100,6 +100,39 @@ def git(*args):
     return subprocess.check_output(["git", *args])
 
 
+def event_base(event):
+    """Resolve a push/PR baseline, tolerating unreachable pre-force-push commits.
+
+    A rewritten feature branch can lose the `before` commit from the checkout's
+    fetched refs. Compare it to the default branch's merge base instead. On a
+    forced update of the default branch (or if that ref is also unavailable),
+    conservatively rebuild all applications.
+    """
+    base = event.get("pull_request", {}).get("base", {}).get("sha") or event.get(
+        "before"
+    )
+    if not base or not event.get("forced") or set(base) == {"0"}:
+        return base
+    try:
+        git("rev-parse", "--verify", base + "^{commit}")
+        return base
+    except subprocess.CalledProcessError:
+        pass
+
+    default_branch = event.get("repository", {}).get("default_branch")
+    ref = event.get("ref")
+    if not isinstance(ref, str) or not ref.startswith("refs/heads/") or (
+        not default_branch or ref == "refs/heads/" + default_branch
+    ):
+        return None
+    fallback = "refs/remotes/origin/" + default_branch
+    try:
+        git("rev-parse", "--verify", fallback + "^{commit}")
+    except subprocess.CalledProcessError:
+        return None
+    return fallback
+
+
 def resolve(base, head="HEAD", merge_base=True):
     if not base or set(base) == {"0"}:
         result = affected(["unknown-input"])
@@ -167,9 +200,7 @@ def main():
         event = json.loads(
             Path(os.environ["GITHUB_EVENT_PATH"]).read_text(encoding="utf-8")
         )
-        base = event.get("pull_request", {}).get("base", {}).get("sha") or event.get(
-            "before"
-        )
+        base = event_base(event)
     result = resolve(None if args.full else base, args.head, not args.direct)
     extra = selection(json.loads(args.select))
     result["images"] = selection(list(set(result["images"]) | set(extra)))

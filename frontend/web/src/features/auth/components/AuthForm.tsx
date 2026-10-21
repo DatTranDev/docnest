@@ -1,4 +1,5 @@
 'use client';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 
@@ -135,6 +136,9 @@ export function AuthForm({
       <div className="panel">
         <div className="auth-layout">
           <aside className="auth-story" aria-label={t(MESSAGE.authWorkspaceLabel)}>
+            <div className="auth-brand">
+              <DocnivoBrand />
+            </div>
             <h2>{t(MESSAGE.authWorkspaceHeadline)}</h2>
             <p>{t(MESSAGE.authWorkspaceDescription)}</p>
             <AuthProductPreview />

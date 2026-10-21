@@ -1,5 +1,5 @@
 'use client';
-import { Icon } from '@/components/ui/Icon';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { useToolsCopy } from '../model/copy';
 
 export function SiteFooter({
@@ -17,8 +17,7 @@ export function SiteFooter({
     <footer className="intro-footer">
       <div className="intro-footer-main">
         <a className="intro-footer-brand" href={intro}>
-          <Icon name="document" size={22} />
-          <span>docsnest</span>
+          <DocnivoBrand />
         </a>
         <nav aria-label={copy.footerNavigation}>
           <a href={introduction ? '#features' : `${intro}#features`}>{copy.features}</a>
@@ -37,7 +36,7 @@ export function SiteFooter({
           </a>
         </nav>
       </div>
-      <div className="intro-footer-copyright">© {new Date().getFullYear()} docsnest</div>
+      <div className="intro-footer-copyright">© {new Date().getFullYear()} Docnivo</div>
     </footer>
   );
 }

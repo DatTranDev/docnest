@@ -17,7 +17,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tooling/scripts"))
-from detect_affected import BACKENDS, affected, resolve, selection
+from detect_affected import BACKENDS, affected, event_base, resolve, selection
 from digest_manifest import NAMES, validate_manifest
 from release_manifest import merge_state, scan_records
 from rolling_policy import validate_compatibility, validate_reviewed_contract_change
@@ -27,6 +27,44 @@ from service_config import CONFIG_KEYS, config_hash
 
 
 class ImpactTests(unittest.TestCase):
+    def test_force_push_uses_available_default_branch_baseline(self):
+        before = "a" * 40
+        event = {
+            "before": before,
+            "forced": True,
+            "ref": "refs/heads/feat/docnivo-branding",
+            "repository": {"default_branch": "main"},
+        }
+
+        def check_revision(*args):
+            if args[-1] == before + "^{commit}":
+                raise subprocess.CalledProcessError(128, ["git", *args])
+            return b"b" * 40
+
+        with patch("detect_affected.git", side_effect=check_revision):
+            self.assertEqual(event_base(event), "refs/remotes/origin/main")
+            self.assertEqual(
+                event_base({**event, "forced": False}), before
+            )
+            self.assertIsNone(
+                event_base({**event, "ref": "refs/heads/main"})
+            )
+
+    def test_unavailable_default_branch_forced_push_rebuilds_all(self):
+        event = {
+            "before": "a" * 40,
+            "forced": True,
+            "ref": "refs/heads/feature",
+            "repository": {"default_branch": "main"},
+        }
+        with patch(
+            "detect_affected.git",
+            side_effect=subprocess.CalledProcessError(128, "git"),
+        ):
+            self.assertIsNone(event_base(event))
+        self.assertEqual(resolve(None)["images"], list(NAMES))
+
+
     def test_reviewed_contract_change_is_bound_to_baseline_paths_and_bytes(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

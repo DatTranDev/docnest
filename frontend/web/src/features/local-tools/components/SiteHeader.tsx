@@ -1,4 +1,5 @@
 'use client';
+import { DocnivoBrand } from '@/components/brand/DocnivoBrand';
 import { useEffect, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { LanguageSelector } from '@/components/ui/LanguageSelector';
@@ -57,10 +58,7 @@ export function SiteHeader({
         {copy.skipToContent}
       </a>
       <a className="brand" href={standalone ? './index.html' : '/intro'}>
-        <span className="brand-icon">
-          <Icon name="document" size={23} />
-        </span>
-        docsnest
+        <DocnivoBrand />
       </a>
       {editor && (
         <a className="site-back-to-tools" href={standalone ? './index.html' : '/intro'}>

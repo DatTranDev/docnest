@@ -31,7 +31,7 @@ export const toolsVi = {
   newJson: 'Tệp JSON mới',
   newCode: 'Tệp code mới',
   demoMarkdown:
-    '# docsnest\n\n> Một chỗ cho mọi bản thảo.\n\n- [x] Viết ý tưởng\n- [ ] Giữ bản thảo\n\n```typescript\nconst draft = {\n  local: true\n};\n```',
+    '# Docnivo\n\n> Một chỗ cho mọi bản thảo.\n\n- [x] Viết ý tưởng\n- [ ] Giữ bản thảo\n\n```typescript\nconst draft = {\n  local: true\n};\n```',
   accountExample: 'Ví dụ giao diện tài khoản',
   saveAndShareAccount: 'Đăng nhập để lưu và chia sẻ',
   demoTitle: 'Ghi chú nghiên cứu truyền thông',
@@ -52,7 +52,7 @@ export const toolsVi = {
   featureHeading: 'Từ câu chữ đến cấu trúc.',
   richTitle: 'Văn bản có định dạng',
   richDescription:
-    'Định dạng chữ, danh sách, bảng và ảnh. Mở TXT, DOCX hoặc tệp docsnest; tải bản thảo về máy.',
+    'Định dạng chữ, danh sách, bảng và ảnh. Mở TXT, DOCX hoặc tệp Docnivo; tải bản thảo về máy.',
   mdDescription:
     'Viết Markdown, xem kết quả ngay cạnh bên. Heading, bảng, checklist và code block có tô màu cú pháp.',
   codeDescription:
@@ -150,7 +150,7 @@ export const toolsEn: Record<keyof typeof toolsVi, string> = {
   newJson: 'New JSON file',
   newCode: 'New code file',
   demoMarkdown:
-    '# docsnest\n\n> A place for every draft.\n\n- [x] Write an idea\n- [ ] Keep a draft\n\n```typescript\nconst draft = {\n  local: true\n};\n```',
+    '# Docnivo\n\n> A place for every draft.\n\n- [x] Write an idea\n- [ ] Keep a draft\n\n```typescript\nconst draft = {\n  local: true\n};\n```',
   accountExample: 'Account editor example',
   saveAndShareAccount: 'Sign in to save and share',
   demoTitle: 'Media studies notes',
@@ -171,7 +171,7 @@ export const toolsEn: Record<keyof typeof toolsVi, string> = {
   featureHeading: 'From words to structure.',
   richTitle: 'Formatted documents',
   richDescription:
-    'Style text, lists, tables and images. Open TXT, DOCX or docsnest files and download your draft.',
+    'Style text, lists, tables and images. Open TXT, DOCX or Docnivo files and download your draft.',
   mdDescription:
     'Write Markdown with a preview beside it. Headings, tables, checklists and highlighted code blocks.',
   codeDescription:
@@ -243,4 +243,4 @@ export function useToolsCopy() {
   return locale === 'vi' ? toolsVi : toolsEn;
 }
 export const markdownSample =
-  '# Một chỗ cho mọi bản thảo\n\nViết **rõ ràng**, làm việc _tập trung_.\n\n- [x] Viết ý tưởng\n- [ ] Chia sẻ bản thảo\n\n| Công cụ | Dùng để |\n| --- | --- |\n| Markdown | Viết tài liệu |\n| JSON | Sắp xếp dữ liệu |\n\n```typescript\nconst draft = { title: "docsnest", local: true };\nconsole.log(draft.title);\n```\n';
+  '# Một chỗ cho mọi bản thảo\n\nViết **rõ ràng**, làm việc _tập trung_.\n\n- [x] Viết ý tưởng\n- [ ] Chia sẻ bản thảo\n\n| Công cụ | Dùng để |\n| --- | --- |\n| Markdown | Viết tài liệu |\n| JSON | Sắp xếp dữ liệu |\n\n```typescript\nconst draft = { title: "Docnivo", local: true };\nconsole.log(draft.title);\n```\n';
