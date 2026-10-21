@@ -3,7 +3,9 @@ import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Icon } from '@/components/ui/Icon';
 import { ToolMenu } from '@/components/ui/ToolMenu';
-import { useI18n } from '@/lib/i18n';
+import { ActionMenu } from '@/components/ui/ActionMenu';
+import { IconButton } from '@/components/ui/Controls';
+import { MESSAGE, useI18n } from '@/lib/i18n';
 import { download, errorMessage } from '@/lib/http';
 import { sourceFileType } from '@/features/documents';
 import { SOURCE_LIMIT } from '../model/json';
@@ -43,7 +45,7 @@ export default function LocalWorkbench({
   embedded?: boolean;
 }) {
   const copy = useToolsCopy(),
-    { locale, errorText } = useI18n();
+    { locale, errorText, t } = useI18n();
   const [mode, setMode] = useState<Mode>(() => {
     const requested = new URLSearchParams(window.location.search).get('mode');
     return modes.includes(requested as Mode) ? (requested as Mode) : 'document';
@@ -272,15 +274,35 @@ export default function LocalWorkbench({
             />
           </label>
           {mode !== 'document' && (
-            <button onClick={saveSource}>
+            <button aria-label={copy.download} title={copy.download} onClick={saveSource}>
               <Icon name="download" />
-              {copy.download}
+              <span>{copy.download}</span>
             </button>
           )}
           {mode === 'markdown' && (
             <>
-              <button onClick={() => void exportMarkdown()}>{copy.downloadHtml}</button>
-              <button onClick={() => void exportMarkdown(true)}>{copy.printPdf}</button>
+              <button className="local-export-secondary" onClick={() => void exportMarkdown()}>
+                {copy.downloadHtml}
+              </button>
+              <button className="local-export-secondary" onClick={() => void exportMarkdown(true)}>
+                {copy.printPdf}
+              </button>
+              <ActionMenu
+                className="local-export-menu"
+                label={t(MESSAGE.exportDocument)}
+                actions={[
+                  {
+                    label: copy.downloadHtml,
+                    icon: 'download',
+                    onSelect: () => void exportMarkdown(),
+                  },
+                  {
+                    label: copy.printPdf,
+                    icon: 'document',
+                    onSelect: () => void exportMarkdown(true),
+                  },
+                ]}
+              />
             </>
           )}
         </div>
@@ -411,9 +433,23 @@ export default function LocalWorkbench({
                 ))}
               </select>
             </label>
-            <button onClick={() => code.current?.undo()}>{copy.undo}</button>
-            <button onClick={() => code.current?.redo()}>{copy.redo}</button>
-            <button
+            <IconButton
+              aria-label={copy.undo}
+              title={copy.undo}
+              onClick={() => code.current?.undo()}
+            >
+              <Icon name="undo" />
+            </IconButton>
+            <IconButton
+              aria-label={copy.redo}
+              title={copy.redo}
+              onClick={() => code.current?.redo()}
+            >
+              <Icon name="redo" />
+            </IconButton>
+            <IconButton
+              aria-label={copy.clipboard}
+              title={copy.clipboard}
               onClick={() =>
                 void navigator.clipboard
                   .writeText(content.code)
@@ -421,8 +457,8 @@ export default function LocalWorkbench({
                   .catch(() => setError(copy.error))
               }
             >
-              {copy.clipboard}
-            </button>
+              <Icon name="copy" />
+            </IconButton>
           </div>
           <SourceEditor
             initial={initial.code}

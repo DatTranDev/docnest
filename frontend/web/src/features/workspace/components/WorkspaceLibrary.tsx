@@ -178,6 +178,11 @@ export function WorkspaceLibrary({
             )}
           </button>
         ))}
+        <span className="mobile-library-count">
+          {t(visibleCount === 1 ? MESSAGE.libraryOneItem : MESSAGE.libraryItemCount, {
+            p0: visibleCount,
+          })}
+        </span>
         <span className="column-kind">{t(MESSAGE.typeFilter)}</span>
         <span className="column-access">{t(MESSAGE.accessLabel)}</span>
       </div>

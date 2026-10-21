@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { errorMessage } from '@/lib/http';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { Avatar } from '@/components/ui/Avatar';
+import { Icon } from '@/components/ui/Icon';
 import {
   listSharing,
   grantAccess,
@@ -69,7 +70,7 @@ export function ShareDialog({
           {t(MESSAGE.share)} {documentTitle && `“${documentTitle}”`}
         </h2>
         <button type="button" aria-label={t(MESSAGE.close)} onClick={onClose}>
-          ×
+          <Icon name="close" size={20} />
         </button>
       </div>
       {error && (

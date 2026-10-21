@@ -26,7 +26,9 @@ function DownloadOptions({
   const { t } = useI18n();
   return (
     <details className={`public-download ${className}`}>
-      <summary className="primary">{t(MESSAGE.downloadFormats)} ▾</summary>
+      <summary className="primary">
+        {t(MESSAGE.downloadFormats)} <Icon name="chevron-down" size={16} />
+      </summary>
       <div className="public-download-menu">
         {!sourceType && (
           <button
@@ -106,7 +108,7 @@ export default function PublicViewer({ token }: { token: string }) {
             />
           )}
           <Link href="/intro">{t(MESSAGE.aboutDocsnest)}</Link>
-          <LanguageSelector />
+          <LanguageSelector iconOnly />
         </div>
       </header>
       {error ? (

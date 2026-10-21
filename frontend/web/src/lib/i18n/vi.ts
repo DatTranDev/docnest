@@ -15,6 +15,8 @@ export const vi = {
   authSharingBenefit: 'Chia sẻ với người bạn chọn',
   authLocalNote: 'Muốn thử trước? Viết trên máy rồi tải bản thảo xuống.',
   newItem: 'Mới',
+  libraryItemCount: '{p0} mục',
+  libraryOneItem: '1 mục',
   searchCurrentLibrary: 'Tìm trong thư viện hiện tại',
   clearSearch: 'Xóa tìm kiếm',
   accountActions: 'Tài khoản của {p0}',

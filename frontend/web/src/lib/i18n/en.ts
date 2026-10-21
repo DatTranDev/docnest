@@ -16,6 +16,8 @@ export const en = {
   authSharingBenefit: 'Share with the people you choose',
   authLocalNote: 'Just exploring? Write locally, then download your draft.',
   newItem: 'New',
+  libraryItemCount: '{p0} items',
+  libraryOneItem: '1 item',
   searchCurrentLibrary: 'Search this library',
   clearSearch: 'Clear search',
   accountActions: 'Account for {p0}',

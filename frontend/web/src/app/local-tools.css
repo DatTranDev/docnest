@@ -1471,3 +1471,131 @@
     display: none;
   }
 }
+
+/* Mobile editing keeps document controls above a single readable pane. */
+.source-mobile-actions,
+.local-export-menu {
+  display: none;
+}
+@media (max-width: 760px) {
+  .source-file-pane {
+    padding: 8px 12px 16px;
+  }
+  .app-editing .source-file-heading {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto 44px;
+    gap: 8px;
+    min-height: 64px;
+    margin-bottom: 8px;
+  }
+  .app-editing .source-heading-navigation {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .source-file-heading > div {
+    margin: 0;
+  }
+  .source-file-heading .source-file-title {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .app-editing .source-file-heading h2 {
+    max-width: 100%;
+    color: var(--ui-ink);
+    font-size: 18px;
+    line-height: 1.35;
+    margin-bottom: 4px;
+  }
+  .source-file-title .editable-title-trigger > span {
+    color: inherit;
+    font: inherit;
+  }
+  .source-file-heading .source-save {
+    grid-column: 3;
+    grid-row: 1;
+    min-height: 44px;
+    padding-inline: 12px;
+  }
+  .source-mobile-actions {
+    display: block;
+    grid-column: 4;
+    grid-row: 1;
+  }
+  .source-file-heading .source-secondary-action {
+    display: none;
+  }
+  .source-file-heading .collaborator-list {
+    grid-column: 2 / -1;
+  }
+  .source-file-pane .source-toolbar,
+  .local-site .source-toolbar {
+    gap: 4px;
+    padding: 8px;
+  }
+  .source-file-pane .markdown-format-buttons {
+    flex: 0 0 auto;
+    margin-right: 0;
+    gap: 0;
+  }
+  .source-toolbar .control-icon {
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .source-file-pane .local-view-switch {
+    margin-left: auto;
+  }
+  .source-toolbar select,
+  .local-filebar input {
+    font-size: 16px;
+  }
+  .local-site .local-filebar {
+    gap: 8px;
+    padding: 8px 0;
+    flex-wrap: nowrap;
+  }
+  .local-filebar label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0;
+    gap: 0;
+  }
+  .local-filebar input {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 44px;
+  }
+  .local-filebar > button {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .local-filebar > button > span,
+  .local-filebar .local-export-secondary {
+    display: none;
+  }
+  .local-export-menu {
+    display: block;
+  }
+  #local-code .source-toolbar label {
+    font-size: 0;
+    gap: 0;
+    margin-right: auto;
+  }
+  #local-code .source-toolbar select {
+    max-width: 148px;
+    min-height: 44px;
+  }
+  .intro-live-editor {
+    scroll-margin-top: 76px;
+  }
+  .intro-live-editor .intro-workbench-embed .local-workbench {
+    padding-top: 12px;
+  }
+}

@@ -95,9 +95,12 @@ export function SettingsDialog({
       aria-label={t(MESSAGE.settings)}
       onCancel={onClose}
     >
-      <button className="settings-close" aria-label={t(MESSAGE.close)} onClick={onClose}>
-        <Icon name="close" size={20} />
-      </button>
+      <div className="settings-mobile-header">
+        <h2>{t(MESSAGE.settings)}</h2>
+        <button className="settings-close" aria-label={t(MESSAGE.close)} onClick={onClose}>
+          <Icon name="close" size={20} />
+        </button>
+      </div>
       <nav className="settings-navigation" aria-label={t(MESSAGE.settings)}>
         {sections.map((section) => (
           <button

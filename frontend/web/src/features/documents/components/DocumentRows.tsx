@@ -110,40 +110,42 @@ export function DocumentRows({
                 )}
               </span>
             </button>
-            <span className="file-created">
-              {document.createdAt && !Number.isNaN(Date.parse(document.createdAt)) ? (
-                <time
-                  dateTime={document.createdAt}
-                  title={new Date(document.createdAt).toLocaleString(localeTag)}
-                >
-                  {new Date(document.createdAt).toLocaleDateString(localeTag, {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  })}
-                </time>
-              ) : (
-                '—'
-              )}
-            </span>
-            <span className="file-size">
-              {typeof document.sizeBytes === 'number'
-                ? `${new Intl.NumberFormat(localeTag, { maximumFractionDigits: 1 }).format(document.sizeBytes / 1024)} KB`
-                : '—'}
-            </span>
-            <span className={`file-kind file-kind-${kind}`}>
-              {
+            <span className="file-metadata">
+              <span className="file-created">
+                {document.createdAt && !Number.isNaN(Date.parse(document.createdAt)) ? (
+                  <time
+                    dateTime={document.createdAt}
+                    title={new Date(document.createdAt).toLocaleString(localeTag)}
+                  >
+                    {new Date(document.createdAt).toLocaleDateString(localeTag, {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </time>
+                ) : (
+                  '—'
+                )}
+              </span>
+              <span className="file-size">
+                {typeof document.sizeBytes === 'number'
+                  ? `${new Intl.NumberFormat(localeTag, { maximumFractionDigits: 1 }).format(document.sizeBytes / 1024)} KB`
+                  : '—'}
+              </span>
+              <span className={`file-kind file-kind-${kind}`}>
                 {
-                  markdown: 'Markdown',
-                  json: 'JSON',
-                  code: 'Code',
-                  document: t(MESSAGE.documentType),
-                }[kind]
-              }
-            </span>
-            <span className="file-access">
-              {owner && <Avatar name={owner.displayName} src={owner.avatarUrl} size={23} />}
-              {localize(roleLabel(document.effectiveRole))}
+                  {
+                    markdown: 'Markdown',
+                    json: 'JSON',
+                    code: 'Code',
+                    document: t(MESSAGE.documentType),
+                  }[kind]
+                }
+              </span>
+              <span className="file-access">
+                {owner && <Avatar name={owner.displayName} src={owner.avatarUrl} size={23} />}
+                {localize(roleLabel(document.effectiveRole))}
+              </span>
             </span>
             {trash && view === 'list' ? (
               <button className="restore-row-button" onClick={() => onRestore(document)}>

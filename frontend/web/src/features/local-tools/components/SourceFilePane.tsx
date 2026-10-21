@@ -9,6 +9,9 @@ import type { ActiveDocument } from '@/features/documents';
 import { CollaboratorList, type Collaborator, type EditorController } from '@/features/editor';
 import { MESSAGE, useI18n } from '@/lib/i18n';
 import { EditableTitle } from '@/components/ui/EditableTitle';
+import { ActionMenu } from '@/components/ui/ActionMenu';
+import { IconButton } from '@/components/ui/Controls';
+import { Icon } from '@/components/ui/Icon';
 import { download } from '@/lib/http';
 import { useToolsCopy } from '../model/copy';
 import { languageSupport } from '../model/syntax';
@@ -85,6 +88,12 @@ export function SourceFilePane({
   const scratchDirty = useRef(false);
   const text = active.model.text;
   const source = useMemo(() => text.slice(), [text]);
+  const downloadFile = () =>
+    download(
+      exportTxt(active.model.snapshot()),
+      active.document.title,
+      kind === 'json' ? 'application/json;charset=utf-8' : 'text/plain;charset=utf-8',
+    );
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const controller = controllerRef.current;
@@ -178,7 +187,7 @@ export function SourceFilePane({
     >
       <div className="source-file-heading">
         {navigation && <div className="source-heading-navigation">{navigation}</div>}
-        <div>
+        <div className="source-file-title">
           <EditableTitle
             title={active.document.title}
             label={t(MESSAGE.rename)}
@@ -189,25 +198,30 @@ export function SourceFilePane({
           <span role="status">{localize(status)}</span>
         </div>
         <button
-          className="primary"
+          className="primary source-save"
           disabled={active.readOnly || saving || !active.model.dirty || !online}
           title={!active.model.dirty ? t(MESSAGE.saved) : undefined}
           onClick={() => void onSave()}
         >
           {t(MESSAGE.save)}
         </button>
-        <button
-          onClick={() =>
-            download(
-              exportTxt(active.model.snapshot()),
-              active.document.title,
-              kind === 'json' ? 'application/json;charset=utf-8' : 'text/plain;charset=utf-8',
-            )
-          }
-        >
+        <button className="source-secondary-action" onClick={downloadFile}>
           {copy.download}
         </button>
-        <button onClick={onHistory}>{t(MESSAGE.versionHistory)}</button>
+        <button className="source-secondary-action" onClick={onHistory}>
+          {t(MESSAGE.versionHistory)}
+        </button>
+        <ActionMenu
+          className="source-mobile-actions"
+          label={t(MESSAGE.actionsForValue, { p0: active.document.title })}
+          actions={[
+            { label: copy.download, icon: 'download', onSelect: downloadFile },
+            { label: t(MESSAGE.versionHistory), icon: 'history', onSelect: onHistory },
+            ...(active.revision === undefined && active.document.effectiveRole === 'OWNER'
+              ? [{ label: t(MESSAGE.share), icon: 'share' as const, onSelect: onShare }]
+              : []),
+          ]}
+        />
         {active.revision !== undefined && (
           <>
             <button onClick={onBackToCurrent}>{t(MESSAGE.backToCurrent)}</button>
@@ -227,7 +241,9 @@ export function SourceFilePane({
         )}
         {active.revision === undefined && <CollaboratorList members={collaborators ?? []} />}
         {active.revision === undefined && active.document.effectiveRole === 'OWNER' && (
-          <button onClick={onShare}>{t(MESSAGE.share)}</button>
+          <button className="source-secondary-action" onClick={onShare}>
+            {t(MESSAGE.share)}
+          </button>
         )}
       </div>
       {notice && <p role="status">{notice}</p>}
@@ -277,24 +293,36 @@ export function SourceFilePane({
                   aria-label={copy.list}
                   onClick={() => prefixMarkdown('- ')}
                 >
-                  • ≡
+                  <Icon name="list" />
                 </button>
                 <button
                   disabled={active.readOnly}
                   aria-label={copy.link}
                   onClick={() => wrapMarkdown('[', '](https://)', 'link')}
                 >
-                  ↗
+                  <Icon name="link" />
                 </button>
               </div>
             )}
-            <button disabled={active.readOnly} onClick={() => controllerRef.current?.undo()}>
-              {copy.undo}
-            </button>
-            <button disabled={active.readOnly} onClick={() => controllerRef.current?.redo()}>
-              {copy.redo}
-            </button>
-            <button
+            <IconButton
+              aria-label={copy.undo}
+              title={copy.undo}
+              disabled={active.readOnly}
+              onClick={() => controllerRef.current?.undo()}
+            >
+              <Icon name="undo" />
+            </IconButton>
+            <IconButton
+              aria-label={copy.redo}
+              title={copy.redo}
+              disabled={active.readOnly}
+              onClick={() => controllerRef.current?.redo()}
+            >
+              <Icon name="redo" />
+            </IconButton>
+            <IconButton
+              aria-label={copy.clipboard}
+              title={copy.clipboard}
               onClick={() =>
                 void navigator.clipboard
                   .writeText(source)
@@ -302,8 +330,8 @@ export function SourceFilePane({
                   .catch(() => onError(copy.error))
               }
             >
-              {copy.clipboard}
-            </button>
+              <Icon name="copy" />
+            </IconButton>
             {kind === 'markdown' && (
               <div className="local-view-switch">
                 {(['source', 'split', 'preview'] as const).map((value) => (
