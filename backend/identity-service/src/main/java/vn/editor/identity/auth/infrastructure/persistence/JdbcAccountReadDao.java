@@ -30,6 +30,16 @@ public class JdbcAccountReadDao implements AccountReadRepository {
   }
 
   @Override
+  public boolean hasVerifiedEmail(String userId, AccountEmail email) {
+    return jdbc.queryForObject(
+            "SELECT COUNT(*) FROM google_identities WHERE user_id=? AND provider_email=?",
+            Long.class,
+            userId,
+            email.value())
+        > 0;
+  }
+
+  @Override
   public AvatarImage avatarById(String userId) {
     var images =
         jdbc.query(

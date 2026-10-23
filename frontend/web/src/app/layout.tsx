@@ -3,8 +3,7 @@ import type { ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { LOCALE_COOKIE, normalizeLocale } from '@/config/locale';
 import { I18nProvider } from '@/lib/i18n';
-import { translate } from '@/lib/i18n/translate';
-import { MESSAGE } from '@/lib/i18n/messages';
+import { pageMetadata } from '@/lib/seo/server';
 import './globals.css';
 import './controls.css';
 import './workspace.css';
@@ -12,10 +11,8 @@ import './preferences.css';
 import './local-tools.css';
 import './public-pages.css';
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = normalizeLocale((await cookies()).get(LOCALE_COOKIE)?.value);
   return {
-    title: translate(locale, MESSAGE.writingRoom),
-    description: translate(locale, MESSAGE.privateDocumentsLightweightFormatting),
+    ...(await pageMetadata('workspace')),
     referrer: 'no-referrer',
   };
 }

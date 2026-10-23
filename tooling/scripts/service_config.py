@@ -28,6 +28,7 @@ CONFIG_KEYS = {
         "ALLOWED_ORIGINS",
         "GOOGLE_CLIENT_ID",
         "MAX_USERS",
+        "REGISTRATION_ENABLED",
     },
     "document-service": COMMON
     | {

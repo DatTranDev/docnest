@@ -20,8 +20,8 @@ public final class ApiErrors {
           case ACCOUNT_QUOTA, RATE_LIMITED -> 429;
           case INVALID_CREDENTIALS -> 401;
           case ACCOUNT_UNAVAILABLE -> 404;
-          case USER_NOT_REGISTERED -> 422;
-          case INVALID_SERVICE_CALLER -> 403;
+          case USER_NOT_REGISTERED, EMAIL_NOT_VERIFIED -> 422;
+          case INVALID_SERVICE_CALLER, REGISTRATION_CLOSED -> 403;
         };
     String code =
         failure.reason() == AuthenticationFailure.Reason.ACCOUNT_QUOTA

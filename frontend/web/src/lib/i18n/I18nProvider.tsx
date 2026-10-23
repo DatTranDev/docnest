@@ -7,8 +7,10 @@ import {
   normalizeLocale,
   type Locale,
 } from '@/config/locale';
-import { MESSAGE, type MessageKey } from './messages';
+import { type MessageKey } from './messages';
 import { translate, localize, translateError, countLabel, type MessageParams } from './translate';
+import { seoCopy } from './seo';
+import { seoPageForPath, type SeoPage } from '@/config/seo';
 interface I18n {
   locale: Locale;
   localeTag: string;
@@ -22,18 +24,30 @@ const Context = createContext<I18n | null>(null);
 export function I18nProvider({
   initialLocale,
   children,
+  seoPage,
 }: {
   initialLocale: Locale;
   children: ReactNode;
+  seoPage?: SeoPage;
 }) {
   const [locale, updateLocale] = useState(initialLocale);
   useEffect(() => {
     document.documentElement.lang = locale;
-    document.title = translate(locale, MESSAGE.writingRoom);
-    document
-      .querySelector('meta[name="description"]')
-      ?.setAttribute('content', translate(locale, MESSAGE.privateDocumentsLightweightFormatting));
-  }, [locale]);
+    const page = seoPage ?? seoPageForPath(location.pathname);
+    if (!page) return;
+    const { title, description } = seoCopy(locale, page);
+    document.title = title;
+    for (const [selector, content] of [
+      ['meta[name="description"]', description],
+      ['meta[property="og:title"]', title],
+      ['meta[property="og:description"]', description],
+      ['meta[property="og:locale"]', locale === 'vi' ? 'vi_VN' : 'en_US'],
+      ['meta[name="twitter:title"]', title],
+      ['meta[name="twitter:description"]', description],
+    ]) {
+      if (selector && content) document.querySelector(selector)?.setAttribute('content', content);
+    }
+  }, [locale, seoPage]);
   const value = useMemo<I18n>(
     () => ({
       locale,

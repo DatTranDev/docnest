@@ -51,6 +51,8 @@ const ERROR_KEYS: Record<string, MessageKey> = {
   INVALID_TOKEN: MESSAGE.sessionExpired,
   TOKEN_EXPIRED: MESSAGE.sessionExpired,
   USER_NOT_REGISTERED: MESSAGE.resourceNotFound,
+  EMAIL_NOT_VERIFIED: MESSAGE.shareRecipientUnverified,
+  REGISTRATION_CLOSED: MESSAGE.registrationClosed,
   DOCUMENT_NOT_FOUND: MESSAGE.resourceNotFound,
   FOLDER_NOT_FOUND: MESSAGE.resourceNotFound,
   FOLDER_NOT_EMPTY: MESSAGE.folderNotEmpty,

@@ -47,8 +47,8 @@ export function ShareDialog({
     [documentId],
   );
   useEffect(() => {
-    void load().catch((e) => setError(errorText(errorMessage(e))));
-  }, [load, errorText]);
+    void load().catch((e) => setError(errorMessage(e)));
+  }, [load]);
   async function action(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -58,7 +58,7 @@ export function ShareDialog({
       await load();
       setFeedback(t(MESSAGE.accessUpdated));
     } catch (e) {
-      setError(errorText(errorMessage(e)));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -75,7 +75,7 @@ export function ShareDialog({
       </div>
       {error && (
         <p className="dialog-error" role="alert">
-          {error}
+          {errorText(error)}
         </p>
       )}
       {feedback && (
@@ -184,7 +184,7 @@ export function ShareDialog({
                 void navigator.clipboard
                   .writeText(created)
                   .then(() => setFeedback(t(MESSAGE.linkCopied)))
-                  .catch((failure) => setError(errorText(errorMessage(failure))));
+                  .catch((failure) => setError(errorMessage(failure)));
               }}
             >
               {t(MESSAGE.copy)}{' '}

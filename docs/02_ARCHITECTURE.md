@@ -7,7 +7,7 @@ Five services own five logical databases after the collaboration and subscriptio
 | Component        | Decision                                                                                             |
 | ---------------- | ---------------------------------------------------------------------------------------------------- |
 | Backend          | Java 21, Spring Boot 4.1.1, Maven Wrapper, Spring Security, Spring JDBC (JdbcTemplate), Flyway       |
-| Frontend         | Next.js 16.3.8 App Router, TypeScript strict, React 19.3.0, CodeMirror 6, Web Worker                 |
+| Frontend         | Next.js 16.4.2 App Router, TypeScript strict, React 19.3.0, CodeMirror 6, Web Worker                 |
 | Frontend runtime | Node 24.11.1 standalone production server behind a streaming Node gateway; Vite remains test tooling |
 | Database         | MySQL 8.4 LTS; one instance, five databases and five application accounts                            |
 | Events           | Apache Kafka 4.x KRaft; one combined broker/controller for the lab                                   |

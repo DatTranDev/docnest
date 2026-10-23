@@ -18,6 +18,8 @@ public interface AccountCommandRepository {
 
   void linkGoogleSubject(String subject, String userId, AccountEmail providerEmail);
 
+  void confirmGoogleEmail(String subject, String userId, AccountEmail providerEmail);
+
   boolean hasGoogleIdentity(String userId);
 
   void unlinkGoogleIdentity(String userId);

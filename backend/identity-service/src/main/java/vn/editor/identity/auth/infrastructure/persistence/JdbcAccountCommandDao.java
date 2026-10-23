@@ -87,6 +87,15 @@ public class JdbcAccountCommandDao implements AccountCommandRepository {
   }
 
   @Override
+  public void confirmGoogleEmail(String subject, String userId, AccountEmail providerEmail) {
+    jdbc.update(
+        "UPDATE google_identities SET provider_email=? WHERE google_subject=? AND user_id=?",
+        providerEmail.value(),
+        subject,
+        userId);
+  }
+
+  @Override
   public boolean hasGoogleIdentity(String userId) {
     return jdbc.queryForObject(
             "SELECT COUNT(*) FROM google_identities WHERE user_id=?", Long.class, userId)

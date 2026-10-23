@@ -47,6 +47,10 @@ export const en = {
   searchInShared: 'Search names in Shared with me',
   searchInTrash: 'Search names in Trash',
   shareNoEmail: 'Access is updated here; no email is sent.',
+  shareRecipientUnverified:
+    'The recipient must link Google with this email before you can share with them.',
+  registrationClosed:
+    'New account registration is currently closed. Existing users can still sign in.',
   peopleWithAccess: 'People with access',
   activeCollaborators: 'Active collaborators',
   googleLinkRequired:

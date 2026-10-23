@@ -19,7 +19,7 @@ public class JdbcPresenceDao implements PresenceRepository {
   public void heartbeat(
       UUID documentId, UUID sessionId, UUID userId, Integer anchor, Integer head) {
     jdbc.update(
-        "INSERT INTO collaboration_presence(document_id,session_id,user_id,anchor_offset,head_offset,expires_at) VALUES(?,?,?,?,?,TIMESTAMPADD(SECOND,15,UTC_TIMESTAMP(6))) ON DUPLICATE KEY UPDATE anchor_offset=VALUES(anchor_offset),head_offset=VALUES(head_offset),expires_at=VALUES(expires_at)",
+        "INSERT INTO collaboration_presence(document_id,session_id,user_id,anchor_offset,head_offset,expires_at) VALUES(?,?,?,?,?,TIMESTAMPADD(SECOND,15,UTC_TIMESTAMP(6))) ON DUPLICATE KEY UPDATE anchor_offset=IF(user_id=VALUES(user_id),VALUES(anchor_offset),anchor_offset),head_offset=IF(user_id=VALUES(user_id),VALUES(head_offset),head_offset),expires_at=IF(user_id=VALUES(user_id),VALUES(expires_at),expires_at)",
         documentId.toString(),
         sessionId.toString(),
         userId.toString(),

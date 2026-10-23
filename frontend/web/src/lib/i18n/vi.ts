@@ -1,4 +1,7 @@
 export const vi = {
+  shareRecipientUnverified:
+    'Người nhận cần liên kết Google bằng email này trước khi bạn có thể chia sẻ.',
+  registrationClosed: 'Hiện chưa mở đăng ký tài khoản mới. Tài khoản hiện có vẫn có thể đăng nhập.',
   authPreviewTitle: 'Chỗ nhỏ cho ý tưởng lớn',
   authPreviewIntro: 'Dự án hay bắt đầu từ vài dòng chữ. Hãy cho ý tưởng một nơi để lớn lên.',
   authPreviewHeading: 'Bước tiếp theo',

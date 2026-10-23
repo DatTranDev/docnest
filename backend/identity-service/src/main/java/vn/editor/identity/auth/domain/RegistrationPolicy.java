@@ -14,6 +14,12 @@ public final class RegistrationPolicy {
           AuthenticationFailure.Reason.INVALID_PASSWORD, "Password length is invalid");
   }
 
+  public static void requireOpen(boolean enabled) {
+    if (!enabled)
+      throw new AuthenticationFailure(
+          AuthenticationFailure.Reason.REGISTRATION_CLOSED, "New account registration is closed");
+  }
+
   public static void validateDisplayName(String name) {
     if (name == null
         || name.isBlank()

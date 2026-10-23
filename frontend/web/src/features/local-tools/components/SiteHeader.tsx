@@ -20,13 +20,12 @@ export function SiteHeader({
   const copy = useToolsCopy();
   const initial = useAccountInitial();
   const localActive = editor;
-  const workspaceUrl = standalone
-    ? process.env.NEXT_PUBLIC_APP_URL ||
-      (typeof location !== 'undefined' &&
-      ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-        ? `${location.protocol}//${location.hostname}:8080/`
-        : '/')
-    : '/';
+  const localWorkspaceUrl = useSyncExternalStore(
+    subscribeHost,
+    readWorkspaceUrl,
+    () => process.env.NEXT_PUBLIC_APP_URL || '/',
+  );
+  const workspaceUrl = standalone ? localWorkspaceUrl : '/';
   const theme = useSyncExternalStore(subscribeTheme, readTheme, () => 'system');
   useEffect(() => {
     const query = matchMedia('(prefers-color-scheme: dark)');
@@ -134,6 +133,17 @@ export function SiteHeader({
         </div>
       </details>
     </header>
+  );
+}
+function subscribeHost() {
+  return () => {};
+}
+function readWorkspaceUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    (['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+      ? `${location.protocol}//${location.hostname}:8080/`
+      : '/')
   );
 }
 let themeFallback = 'system';

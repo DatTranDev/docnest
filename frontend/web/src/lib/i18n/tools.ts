@@ -2,13 +2,15 @@ import { useI18n } from '@/lib/i18n';
 export const toolsVi = {
   videoHeading: 'Xem từ ý tưởng đến bản thảo',
   videoDescription:
-    'Video thao tác trên trình soạn thảo: viết Markdown, xem kết quả JSON và chuyển giữa Code, Văn bản. Nội dung mẫu bằng tiếng Anh, không có âm thanh.',
+    '15 giây trên Docnivo: tạo tài liệu, cùng chỉnh sửa và chia sẻ liên kết. Tài khoản minh họa, giao diện tiếng Anh, không có âm thanh.',
+  playDemo: 'Phát video',
+  pauseDemo: 'Tạm dừng video',
   tryEditor: 'Tự trải nghiệm',
   videoFallback: 'Trình duyệt này không phát được video.',
   downloadDemo: 'Tải video demo',
   videoTranscript: 'Các thao tác trong video',
   videoSteps:
-    'Viết tiêu đề, danh sách công việc và chữ đậm trong Markdown, xem bản xem trước cập nhật bên cạnh. Chuyển sang JSON để xem nguồn và kết quả định dạng, rồi mở Code và Văn bản. Mỗi chế độ giữ bản nháp riêng trong phiên.',
+    'Mở Tài liệu mới trong thư viện, đặt tên Product Vision và viết bản thảo. Jamie tham gia bằng tài khoản có quyền chỉnh sửa; con trỏ và nội dung của Jamie xuất hiện trong phiên của Alex. Mở Chia sẻ, tạo liên kết xem có hiệu lực 7 ngày và sao chép. Liên kết được che trong video và thu hồi sau khi ghi. Trở lại thư viện để lặp video.',
   introEyebrow: 'CHO MỌI Ý TƯỞNG CỦA BẠN',
   toolsEyebrow: 'BỐN CÁCH ĐỂ BẮT ĐẦU',
   demoLabel: 'Xem trước trình soạn thảo',
@@ -129,13 +131,15 @@ export const toolsVi = {
 export const toolsEn: Record<keyof typeof toolsVi, string> = {
   videoHeading: 'See an idea become a draft',
   videoDescription:
-    'A recorded walkthrough: write Markdown, view formatted JSON, then switch to Code and Document. English sample content, no audio.',
+    '15 seconds in Docnivo: create a document, edit together and share a link. Fictional demo accounts, English interface, no audio.',
+  playDemo: 'Play demo',
+  pauseDemo: 'Pause demo',
   tryEditor: 'Try it yourself',
   videoFallback: 'Your browser cannot play this video.',
   downloadDemo: 'Download the demo video',
   videoTranscript: 'Steps shown in the video',
   videoSteps:
-    'Write a heading, a task list and bold text in Markdown while the preview updates alongside it. Switch to JSON to see the source and formatted result, then open Code and Document. Each mode keeps its own draft during the session.',
+    'Open New document in the library, name it Product Vision and write a draft. Jamie joins with Editor access; Jamie’s cursor and text appear in Alex’s session. Open Share, create a seven-day viewing link and copy it. The link is obscured in the video and revoked after capture. Return to the library for the loop.',
   introEyebrow: 'A LITTLE SPACE FOR BIG IDEAS',
   toolsEyebrow: 'FOUR WAYS TO GET STARTED',
   demoLabel: 'Editor preview',

@@ -19,6 +19,11 @@ public final class SharingPolicy {
       throw new DomainException(422, "INVALID_GRANTEE");
   }
 
+  public static void recipient(String requestedUserId, String verifiedUserId) {
+    if (!requestedUserId.equals(verifiedUserId))
+      throw new DomainException(422, "USER_NOT_REGISTERED");
+  }
+
   public static long lifetime(Object seconds) {
     return seconds == null ? 604800 : Values.integer(seconds, 3600, 2592000);
   }

@@ -79,8 +79,10 @@ public class AuthenticationWiring {
       PasswordHashes passwords,
       Transactions transactions,
       Clock clock,
-      @Value("${editor.auth.max-users}") int maximum) {
-    return new RegisterAccountHandler(accounts, passwords, transactions, clock, maximum);
+      @Value("${editor.auth.max-users}") int maximum,
+      @Value("${editor.auth.registration-enabled:false}") boolean registrationEnabled) {
+    return new RegisterAccountHandler(
+        accounts, passwords, transactions, clock, maximum, registrationEnabled);
   }
 
   @Bean
@@ -100,8 +102,10 @@ public class AuthenticationWiring {
       SessionIssuer issuer,
       GoogleIdentityVerifier identities,
       Clock clock,
-      @Value("${editor.auth.max-users}") int maximum) {
-    return new GoogleLoginHandler(accounts, transactions, issuer, identities, clock, maximum);
+      @Value("${editor.auth.max-users}") int maximum,
+      @Value("${editor.auth.registration-enabled:false}") boolean registrationEnabled) {
+    return new GoogleLoginHandler(
+        accounts, transactions, issuer, identities, clock, maximum, registrationEnabled);
   }
 
   @Bean

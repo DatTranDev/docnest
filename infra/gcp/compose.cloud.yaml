@@ -13,6 +13,7 @@ services:
       ALLOWED_ORIGINS: ${WEB_ORIGIN:?Set the exact public HTTPS origin}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       MAX_USERS: ${MAX_USERS:-10}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-false}
   document-service:
     image: ${DOCUMENT_IMAGE:?Use Artifact Registry image digest}
     environment: { SPRING_PROFILES_ACTIVE: cloud, FLYWAY_ENABLED: 'false', STORAGE_PROVIDER: GCS }

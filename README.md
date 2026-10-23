@@ -20,6 +20,8 @@ python -X utf8 tooling/scripts/run.py down
 
 This keeps the saved data. Do not use `docker compose down -v` unless you intend to erase the local database and files.
 
+Sharing requires the recipient to link Google using the same email; a password-only account can still use its own documents. Choose Google sign-in and enter the existing password when prompted to link an account. No email is sent. New-account registration is disabled by default outside local Compose to protect the lab's ten-account quota. Set `REGISTRATION_ENABLED=true` only during controlled enrollment, then close it again; existing sign-in remains available. Local Compose enables registration unless explicitly disabled.
+
 Choose **Tiếng Việt** or **English** in the language selector on the login, workspace or public document page. Vietnamese is the default; the browser remembers your choice. Switching languages preserves unsaved edits and undo history. Document text, titles, font names and API identifiers are unchanged.
 
 ### Run local frontend with the deployed backend
@@ -129,3 +131,7 @@ npm run preview:local
 Open `http://127.0.0.1:8081/index.html` and `editor.html`. Host `frontend/web/dist/local-site/` on any static HTTP host, including a subdirectory. Scripts, styles, fonts and Workers use relative asset paths; runtime CDNs are unnecessary. Large landing-page headings use locally bundled Noto Serif; the rest of the landing page and product screens use locally bundled Inter with Segoe UI as the first system fallback. Browser Print / Save PDF opens the browser's print dialog; the local site does not use background export jobs.
 
 For a separate hosted application, set `NEXT_PUBLIC_APP_URL` to its URL before `npm run build:local`; this configures navigation links only. The local loopback default points to the application on port 8080. Local Compose accepts both `localhost:8080` and `127.0.0.1:8080` for auth CSRF. LOCAL uploads use the current gateway origin; signed cloud uploads retain their original URL and credential rules.
+
+Public pages have distinct English/Vietnamese search and social metadata. The account workspace, share links and internal tools use `noindex`; the sitemap contains only the introduction, local editor and policy pages. For Next.js hosting, set `SITE_URL` to the public origin (for example `https://example.com`) at runtime so canonical URLs and `sitemap.xml` use the intended host. No canonical host is guessed when it is unset. Language preferences use a cookie on the same URLs; these are not separate language URLs for `hreflang`.
+
+The standalone build prerenders the introduction and policy pages into HTML and loads the editor bundle only when opening `editor.html`. Set `LOCAL_SITE_URL` before `npm run build:local` to its public directory URL (for example `https://example.com/tools/`) to emit canonical links and a sitemap for that host. Keep this separate from `NEXT_PUBLIC_APP_URL`. For subdirectory hosting, reference the generated sitemap from the host's root `robots.txt`; crawlers do not use a subdirectory robots file. Without `LOCAL_SITE_URL`, the output stays portable and omits host-specific SEO URLs.

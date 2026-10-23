@@ -54,6 +54,7 @@ paths:
       x-service: identity-service
       operationId: register
       summary: Register an account
+      description: New account creation requires REGISTRATION_ENABLED=true; otherwise returns 403 REGISTRATION_CLOSED. Registration is rate limited before password hashing.
       responses:
         '201':
           description: Success
@@ -255,7 +256,7 @@ paths:
       x-service: identity-service
       operationId: googleLogin
       summary: Verify a Google ID token and sign in by provider subject
-      description: A verified email collision returns 409 GOOGLE_LINK_REQUIRED; no identity is linked.
+      description: A verified email collision returns 409 GOOGLE_LINK_REQUIRED; no identity is linked. When registration is closed, existing linked accounts can sign in but new account creation returns 403 REGISTRATION_CLOSED.
       security: []
       parameters:
         - { name: X-CSRF-TOKEN, in: header, required: true, schema: { type: string } }
@@ -450,6 +451,7 @@ paths:
       x-service: identity-service
       operationId: resolveUser
       summary: Resolve registered email for Document Service
+      description: Requires a matching verified Google provider email; an active password-only account returns 422 EMAIL_NOT_VERIFIED. Response fields are unchanged.
       responses:
         '200':
           description: Success
@@ -1254,6 +1256,7 @@ paths:
       x-service: document-service
       operationId: grantByEmail
       summary: Owner grant existing account by email
+      description: Recipient must have a matching verified Google email; otherwise returns 422 EMAIL_NOT_VERIFIED. No email is sent.
       responses:
         '200':
           description: Success
@@ -1297,6 +1300,7 @@ paths:
       x-service: document-service
       operationId: putPermission
       summary: Owner create or change explicit grant
+      description: Recipient email ownership is checked even when granting by user ID; missing proof returns 422 EMAIL_NOT_VERIFIED.
       responses:
         '200':
           description: Success

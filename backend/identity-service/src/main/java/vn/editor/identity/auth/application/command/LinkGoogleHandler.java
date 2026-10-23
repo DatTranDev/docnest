@@ -56,6 +56,7 @@ public final class LinkGoogleHandler implements LinkGoogleService {
             if (accounts.hasGoogleIdentity(locked.id())) throw conflict();
             accounts.linkGoogleSubject(identity.subject(), locked.id(), identity.email());
           }
+          accounts.confirmGoogleEmail(identity.subject(), locked.id(), identity.email());
           accounts.updateGooglePicture(locked.id(), identity.pictureUrl());
           return issuer.issue(
               accounts.lockById(locked.id()),

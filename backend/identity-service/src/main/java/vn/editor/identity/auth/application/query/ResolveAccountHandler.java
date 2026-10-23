@@ -4,6 +4,7 @@ import java.util.UUID;
 import vn.editor.identity.auth.application.port.AccountReadRepository;
 import vn.editor.identity.auth.application.port.ServiceCaller;
 import vn.editor.identity.auth.domain.AccountEmail;
+import vn.editor.identity.auth.domain.AccountSharingPolicy;
 import vn.editor.identity.auth.domain.AuthenticationFailure;
 
 public final class ResolveAccountHandler implements ResolveAccountService {
@@ -27,6 +28,9 @@ public final class ResolveAccountHandler implements ResolveAccountService {
               ? AuthenticationFailure.Reason.USER_NOT_REGISTERED
               : AuthenticationFailure.Reason.ACCOUNT_UNAVAILABLE,
           query.byEmail() ? "Account is not registered" : "Account is unavailable");
+    if (query.byEmail())
+      AccountSharingPolicy.requireVerifiedEmail(
+          accounts.hasVerifiedEmail(user.id(), new AccountEmail(user.email())));
     return user;
   }
 }

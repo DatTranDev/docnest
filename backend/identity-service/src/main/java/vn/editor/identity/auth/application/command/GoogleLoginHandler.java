@@ -18,6 +18,7 @@ public final class GoogleLoginHandler implements GoogleLoginService {
   private final GoogleIdentityVerifier identities;
   private final Clock clock;
   private final int maximumAccounts;
+  private final boolean registrationEnabled;
 
   public GoogleLoginHandler(
       AccountCommandRepository accounts,
@@ -25,13 +26,15 @@ public final class GoogleLoginHandler implements GoogleLoginService {
       SessionIssuer issuer,
       GoogleIdentityVerifier identities,
       Clock clock,
-      int maximumAccounts) {
+      int maximumAccounts,
+      boolean registrationEnabled) {
     this.accounts = accounts;
     this.transactions = transactions;
     this.issuer = issuer;
     this.identities = identities;
     this.clock = clock;
     this.maximumAccounts = maximumAccounts;
+    this.registrationEnabled = registrationEnabled;
   }
 
   @Override
@@ -62,6 +65,7 @@ public final class GoogleLoginHandler implements GoogleLoginService {
               throw new AuthenticationFailure(
                   AuthenticationFailure.Reason.GOOGLE_LINK_REQUIRED,
                   "Sign in with your existing account to link Google");
+            RegistrationPolicy.requireOpen(registrationEnabled);
             RegistrationPolicy.requireCapacity(false, accounts.countAccounts(), maximumAccounts);
             String displayName = identity.displayName();
             if (displayName == null || displayName.isBlank())
@@ -83,6 +87,7 @@ public final class GoogleLoginHandler implements GoogleLoginService {
             account = accounts.lockById(account.id());
             account.requireActive();
           }
+          accounts.confirmGoogleEmail(identity.subject(), account.id(), identity.email());
           accounts.updateGooglePicture(account.id(), identity.pictureUrl());
           account = accounts.lockById(account.id());
           return issuer.issue(

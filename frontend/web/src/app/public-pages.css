@@ -924,7 +924,7 @@
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 64 / 45;
+  aspect-ratio: 16 / 9;
   background: var(--ui-tile);
   border: 1px solid var(--ui-border);
   border-radius: var(--ui-radius-card);
@@ -933,6 +933,26 @@
   margin-top: var(--ui-space-4);
   color: var(--ui-muted);
   font-size: var(--ui-text-small);
+}
+.intro-demo-player {
+  position: relative;
+}
+.intro-demo-playback {
+  position: absolute;
+  right: var(--ui-space-4);
+  bottom: var(--ui-space-4);
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
+  color: var(--ui-ink);
+  font: 500 var(--ui-text-small) var(--ui-font);
+  cursor: pointer;
+}
+.intro-demo-playback:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 3px;
 }
 .intro-demo-transcript summary {
   cursor: pointer;

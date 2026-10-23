@@ -16,24 +16,30 @@ public final class RegisterAccountHandler implements RegisterAccountService {
   private final Transactions transactions;
   private final Clock clock;
   private final int maximumAccounts;
+  private final boolean registrationEnabled;
 
   public RegisterAccountHandler(
       AccountCommandRepository accounts,
       PasswordHashes passwords,
       Transactions transactions,
       Clock clock,
-      int maximumAccounts) {
+      int maximumAccounts,
+      boolean registrationEnabled) {
     this.accounts = accounts;
     this.passwords = passwords;
     this.transactions = transactions;
     this.clock = clock;
     this.maximumAccounts = maximumAccounts;
+    this.registrationEnabled = registrationEnabled;
   }
 
   public UserView handle(RegisterAccountCommand command) {
+    RegistrationPolicy.requireOpen(registrationEnabled);
     AccountEmail email = new AccountEmail(command.email());
     RegistrationPolicy.validatePassword(command.password(), true);
     RegistrationPolicy.validateDisplayName(command.displayName());
+    RegistrationPolicy.requireCapacity(
+        accounts.emailExists(email), accounts.countAccounts(), maximumAccounts);
     String hash = passwords.encode(command.password());
     return transactions.execute(
         () -> {

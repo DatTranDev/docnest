@@ -119,7 +119,9 @@ public final class IdentityController {
   }
 
   @PostMapping("/api/v1/auth/register")
-  public ResponseEntity<?> register(@RequestBody RegisterRequestDto request) {
+  public ResponseEntity<?> register(
+      @RequestBody RegisterRequestDto request, HttpServletRequest http) {
+    rates.handle(new CheckLoginAttemptCommand(http.getRemoteAddr()));
     return ResponseEntity.status(201)
         .body(
             UserResponseDto.from(

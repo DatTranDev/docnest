@@ -118,7 +118,7 @@ export function SiteIntro({ standalone = false }: { standalone?: boolean }) {
           </ul>
         </section>
 
-        <ProductDemo editorUrl={edit()} />
+        <ProductDemo editorUrl={edit()} standalone={standalone} />
       </main>
       <SiteFooter standalone={standalone} introduction />
     </div>

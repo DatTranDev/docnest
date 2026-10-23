@@ -2,8 +2,10 @@ import { defineConfig } from 'vite';
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { localNotices } from './local-site/notices';
+import { localSiteSeo } from './local-site/seo';
 export default defineConfig({
   plugins: [
+    localSiteSeo(),
     {
       name: 'local-site-notices',
       generateBundle() {

@@ -40,7 +40,10 @@ public final class SharingCommandHandler implements SharingCommandService {
 
   public PermissionView handle(GrantDocumentAccessCommand command) {
     documents.requireOwner(command.actor(), command.documentId(), false, false);
-    accounts.user(command.granteeUserId(), command.authorization());
+    AccountDirectory.Account account =
+        accounts.user(command.granteeUserId(), command.authorization());
+    AccountDirectory.Account verified = accounts.resolve(account.email(), command.authorization());
+    SharingPolicy.recipient(command.granteeUserId(), verified.id());
     return grant(command);
   }
 

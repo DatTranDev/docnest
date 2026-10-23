@@ -56,6 +56,16 @@ public class IdentityClient implements AccountDirectory {
           .retrieve()
           .body(Map.class);
     } catch (RestClientResponseException ex) {
+      if (ex.getStatusCode().value() == 422) {
+        Map<?, ?> body;
+        try {
+          body = ex.getResponseBodyAs(Map.class);
+        } catch (RuntimeException invalid) {
+          throw new DomainException(503, "IDENTITY_UNAVAILABLE");
+        }
+        if (body != null && "EMAIL_NOT_VERIFIED".equals(body.get("code")))
+          throw new DomainException(422, "EMAIL_NOT_VERIFIED");
+      }
       if (ex.getStatusCode().value() == 404 || ex.getStatusCode().value() == 422)
         throw new DomainException(422, "USER_NOT_REGISTERED");
       throw new DomainException(503, "IDENTITY_UNAVAILABLE");

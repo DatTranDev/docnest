@@ -109,6 +109,7 @@ write(
                 "JWT_KEY_PATH": "/keys/identity-key.pem",
                 "JWT_ALLOW_KEY_GENERATION": "false",
                 "SECURE_COOKIES": "true",
+                "REGISTRATION_ENABLED": "false",
                 "JAVA_TOOL_OPTIONS": "-XX:MaxRAMPercentage=60 -Dfile.encoding=UTF-8",
             },
         }

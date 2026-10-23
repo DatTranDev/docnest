@@ -50,7 +50,8 @@ class GoogleLinkingTest {
   @Test
   void emailCollisionRequiresExplicitLinkAndCreatesNoIdentity() {
     when(accounts.emailExists(email)).thenReturn(true);
-    var handler = new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100);
+    var handler =
+        new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100, true);
     var failure = assertThrows(AuthenticationFailure.class, () -> handler.handle("google-token"));
     assertEquals(AuthenticationFailure.Reason.GOOGLE_LINK_REQUIRED, failure.reason());
     verify(accounts, never()).insert(any());
@@ -67,6 +68,7 @@ class GoogleLinkingTest {
     var result = handler.handle(email.value(), "correct-password", "google-token");
     assertEquals(account.id(), result.user().id());
     verify(accounts).linkGoogleSubject(identity.subject(), account.id(), email);
+    verify(accounts).confirmGoogleEmail(identity.subject(), account.id(), email);
     verify(accounts, never()).insert(any());
   }
 
@@ -75,8 +77,10 @@ class GoogleLinkingTest {
     when(accounts.findByGoogleSubject(identity.subject())).thenReturn(account);
     when(accounts.lockById(account.id())).thenReturn(account);
     when(issuer.issue(eq(account), any(), any())).thenReturn(session());
-    var handler = new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100);
+    var handler =
+        new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100, false);
     assertEquals(account.id(), handler.handle("google-token").user().id());
+    verify(accounts).confirmGoogleEmail(identity.subject(), account.id(), email);
     verify(accounts, never()).insert(any());
   }
 
@@ -87,7 +91,8 @@ class GoogleLinkingTest {
     when(issuer.issue(eq(account), any(), any())).thenReturn(session());
     // The racing callback commits the subject before this insert finishes.
     when(accounts.emailExists(email)).thenReturn(false);
-    var handler = new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100);
+    var handler =
+        new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100, true);
     // A generated ID may differ from the committed owner's ID; the DB unique index
     // is the authority, so simulate its conflict at insert.
     org.mockito.Mockito.doThrow(
@@ -96,6 +101,17 @@ class GoogleLinkingTest {
         .when(accounts)
         .insert(any());
     assertEquals(account.id(), handler.handle("google-token").user().id());
+  }
+
+  @Test
+  void closedRegistrationRejectsNewGoogleAccountsWithoutCreatingAnIdentity() {
+    var handler =
+        new GoogleLoginHandler(accounts, transactions, issuer, verifier, CLOCK, 100, false);
+    assertEquals(
+        AuthenticationFailure.Reason.REGISTRATION_CLOSED,
+        assertThrows(AuthenticationFailure.class, () -> handler.handle("google-token")).reason());
+    verify(accounts, never()).insert(any());
+    verify(accounts, never()).linkGoogleSubject(any(), any(), any());
   }
 
   private AuthenticationSession session() {

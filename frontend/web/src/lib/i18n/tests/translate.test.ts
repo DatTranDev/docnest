@@ -78,6 +78,15 @@ describe('English and Vietnamese catalogs', () => {
   it('maps API codes and contains unknown or malformed error data', () => {
     expect(translateError('en', 'INVALID_CREDENTIALS')).toBe('Incorrect email or password.');
     expect(translateError('vi', 'EMAIL_ALREADY_REGISTERED')).toBe('Email đã được đăng ký.');
+    expect(translateError('en', 'EMAIL_NOT_VERIFIED')).toBe(
+      'The recipient must link Google with this email before you can share with them.',
+    );
+    expect(translateError('vi', 'EMAIL_NOT_VERIFIED')).toBe(
+      'Người nhận cần liên kết Google bằng email này trước khi bạn có thể chia sẻ.',
+    );
+    expect(translateError('en', 'REGISTRATION_CLOSED')).toBe(
+      'New account registration is currently closed. Existing users can still sign in.',
+    );
     for (const error of [
       '__proto__',
       'toString',

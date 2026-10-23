@@ -10,6 +10,8 @@ public interface AccountReadRepository {
 
   UserView activeByEmail(AccountEmail email);
 
+  boolean hasVerifiedEmail(String userId, AccountEmail email);
+
   AvatarImage avatarById(String userId);
 
   CredentialStatus credentialStatus(String userId);

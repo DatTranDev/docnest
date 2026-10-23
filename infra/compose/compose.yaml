@@ -136,6 +136,7 @@ services:
       IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       MAX_USERS: ${MAX_USERS:-10}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
       IDENTITY_DB_URL: jdbc:mysql://mysql:3306/identity_db?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
       IDENTITY_DB_USER: identity
       JWT_KEY_PATH: /data/keys/identity-key.pem

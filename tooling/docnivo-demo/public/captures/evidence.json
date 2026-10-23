@@ -1,0 +1,15 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 700
+  },
+  "deviceScaleFactor": 2,
+  "features": [
+    "Created, renamed, typed and saved a real rich document",
+    "Jamie joined with Editor access; Jamie’s text arrived in Alex’s session",
+    "Created a real seven-day public viewing link and copied it; token redacted"
+  ],
+  "linkRevokedAfterCapture": true,
+  "writingSteps": 24,
+  "capturedAt": "2026-10-21T17:45:31.434Z"
+}
